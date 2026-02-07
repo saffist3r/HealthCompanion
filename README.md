@@ -2,6 +2,8 @@
 
 A Wear OS watch face that displays time, glycemia (blood glucose), heart rate, and steps.
 
+![Health Companion Watch Face](assets/watch-face-screenshot.png)
+
 **Latest release:** [v1.0.0](RELEASES.md#release-v100) · [Changelog](CHANGELOG.md)
 
 Glycemia values are automatically synced from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
