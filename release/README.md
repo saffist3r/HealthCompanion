@@ -9,7 +9,7 @@ After running `npm run build:release`, you will find:
 | File | Description |
 |------|-------------|
 | `HealthCompanion-watch-1.0.0.apk` | Wear OS watch app + watch face |
-| `HealthCompanion-phone-1.0.0.apk` | Android phone app (if built) |
+| `HealthCompanion-phone-1.0.0.apk` | Android phone app |
 
 ## Installation
 

@@ -34,19 +34,22 @@ To build the release APKs from source:
 npm run build:release
 ```
 
-This produces:
+This produces both:
 
 - `release/v1.0.0/HealthCompanion-watch-1.0.0.apk`
-- `release/v1.0.0/HealthCompanion-phone-1.0.0.apk` (if mobile build succeeds)
+- `release/v1.0.0/HealthCompanion-phone-1.0.0.apk`
 
 Or build individually:
 
 ```bash
-# Watch APK only
+# Watch APK
 npm run build:watch
+# -> apps/watch/android/app/build/outputs/apk/release/app-release.apk
 
-# APK location: apps/watch/android/app/build/outputs/apk/release/app-release.apk
-# Copy/rename to: HealthCompanion-watch-1.0.0.apk
+# Phone APK (requires expo prebuild first)
+npm run build:mobile
+cd apps/mobile/android && ./gradlew assembleRelease
+# -> apps/mobile/android/app/build/outputs/apk/release/app-release.apk
 ```
 
 ### GitHub Release

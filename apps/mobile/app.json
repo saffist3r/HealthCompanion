@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Health Companion",
+    "slug": "health-companion",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/health-companion-logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saffist3r.healthcompanion"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/health-companion-logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.saffist3r.healthcompanion"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

@@ -29,20 +29,22 @@ else
   exit 1
 fi
 
-# Build phone APK (requires expo prebuild first)
+# Build phone APK (expo prebuild + gradle assembleRelease)
 echo "Building phone app..."
-if npm run build:mobile 2>/dev/null; then
+npm run build:mobile
+if [ -d "$ROOT/apps/mobile/android" ]; then
+  (cd "$ROOT/apps/mobile/android" && ./gradlew assembleRelease)
   PHONE_APK="$ROOT/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
   if [ -f "$PHONE_APK" ]; then
     cp "$PHONE_APK" "$RELEASE_DIR/HealthCompanion-phone-$VERSION.apk"
     echo "  -> $RELEASE_DIR/HealthCompanion-phone-$VERSION.apk"
   else
-    # Try alternative path (expo prebuild may put android in different location)
-    PHONE_APK="$ROOT/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
-    [ -f "$PHONE_APK" ] && cp "$PHONE_APK" "$RELEASE_DIR/HealthCompanion-phone-$VERSION.apk" && echo "  -> $RELEASE_DIR/HealthCompanion-phone-$VERSION.apk" || echo "  (Phone APK not found - build manually with: cd apps/mobile && npx expo run:android --variant release)"
+    echo "Error: Phone APK not found"
+    exit 1
   fi
 else
-  echo "  (Phone build skipped - run 'npm run build:mobile' then 'cd apps/mobile/android && ./gradlew assembleRelease' manually)"
+  echo "Error: expo prebuild did not create android/"
+  exit 1
 fi
 
 echo ""
