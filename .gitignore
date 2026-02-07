@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+apps/watch/android/.gradle/
+apps/watch/android/app/build/
+apps/watch/android/build/
+apps/mobile/android/
+apps/mobile/ios/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+
+# Release APKs (large binaries - attach to GitHub Releases instead)
+release/*/*.apk
+
+# Expo / React Native
+.expo/
+dist/
+*.tsbuildinfo

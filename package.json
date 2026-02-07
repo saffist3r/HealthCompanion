@@ -1,0 +1,25 @@
+{
+  "name": "health-companion",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "npm run build -w @health-companion/shared && patch-package",
+    "mobile": "npm run start --workspace=apps/mobile",
+    "logcat": "adb logcat *:S ReactNative:V ReactNativeJS:V RNAndroidNotificationListener:V",
+    "watch": "npm run start --workspace=apps/watch",
+    "build:mobile": "npm run build --workspace=apps/mobile",
+    "build:watch": "npm run build --workspace=apps/watch",
+    "build:release": "./scripts/build-release.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  }
+}

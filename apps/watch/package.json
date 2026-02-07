@@ -1,0 +1,9 @@
+{
+  "name": "watch",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd android && ./gradlew installDebug",
+    "build": "cd android && ./gradlew assembleRelease"
+  }
+}

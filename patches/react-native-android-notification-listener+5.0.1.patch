@@ -1,0 +1,1123 @@
+diff --git a/node_modules/react-native-android-notification-listener/android/build.gradle b/node_modules/react-native-android-notification-listener/android/build.gradle
+index 1274a12..72906c5 100644
+--- a/node_modules/react-native-android-notification-listener/android/build.gradle
++++ b/node_modules/react-native-android-notification-listener/android/build.gradle
+@@ -126,4 +126,5 @@ dependencies {
+   implementation "com.facebook.react:react-native:+"
+ // From node_modules
+     implementation 'com.google.code.gson:gson:2.8.6'
++    implementation 'com.google.android.gms:play-services-wearable:18.1.0'
+ }
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/results.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/transformed/classes/classes_dex/classes.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..4b93fc3
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/664d2f06980bddcb80bb2cb5f9c91dae/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/results.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/results.bin
+new file mode 100644
+index 0000000..7ed749e
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/results.bin
+@@ -0,0 +1 @@
++o/bundleLibRuntimeToDirDebug
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex
+new file mode 100644
+index 0000000..35cc79f
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex
+new file mode 100644
+index 0000000..c5eba07
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.dex
+new file mode 100644
+index 0000000..8728b4e
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex
+new file mode 100644
+index 0000000..b4459e5
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex
+new file mode 100644
+index 0000000..01de45b
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex
+new file mode 100644
+index 0000000..0159a32
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex
+new file mode 100644
+index 0000000..505c0a5
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex
+new file mode 100644
+index 0000000..31353d2
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex
+new file mode 100644
+index 0000000..fd1a0d8
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin
+new file mode 100644
+index 0000000..71d28d3
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/95521f41445dbebaa868711d76090587/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/results.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/results.bin
+new file mode 100644
+index 0000000..7ed749e
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/results.bin
+@@ -0,0 +1 @@
++o/bundleLibRuntimeToDirDebug
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex
+new file mode 100644
+index 0000000..35cc79f
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BootUpReceiver.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex
+new file mode 100644
+index 0000000..c5eba07
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/BuildConfig.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex
+new file mode 100644
+index 0000000..58d47b4
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex
+new file mode 100644
+index 0000000..01de45b
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex
+new file mode 100644
+index 0000000..0159a32
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex
+new file mode 100644
+index 0000000..505c0a5
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex
+new file mode 100644
+index 0000000..31353d2
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNGroupedNotification.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex
+new file mode 100644
+index 0000000..fd1a0d8
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/lesimoes/androidnotificationlistener/RNNotification.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin
+new file mode 100644
+index 0000000..601f245
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/b2cd0939b74f0bbab473f245b90db591/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/results.bin b/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/transformed/classes/classes_dex/classes.dex b/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..ce1825c
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/.transforms/d7d3c79d01ed239288815424cfc77400/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/generated/source/buildConfig/debug/com/lesimoes/androidnotificationlistener/BuildConfig.java b/node_modules/react-native-android-notification-listener/android/build/generated/source/buildConfig/debug/com/lesimoes/androidnotificationlistener/BuildConfig.java
+new file mode 100644
+index 0000000..d12c9e7
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/generated/source/buildConfig/debug/com/lesimoes/androidnotificationlistener/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.lesimoes.androidnotificationlistener;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = Boolean.parseBoolean("true");
++  public static final String LIBRARY_PACKAGE_NAME = "com.lesimoes.androidnotificationlistener";
++  public static final String BUILD_TYPE = "debug";
++}
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..3fc3f90
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,37 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.lesimoes.androidnotificationlistener" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
++    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
++    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
++    <uses-permission android:name="android.permission.WAKE_LOCK" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
++
++    <application android:allowBackup="false" >
++        <service
++            android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener"
++            android:exported="true"
++            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
++            <intent-filter>
++                <action android:name="android.service.notification.NotificationListenerService" />
++            </intent-filter>
++        </service>
++        <service android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListenerHeadlessJsTaskService" />
++
++        <receiver
++            android:name="com.lesimoes.androidnotificationlistener.BootUpReceiver"
++            android:enabled="true"
++            android:exported="true"
++            android:permission="android.permission.RECEIVE_BOOT_COMPLETED" >
++            <intent-filter>
++                <action android:name="android.intent.action.BOOT_COMPLETED" />
++
++                <category android:name="android.intent.category.DEFAULT" />
++            </intent-filter>
++        </receiver>
++    </application>
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json b/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..99da538
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.lesimoes.androidnotificationlistener",
++  "variantName": "debug",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar b/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar
+new file mode 100644
+index 0000000..d527de6
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties b/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..1211b1e
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json b/node_modules/react-native-android-notification-listener/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar b/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar
+new file mode 100644
+index 0000000..b9188cf
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
+new file mode 100644
+index 0000000..445e25e
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state
+new file mode 100644
+index 0000000..1c983fc
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..1edcb67
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Fri Feb 06 19:16:33 CET 2026
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..161b42f
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/build/generated/res/resValues/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/build/generated/res/resValues/debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugAssets/merger.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+new file mode 100644
+index 0000000..5b6e764
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/assets"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/debug/assets"/></dataSet><dataSet config="generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/build/intermediates/shader_assets/debug/compileDebugShaders/out"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..c76bf42
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/jniLibs"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/debug/jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugShaders/merger.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+new file mode 100644
+index 0000000..73e65b2
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/shaders"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/debug/shaders"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BootUpReceiver.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BootUpReceiver.class
+new file mode 100644
+index 0000000..314e539
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BootUpReceiver.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BuildConfig.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BuildConfig.class
+new file mode 100644
+index 0000000..c9837fb
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/BuildConfig.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class
+new file mode 100644
+index 0000000..b99922d
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class
+new file mode 100644
+index 0000000..fb44639
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class
+new file mode 100644
+index 0000000..1bacb7a
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class
+new file mode 100644
+index 0000000..1f3ef61
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class
+new file mode 100644
+index 0000000..a543007
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class
+new file mode 100644
+index 0000000..a88e138
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNNotification.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNNotification.class
+new file mode 100644
+index 0000000..cbe39b1
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/lesimoes/androidnotificationlistener/RNNotification.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+new file mode 100644
+index 0000000..6562a2f
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,68 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.lesimoes.androidnotificationlistener" >
++4
++5    <uses-sdk android:minSdkVersion="24" />
++6
++7    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
++7-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:4:5-92
++7-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:4:22-90
++8    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
++8-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:5:5-74
++8-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:5:22-72
++9    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
++9-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:6:5-81
++9-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:6:22-78
++10    <uses-permission android:name="android.permission.WAKE_LOCK" />
++10-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:7:5-68
++10-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:7:22-65
++11    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
++11-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:8:5-77
++11-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:8:22-74
++12
++13    <application android:allowBackup="false" >
++13-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:10:5-33:19
++13-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:11:9-36
++14        <service
++14-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:12:9-19:19
++15            android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener"
++15-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:13:13-58
++16            android:exported="true"
++16-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:15:13-36
++17            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
++17-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:14:13-87
++18            <intent-filter>
++18-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:16:13-18:29
++19                <action android:name="android.service.notification.NotificationListenerService" />
++19-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:17:17-99
++19-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:17:25-96
++20            </intent-filter>
++21        </service>
++22        <service android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListenerHeadlessJsTaskService" />
++22-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:21:9-127
++22-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:21:18-124
++23
++24        <receiver
++24-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:23:9-32:20
++25            android:name="com.lesimoes.androidnotificationlistener.BootUpReceiver"
++25-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:24:13-83
++26            android:enabled="true"
++26-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:25:13-35
++27            android:exported="true"
++27-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:26:13-36
++28            android:permission="android.permission.RECEIVE_BOOT_COMPLETED" >
++28-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:27:13-75
++29            <intent-filter>
++29-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:28:13-31:29
++30                <action android:name="android.intent.action.BOOT_COMPLETED" />
++30-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:29:17-79
++30-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:29:25-76
++31
++32                <category android:name="android.intent.category.DEFAULT" />
++32-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:30:17-76
++32-->/Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:30:27-73
++33            </intent-filter>
++34        </receiver>
++35    </application>
++36
++37</manifest>
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-react-native-android-notification-listener.jar b/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-react-native-android-notification-listener.jar
+new file mode 100644
+index 0000000..15cb0ec
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-react-native-android-notification-listener.jar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml b/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..3fc3f90
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+@@ -0,0 +1,37 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.lesimoes.androidnotificationlistener" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
++    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
++    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
++    <uses-permission android:name="android.permission.WAKE_LOCK" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
++
++    <application android:allowBackup="false" >
++        <service
++            android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener"
++            android:exported="true"
++            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
++            <intent-filter>
++                <action android:name="android.service.notification.NotificationListenerService" />
++            </intent-filter>
++        </service>
++        <service android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListenerHeadlessJsTaskService" />
++
++        <receiver
++            android:name="com.lesimoes.androidnotificationlistener.BootUpReceiver"
++            android:enabled="true"
++            android:exported="true"
++            android:permission="android.permission.RECEIVE_BOOT_COMPLETED" >
++            <intent-filter>
++                <action android:name="android.intent.action.BOOT_COMPLETED" />
++
++                <category android:name="android.intent.category.DEFAULT" />
++            </intent-filter>
++        </receiver>
++    </application>
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json b/node_modules/react-native-android-notification-listener/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BootUpReceiver.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BootUpReceiver.class
+new file mode 100644
+index 0000000..314e539
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BootUpReceiver.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BuildConfig.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BuildConfig.class
+new file mode 100644
+index 0000000..c9837fb
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/BuildConfig.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class
+new file mode 100644
+index 0000000..b99922d
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener$RemoteViewAction.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class
+new file mode 100644
+index 0000000..fb44639
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class
+new file mode 100644
+index 0000000..1bacb7a
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerHeadlessJsTaskService.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class
+new file mode 100644
+index 0000000..1f3ef61
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class
+new file mode 100644
+index 0000000..a543007
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerPackage.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class
+new file mode 100644
+index 0000000..a88e138
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNGroupedNotification.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNNotification.class b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNNotification.class
+new file mode 100644
+index 0000000..cbe39b1
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/lesimoes/androidnotificationlistener/RNNotification.class differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar
+new file mode 100644
+index 0000000..0e9e8d0
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/react-native-android-notification-listener/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..53f8ae3
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++com.lesimoes.androidnotificationlistener
+diff --git a/node_modules/react-native-android-notification-listener/android/build/outputs/aar/react-native-android-notification-listener-debug.aar b/node_modules/react-native-android-notification-listener/android/build/outputs/aar/react-native-android-notification-listener-debug.aar
+new file mode 100644
+index 0000000..78f5754
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/outputs/aar/react-native-android-notification-listener-debug.aar differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/react-native-android-notification-listener/android/build/outputs/logs/manifest-merger-debug-report.txt
+new file mode 100644
+index 0000000..7363aab
+--- /dev/null
++++ b/node_modules/react-native-android-notification-listener/android/build/outputs/logs/manifest-merger-debug-report.txt
+@@ -0,0 +1,79 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:1:1-34:12
++INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:1:1-34:12
++	package
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:2:11-61
++		INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:1:11-69
++uses-permission#android.permission.BIND_NOTIFICATION_LISTENER_SERVICE
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:4:5-92
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:4:22-90
++uses-permission#android.permission.READ_PHONE_STATE
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:5:5-74
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:5:22-72
++uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:6:5-81
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:6:22-78
++uses-permission#android.permission.WAKE_LOCK
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:7:5-68
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:7:22-65
++uses-permission#android.permission.FOREGROUND_SERVICE
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:8:5-77
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:8:22-74
++application
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:10:5-33:19
++	android:allowBackup
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:11:9-36
++service#com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:12:9-19:19
++	android:exported
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:15:13-36
++	android:permission
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:14:13-87
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:13:13-58
++intent-filter#action:name:android.service.notification.NotificationListenerService
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:16:13-18:29
++action#android.service.notification.NotificationListenerService
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:17:17-99
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:17:25-96
++service#com.lesimoes.androidnotificationlistener.RNAndroidNotificationListenerHeadlessJsTaskService
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:21:9-127
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:21:18-124
++receiver#com.lesimoes.androidnotificationlistener.BootUpReceiver
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:23:9-32:20
++	android:enabled
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:25:13-35
++	android:exported
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:26:13-36
++	android:permission
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:27:13-75
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:24:13-83
++intent-filter#action:name:android.intent.action.BOOT_COMPLETED+category:name:android.intent.category.DEFAULT
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:28:13-31:29
++action#android.intent.action.BOOT_COMPLETED
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:29:17-79
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:29:25-76
++category#android.intent.category.DEFAULT
++ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:30:17-76
++	android:name
++		ADDED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml:30:27-73
++uses-sdk
++INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml
++INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/Saffist3r/Projects/HealthCompanion/node_modules/react-native-android-notification-listener/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/BootUpReceiver.class.uniqueId2 b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/BootUpReceiver.class.uniqueId2
+new file mode 100644
+index 0000000..314e539
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/BootUpReceiver.class.uniqueId2 differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener$RemoteViewAction.class.uniqueId0 b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener$RemoteViewAction.class.uniqueId0
+new file mode 100644
+index 0000000..283f9d1
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener$RemoteViewAction.class.uniqueId0 differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener.class.uniqueId1 b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener.class.uniqueId1
+new file mode 100644
+index 0000000..96f1b3f
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/compileTransaction/stash-dir/RNAndroidNotificationListener.class.uniqueId1 differ
+diff --git a/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin
+new file mode 100644
+index 0000000..0c419ac
+Binary files /dev/null and b/node_modules/react-native-android-notification-listener/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin differ
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
+index 350e4c2..1417266 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
+@@ -6,17 +6,43 @@ import android.content.Context;
+ import android.service.notification.NotificationListenerService;
+ import android.service.notification.StatusBarNotification;
+ import android.util.Log;
++import android.util.Pair;
++import android.os.Bundle;
+ import android.app.Notification;
++import android.widget.RemoteViews;
+ import com.google.gson.Gson;
++import com.google.android.gms.wearable.PutDataMapRequest;
++import com.google.android.gms.wearable.Wearable;
+ 
+ import com.facebook.react.HeadlessJsTaskService;
+ 
++import java.lang.reflect.Method;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Set;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++
++import android.view.View;
++import android.view.ViewGroup;
++import android.widget.FrameLayout;
++import android.widget.TextView;
++
+ public class RNAndroidNotificationListener extends NotificationListenerService {
+     private static final String TAG = "RNAndroidNotificationListener";
++    private static final String PREFS_NAME = "health_companion";
++    private static final String KEY_GLYCEMIA = "last_glycemia";
++    private static final String KEY_CAPAPS_DEBUG = "capaps_debug";
++    private static final String GLYCEMIA_PATH = "/health_companion/glycemia";
++    private static final ExecutorService CAPAPS_EXECUTOR = Executors.newSingleThreadExecutor();
+ 
+     @Override
+     public void onNotificationPosted(StatusBarNotification sbn) {
+-        Notification statusBarNotification = sbn.getNotification();
++        if (sbn != null && sbn.getPackageName() != null && sbn.getPackageName().startsWith("com.camdiab")) {
++            tryExtractCapAPSGlycemia(sbn);
++        }
++
++        Notification statusBarNotification = sbn != null ? sbn.getNotification() : null;
+ 
+         if (statusBarNotification == null || statusBarNotification.extras == null) {
+             Log.d(TAG, "The notification received has no data");
+@@ -39,6 +65,383 @@ public class RNAndroidNotificationListener extends NotificationListenerService {
+         context.startService(serviceIntent);
+     }
+ 
++    private static boolean sHiddenApiBypassAttempted = false;
++
++    private static void tryBypassHiddenApiRestrictions() {
++        if (sHiddenApiBypassAttempted) return;
++        sHiddenApiBypassAttempted = true;
++        try {
++            Method forName = Class.class.getDeclaredMethod("forName", String.class);
++            Method getDeclaredMethod = Class.class.getDeclaredMethod("getDeclaredMethod", String.class, Class[].class);
++            Class<?> vmRuntimeClass = (Class<?>) forName.invoke(null, "dalvik.system.VMRuntime");
++            Method getRuntime = (Method) getDeclaredMethod.invoke(vmRuntimeClass, "getRuntime", new Class<?>[0]);
++            Method setHiddenApiExemptions = (Method) getDeclaredMethod.invoke(vmRuntimeClass, "setHiddenApiExemptions", new Class<?>[]{String[].class});
++            Object runtime = getRuntime.invoke(null);
++            setHiddenApiExemptions.invoke(runtime, (Object) new String[]{"L"});
++            Log.d(TAG, "CapAPS: hidden API bypass applied");
++        } catch (Exception e) {
++            Log.d(TAG, "CapAPS: hidden API bypass failed: " + e.getMessage());
++        }
++    }
++
++    private void tryExtractCapAPSGlycemia(StatusBarNotification sbn) {
++        Notification notif = sbn.getNotification();
++        if (notif == null) return;
++
++        tryBypassHiddenApiRestrictions();
++
++        Float value = null;
++        String unit = null;
++
++        // 1. Try RemoteViews reflection (contentView, bigContentView, headsUpContentView)
++        RemoteViews[] allViews = { notif.contentView, notif.bigContentView, notif.headsUpContentView };
++        for (RemoteViews contentView : allViews) {
++            if (contentView == null) continue;
++            ArrayList<RemoteViewAction> actions = getRemoteViewActionsRecursive(contentView, 0);
++            Log.d(TAG, "CapAPS: got " + actions.size() + " actions from RemoteViews");
++            Pair<Float, String> parsed = parseGlycemiaFromActions(actions, sbn.getPackageName());
++            if (parsed != null) {
++                value = parsed.first;
++                unit = parsed.second;
++                break;
++            }
++        }
++
++        // 2. Try inflating RemoteViews and extracting TextView text
++        if (value == null) {
++            for (RemoteViews rv : allViews) {
++                if (rv == null) continue;
++                String inflatedText = extractTextFromRemoteViews(rv, sbn.getPackageName());
++                if (!inflatedText.isEmpty()) {
++                    Pair<Float, String> parsed = parseGlycemiaFromText(inflatedText, sbn.getPackageName());
++                    if (parsed != null) {
++                        value = parsed.first;
++                        unit = parsed.second;
++                        break;
++                    }
++                }
++            }
++        }
++
++        // 3. Fallback: parse from notification extras and tickerText
++        if (value == null) {
++            String fallbackText = buildFallbackText(notif);
++            Log.d(TAG, "CapAPS fallbackText=" + (fallbackText.length() > 300 ? fallbackText.substring(0, 300) + "..." : fallbackText));
++            saveDebug("fallbackText=" + (fallbackText.length() > 200 ? fallbackText.substring(0, 200) + "..." : fallbackText));
++            if (!fallbackText.isEmpty()) {
++                Pair<Float, String> parsed = parseGlycemiaFromText(fallbackText, sbn.getPackageName());
++                if (parsed != null) {
++                    value = parsed.first;
++                    unit = parsed.second;
++                }
++            }
++        }
++
++        if (value == null) return;
++        if (unit == null) unit = sbn.getPackageName().contains("mgdl") ? "mg/dL" : "mmol/L";
++
++        final float finalValue = value;
++        final String finalUnit = unit;
++        CAPAPS_EXECUTOR.execute(() -> {
++            try {
++                String json = "{\"value\":" + finalValue + ",\"unit\":\"" + finalUnit + "\",\"timestamp\":" + System.currentTimeMillis() + "}";
++                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_GLYCEMIA, json).apply();
++                PutDataMapRequest req = PutDataMapRequest.create(GLYCEMIA_PATH);
++                req.getDataMap().putDouble("value", finalValue);
++                req.getDataMap().putString("unit", finalUnit);
++                req.getDataMap().putLong("timestamp", System.currentTimeMillis());
++                Wearable.getDataClient(getApplicationContext()).putDataItem(req.asPutDataRequest());
++                saveDebug("OK " + finalValue + " " + finalUnit);
++        Log.d(TAG, "CapAPS glycemia: " + finalValue + " " + finalUnit);
++            } catch (Exception e) {
++                Log.e(TAG, "CapAPS sync failed", e);
++            }
++        });
++    }
++
++    private String extractTextFromRemoteViews(RemoteViews rv, String packageName) {
++        if (rv == null) return "";
++        try {
++            Context ctx = getApplicationContext();
++            Context pkgCtx = ctx.createPackageContext(packageName, Context.CONTEXT_IGNORE_SECURITY | Context.CONTEXT_INCLUDE_CODE);
++            FrameLayout parent = new FrameLayout(ctx);
++            View v = rv.apply(pkgCtx, parent);
++            StringBuilder sb = new StringBuilder();
++            collectTextViewText(v, sb);
++            return sb.toString().trim();
++        } catch (Exception e) {
++            Log.d(TAG, "CapAPS inflate failed: " + e.getClass().getSimpleName() + " " + e.getMessage());
++            return "";
++        }
++    }
++
++    private static void collectTextViewText(View v, StringBuilder sb) {
++        if (v == null) return;
++        if (v instanceof TextView) {
++            CharSequence t = ((TextView) v).getText();
++            if (t != null && t.length() > 0) sb.append(t).append(" ");
++        }
++        if (v instanceof ViewGroup) {
++            ViewGroup vg = (ViewGroup) v;
++            for (int i = 0; i < vg.getChildCount(); i++) {
++                collectTextViewText(vg.getChildAt(i), sb);
++            }
++        }
++    }
++
++    private void saveDebug(String msg) {
++        try {
++            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
++                .edit().putString(KEY_CAPAPS_DEBUG, System.currentTimeMillis() + " " + msg).apply();
++        } catch (Exception e) { /* ignore */ }
++    }
++
++    private static Float parseFloat(String s) {
++        if (s == null) return null;
++        try {
++            return Float.parseFloat(s.trim());
++        } catch (NumberFormatException e) {
++            return null;
++        }
++    }
++
++    private static Pair<Float, String> parseGlycemiaFromActions(ArrayList<RemoteViewAction> actions, String packageName) {
++        Float value = null;
++        String unit = null;
++        for (RemoteViewAction a : actions) {
++            if (!"setText".equals(a.methodName)) continue;
++            Object v = a.value;
++            if (v instanceof String) {
++                String s = (String) v;
++                if ("mmol/L".equalsIgnoreCase(s) || "mg/dL".equalsIgnoreCase(s)) {
++                    if (unit == null) unit = s;
++                } else {
++                    Float f = parseFloat(s);
++                    if (f != null && f >= 0 && f <= 600 && value == null) value = f;
++                }
++            } else if (v instanceof CharSequence) {
++                Float f = parseFloat(v.toString());
++                if (f != null && f >= 0 && f <= 600 && value == null) value = f;
++            }
++        }
++        if (value == null) return null;
++        if (unit == null) unit = packageName != null && packageName.contains("mgdl") ? "mg/dL" : "mmol/L";
++        return new Pair<>(value, unit);
++    }
++
++    private static String buildFallbackText(Notification notif) {
++        StringBuilder sb = new StringBuilder();
++        if (notif.tickerText != null) sb.append(notif.tickerText).append(" ");
++        if (notif.extras != null) {
++            Bundle e = notif.extras;
++            String[] textKeys = { Notification.EXTRA_TITLE, Notification.EXTRA_TEXT, Notification.EXTRA_SUB_TEXT,
++                Notification.EXTRA_BIG_TEXT, Notification.EXTRA_INFO_TEXT, Notification.EXTRA_SUMMARY_TEXT,
++                "android.title", "android.text" };
++            for (String key : textKeys) {
++                try {
++                    Object val = e.get(key);
++                    if (val instanceof CharSequence) sb.append(((CharSequence) val).toString().trim()).append(" ");
++                    else if (val instanceof String) sb.append(((String) val).trim()).append(" ");
++                } catch (Exception ex) { /* skip */ }
++            }
++            Set<String> keys = e.keySet();
++            if (keys != null) {
++                for (String key : keys) {
++                    try {
++                        Object val = e.get(key);
++                        if (val instanceof CharSequence) {
++                            String s = ((CharSequence) val).toString().trim();
++                            if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                        } else if (val instanceof String) {
++                            String s = ((String) val).trim();
++                            if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                        }
++                    } catch (Exception ex) { /* skip */ }
++                }
++            }
++        }
++        if (notif.publicVersion != null && notif.publicVersion.extras != null) {
++            try {
++                Object t = notif.publicVersion.extras.getCharSequence(Notification.EXTRA_TEXT);
++                if (t != null) sb.append(t.toString().trim()).append(" ");
++            } catch (Exception ex) { /* skip */ }
++        }
++        return sb.toString().trim();
++    }
++
++    private static final java.util.regex.Pattern[] BG_PATTERNS = {
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mmol/L", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mmol", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mg/dL", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mg/dl", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("BG[:\\s]*(\\d+\\.?\\d*)", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("[Gg]lucose[:\\s]*(\\d+\\.?\\d*)", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*[→↑↓↗↘]", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("^\\s*(\\d+\\.?\\d*)\\s*$"),  // standalone number (e.g. "172")
++        java.util.regex.Pattern.compile("\\b(\\d+\\.?\\d*)\\b")       // any number 0-600 as last resort
++    };
++
++    private static Pair<Float, String> parseGlycemiaFromText(String text, String packageName) {
++        if (text == null || text.isEmpty()) return null;
++        String unit = packageName != null && packageName.contains("mgdl") ? "mg/dL" : "mmol/L";
++        for (java.util.regex.Pattern p : BG_PATTERNS) {
++            java.util.regex.Matcher m = p.matcher(text);
++            if (m.find()) {
++                String raw = m.group(1);
++                if (raw != null) {
++                    Float v = parseFloat(raw);
++                    if (v != null && v >= 0 && v <= 600) {
++                        if (p.pattern().toLowerCase().contains("mg")) unit = "mg/dL";
++                        else unit = "mmol/L";
++                        return new Pair<>(v, unit);
++                    }
++                }
++            }
++        }
++        return null;
++    }
++
++    private static final int MAX_RECURSION_DEPTH = 5;
++
++    private static ArrayList<RemoteViewAction> getRemoteViewActionsRecursive(RemoteViews rv, int depth) {
++        if (rv == null || depth >= MAX_RECURSION_DEPTH) return new ArrayList<>();
++        ArrayList<RemoteViewAction> result = getRemoteViewActions(rv);
++
++        // Recurse into nested RemoteViews: mLandscape, mPortrait, mSizedRemoteViews, and actions with mNestedViews
++        for (String nestedField : new String[]{"mLandscape", "mPortrait"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(nestedField);
++                f.setAccessible(true);
++                Object nested = f.get(rv);
++                if (nested instanceof RemoteViews) {
++                    result.addAll(getRemoteViewActionsRecursive((RemoteViews) nested, depth + 1));
++                }
++            } catch (Exception e) { /* ignore */ }
++        }
++        try {
++            java.lang.reflect.Field f = RemoteViews.class.getDeclaredField("mSizedRemoteViews");
++            f.setAccessible(true);
++            Object raw = f.get(rv);
++            if (raw instanceof List) {
++                for (Object item : (List<?>) raw) {
++                    if (item instanceof RemoteViews) {
++                        result.addAll(getRemoteViewActionsRecursive((RemoteViews) item, depth + 1));
++                    }
++                }
++            }
++        } catch (Exception e) { /* ignore */ }
++
++        // Recurse into actions that contain mNestedViews (ViewGroupActionAdd)
++        List<?> rawActions = getRawActions(rv);
++        if (rawActions != null) {
++            for (Object actionObj : rawActions) {
++                if (actionObj == null) continue;
++                try {
++                    java.lang.reflect.Field nestedF = actionObj.getClass().getDeclaredField("mNestedViews");
++                    nestedF.setAccessible(true);
++                    Object nested = nestedF.get(actionObj);
++                    if (nested instanceof RemoteViews) {
++                        result.addAll(getRemoteViewActionsRecursive((RemoteViews) nested, depth + 1));
++                    }
++                } catch (Exception e) { /* not a ViewGroupActionAdd or no mNestedViews */ }
++            }
++        }
++        return result;
++    }
++
++    private static List<?> getRawActions(RemoteViews rv) {
++        if (rv == null) return null;
++        for (String fieldName : new String[]{"mActions", "actions"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(fieldName);
++                f.setAccessible(true);
++                Object raw = f.get(rv);
++                if (raw instanceof List) return (List<?>) raw;
++                if (raw instanceof ArrayList) return (ArrayList<?>) raw;
++            } catch (Exception e) { /* ignore */ }
++        }
++        return null;
++    }
++
++    private static ArrayList<RemoteViewAction> getRemoteViewActions(RemoteViews rv) {
++        ArrayList<RemoteViewAction> result = new ArrayList<>();
++        for (String fieldName : new String[]{"mActions", "actions"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(fieldName);
++                f.setAccessible(true);
++                Object raw = f.get(rv);
++                if (raw == null) continue;
++                Iterable<?> iter;
++                if (raw instanceof ArrayList) {
++                    iter = (ArrayList<?>) raw;
++                } else if (raw instanceof java.util.List) {
++                    iter = (java.util.List<?>) raw;
++                } else {
++                    Log.d(TAG, "CapAPS: " + fieldName + " type=" + raw.getClass().getName());
++                    continue;
++                }
++                for (Object item : iter) {
++                    RemoteViewAction a = getRemoteViewAction(item);
++                    if (a != null) result.add(a);
++                }
++                if (!result.isEmpty()) return result;
++            } catch (NoSuchFieldException e) {
++                continue;
++            } catch (Exception e) {
++                Log.d(TAG, "CapAPS getRemoteViewActions " + fieldName + ": " + e.getClass().getSimpleName() + " " + e.getMessage());
++            }
++        }
++        java.lang.reflect.Field[] fields = RemoteViews.class.getDeclaredFields();
++        StringBuilder sb = new StringBuilder("CapAPS RemoteViews fields: ");
++        for (java.lang.reflect.Field ff : fields) {
++            sb.append(ff.getName()).append(",");
++        }
++        Log.d(TAG, sb.toString());
++        return result;
++    }
++
++    private static java.lang.reflect.Field findFieldInHierarchy(Class<?> c, String name) {
++        for (Class<?> cls = c; cls != null; cls = cls.getSuperclass()) {
++            try {
++                java.lang.reflect.Field f = cls.getDeclaredField(name);
++                f.setAccessible(true);
++                return f;
++            } catch (NoSuchFieldException e) { /* continue */ }
++        }
++        return null;
++    }
++
++    private static RemoteViewAction getRemoteViewAction(Object action) {
++        if (action == null) return null;
++        Class<?> c = action.getClass();
++        for (String methodFieldName : new String[]{"mMethodName", "methodName"}) {
++            for (String valueFieldName : new String[]{"mValue", "value"}) {
++                try {
++                    java.lang.reflect.Field methodField = findFieldInHierarchy(c, methodFieldName);
++                    if (methodField == null) continue;
++                    String methodName = (String) methodField.get(action);
++                    java.lang.reflect.Field valueField = findFieldInHierarchy(c, valueFieldName);
++                    if (valueField == null) continue;
++                    Object value = valueField.get(action);
++                    return new RemoteViewAction(methodName != null ? methodName : "", value);
++                } catch (Exception e) {
++                    continue;
++                }
++            }
++        }
++        return null;
++    }
++
++    private static class RemoteViewAction {
++        final String methodName;
++        final Object value;
++
++        RemoteViewAction(String methodName, Object value) {
++            this.methodName = methodName;
++            this.value = value;
++        }
++    }
++
+     @Override
+     public void onNotificationRemoved(StatusBarNotification sbn) {}
+ }
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
+index 79a17f9..2754b72 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
+@@ -16,6 +16,9 @@ import android.content.Context;
+ import java.lang.Exception;
+ import android.graphics.drawable.Icon;
+ import android.graphics.drawable.BitmapDrawable;
++import android.os.Build;
++import android.os.Bundle;
++import java.util.Set;
+ 
+ public class RNNotification {
+     private static final String TAG = "RNAndroidNotificationListener";
+@@ -35,6 +38,8 @@ public class RNNotification {
+     protected String image;
+     protected String time;
+     protected String iconLarge;
++    protected String tickerText;
++    protected String extrasText;
+     public RNNotification(Context context, StatusBarNotification sbn) {
+         Notification notification = sbn.getNotification();
+ 
+@@ -52,6 +57,8 @@ public class RNNotification {
+             this.audioContentsURI = this.getPropertySafely(notification, Notification.EXTRA_AUDIO_CONTENTS_URI);
+             this.imageBackgroundURI = this.getPropertySafely(notification, Notification.EXTRA_BACKGROUND_IMAGE_URI);
+             this.extraInfoText = this.getPropertySafely(notification, Notification.EXTRA_INFO_TEXT);
++            this.tickerText = notification.tickerText != null ? notification.tickerText.toString().trim() : "";
++            this.extrasText = this.getAllExtrasText(notification);
+             this.iconLarge = this.getNotificationLargeIcon(context, notification);
+             this.icon = this.getNotificationIcon(context, notification);
+             this.image = this.getNotificationImage(notification);
+@@ -72,6 +79,31 @@ public class RNNotification {
+         }
+     }
+ 
++    private String getAllExtrasText(Notification notification) {
++        StringBuilder sb = new StringBuilder();
++        try {
++            Bundle extras = notification.extras;
++            if (extras == null) return "";
++            Set<String> keys = extras.keySet();
++            if (keys == null) return "";
++            for (String key : keys) {
++                try {
++                    Object val = extras.get(key);
++                    if (val instanceof CharSequence) {
++                        String s = ((CharSequence) val).toString().trim();
++                        if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                    } else if (val instanceof String) {
++                        String s = ((String) val).trim();
++                        if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                    }
++                } catch (Exception e) { /* skip */ }
++            }
++        } catch (Exception e) {
++            Log.d(TAG, e.getMessage());
++        }
++        return sb.toString().trim();
++    }
++
+     private ArrayList<RNGroupedNotification> getGroupedNotifications(Notification notification) {
+         ArrayList<RNGroupedNotification> result = new ArrayList<RNGroupedNotification>();
+ 
