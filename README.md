@@ -260,7 +260,7 @@ On Wear OS 5+ (e.g. Galaxy Watch 7), traditional Jetpack watch faces may not app
 
 ## License
 
-[Add your license here, e.g. MIT, Apache 2.0]
+MIT License - see [LICENSE](LICENSE).
 
 ---
 
