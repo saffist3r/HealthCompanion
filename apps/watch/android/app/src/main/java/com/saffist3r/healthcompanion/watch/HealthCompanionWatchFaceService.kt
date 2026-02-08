@@ -190,21 +190,25 @@ class HealthCompanionRenderer(
                     canvas.drawCircle(x, y, radius.coerceAtLeast(12f), shapePaint)
                 }
 
-                // Sparkline (glycemia trend) - oldest left, newest right
+                // Sparkline (glycemia trend) - x-axis by time (10–15 min spacing), oldest left, newest right
                 val history = GlycemiaHolder.getHistoryForSparkline().reversed()
                 if (history.size >= 2) {
                     val sparkW = w * 0.55f
                     val sparkH = 24f
                     val sparkLeft = centerX - sparkW / 2
                     val sparkTop = centerY + 56f
-                    val min = history.minOrNull() ?: 0.0
-                    val max = history.maxOrNull() ?: 100.0
-                    val range = (max - min).coerceAtLeast(20.0)
+                    val tMin = history.minOfOrNull { it.second } ?: 0L
+                    val tMax = history.maxOfOrNull { it.second } ?: 1L
+                    val tRange = (tMax - tMin).coerceAtLeast(60_000L)
+                    val vMin = history.minOfOrNull { it.first } ?: 0.0
+                    val vMax = history.maxOfOrNull { it.first } ?: 100.0
+                    val vRange = (vMax - vMin).coerceAtLeast(20.0)
                     val path = Path()
-                    val stepX = sparkW / (history.size - 1).coerceAtLeast(1)
-                    for ((i, v) in history.withIndex()) {
-                        val x = sparkLeft + i * stepX
-                        val norm = ((v - min) / range).toFloat().coerceIn(0f, 1f)
+                    for ((i, p) in history.withIndex()) {
+                        val (v, ts) = p
+                        val xFrac = ((ts - tMin).toFloat() / tRange).coerceIn(0f, 1f)
+                        val x = sparkLeft + xFrac * sparkW
+                        val norm = ((v - vMin) / vRange).toFloat().coerceIn(0f, 1f)
                         val y = sparkTop + sparkH - norm * sparkH
                         if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                     }

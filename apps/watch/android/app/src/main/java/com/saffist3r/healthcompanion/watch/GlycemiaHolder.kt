@@ -5,7 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import java.util.concurrent.CopyOnWriteArrayList
 
 object GlycemiaHolder {
-    private const val HISTORY_SIZE = 24
+    private const val HISTORY_SIZE = 48
 
     private val _glycemia = MutableLiveData<GlycemiaData>()
     val glycemia: LiveData<GlycemiaData> = _glycemia
@@ -24,15 +24,15 @@ object GlycemiaHolder {
 
     private var lastTimestamp: Long = 0
 
-    /** Thread-safe history for sparkline (values in mg/dL for consistent scaling) */
-    private val _history = CopyOnWriteArrayList<Double>()
+    /** Thread-safe history for sparkline: (mg/dL, timestamp) - x-axis uses time for spacing */
+    private val _history = CopyOnWriteArrayList<Pair<Double, Long>>()
 
-    fun getHistoryForSparkline(): List<Double> = _history.toList()
+    fun getHistoryForSparkline(): List<Pair<Double, Long>> = _history.toList()
 
     fun update(value: Double, unit: String, timestamp: Long) {
         lastTimestamp = timestamp
         val mgDl = if (unit.equals("mg/dL", true)) value else value * 18.0182
-        _history.add(0, mgDl)
+        _history.add(0, mgDl to timestamp)
         while (_history.size > HISTORY_SIZE) _history.removeAt(_history.size - 1)
         _glycemia.postValue(GlycemiaData(value, unit, timestamp))
         _glycemiaDisplay.postValue("%.1f %s".format(value, unit))
