@@ -1,3 +1,7 @@
+export * from './background';
+export * from './sparkline';
+export * from './sparklineChart';
+
 export type GlycemiaUnit = 'mmol/L' | 'mg/dL';
 
 export type GlycemiaStatusLabel = 'Low' | 'In range' | 'High' | 'Very high';
@@ -50,8 +54,22 @@ export const CAPAPS_FX_PACKAGE_IDS = [
 export const GLYCEMIA_DATA_PATH = '/health_companion/glycemia';
 
 /**
+ * Only treat text as glucose when a real unit appears (avoids bolus / insulin lines like "3.2 U"
+ * or labels such as "BG:" without a unit, which CapAPS may reuse with insulin doses).
+ */
+export function hasExplicitGlucoseUnit(text: string): boolean {
+  const t = text ?? '';
+  return (
+    /\bmg\s*\/\s*d[lL]\b/i.test(t) ||
+    /\bmg\s*d[lL]\b/i.test(t) ||
+    /\bmmol\s*\/\s*[lL]\b/i.test(t) ||
+    /\d+\.?\d*\s+mmol\b/i.test(t)
+  );
+}
+
+/**
  * Regex patterns to extract blood glucose from notification text.
- * CapAPS Fx format to be validated with real notifications.
+ * Each pattern requires an explicit mg/dL or mmol/L (or mmol) next to the number — never bare numbers.
  */
 const BG_PATTERNS: Array<{
   regex: RegExp;
@@ -59,15 +77,10 @@ const BG_PATTERNS: Array<{
   groupIndex: number;
 }> = [
   { regex: /(\d+\.?\d*)\s*mmol\/L/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /(\d+\.?\d*)\s*mg\/dL/i, unit: 'mg/dL', groupIndex: 1 },
-  { regex: /BG[:\s]*(\d+\.?\d*)/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /glucose[:\s]*(\d+\.?\d*)/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /(\d+\.?\d*)\s*mmol/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /(\d+\.?\d*)\s*mg\s*dL/i, unit: 'mg/dL', groupIndex: 1 },
-  { regex: /(\d+\.?\d*)\s*mg\/dl/i, unit: 'mg/dL', groupIndex: 1 },
-  { regex: /[Gg]lucose[:\s]*(\d+\.?\d*)/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /CGM[:\s]*(\d+\.?\d*)/i, unit: 'mmol/L', groupIndex: 1 },
-  { regex: /(\d+\.?\d*)\s*→/i, unit: 'mmol/L', groupIndex: 1 },
+  { regex: /(\d+\.?\d*)\s*mg\s*\/\s*d[lL]/i, unit: 'mg/dL', groupIndex: 1 },
+  { regex: /(\d+\.?\d*)\s*mg\/d[lL]/i, unit: 'mg/dL', groupIndex: 1 },
+  { regex: /(\d+\.?\d*)\s*mmol\b/i, unit: 'mmol/L', groupIndex: 1 },
+  { regex: /(\d+\.?\d*)\s*mg\s*d[lL]\b/i, unit: 'mg/dL', groupIndex: 1 },
 ];
 
 /**
@@ -76,7 +89,7 @@ const BG_PATTERNS: Array<{
  */
 export function parseGlycemiaFromNotification(text: string): GlycemiaReading | null {
   const normalized = text?.trim() ?? '';
-  if (!normalized) return null;
+  if (!normalized || !hasExplicitGlucoseUnit(normalized)) return null;
 
   for (const { regex, unit, groupIndex } of BG_PATTERNS) {
     const match = normalized.match(regex);

@@ -21,15 +21,19 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import { LineChart } from 'react-native-gifted-charts';
 import Svg, { Circle } from 'react-native-svg';
 import type { GlycemiaReading } from '@health-companion/shared';
 import {
   getGlycemiaStatusColor,
   getGlycemiaStatusLabel,
   toMgDl,
+  MAX_GLYCEMIA_HISTORY,
+  SPARKLINE_WINDOW_MS,
 } from '@health-companion/shared';
-import { sendGlycemiaToWatch } from './src/wearSync';
+import { sendGlycemiaToWatch, sendBackgroundToWatch } from './src/wearSync';
+import { BackgroundSettingsCard } from './src/components/BackgroundSettingsCard';
+import { SparklineChart } from './src/components/SparklineChart';
+import { loadBackgroundSettings } from './src/backgroundSettings';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -37,7 +41,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
 const HISTORY_KEY = '@health_companion/history';
-const MAX_HISTORY = 20;
+const MAX_HISTORY = MAX_GLYCEMIA_HISTORY;
 const GlycemiaStorage = NativeModules.GlycemiaStorage;
 
 function formatTimeAgo(ts: number): string {
@@ -82,7 +86,9 @@ async function loadHistory(): Promise<GlycemiaReading[]> {
     const raw = await AsyncStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
     const arr = JSON.parse(raw) as GlycemiaReading[];
-    return Array.isArray(arr) ? arr.slice(0, MAX_HISTORY) : [];
+    if (!Array.isArray(arr)) return [];
+    const cutoff = Date.now() - SPARKLINE_WINDOW_MS;
+    return arr.filter((r) => r.timestamp >= cutoff).slice(0, MAX_HISTORY);
   } catch {
     return [];
   }
@@ -279,7 +285,7 @@ export default function App() {
         if (reading) {
           await appendToHistory(reading);
           setHistory(await loadHistory());
-          sendGlycemiaToWatch(reading).catch(() => {});
+          sendGlycemiaToWatch(reading, await loadHistory()).catch(() => {});
         }
       }
     });
@@ -299,7 +305,8 @@ export default function App() {
     setSyncing(true);
     setSyncSuccess(false);
     try {
-      await sendGlycemiaToWatch(glycemia);
+      await sendGlycemiaToWatch(glycemia, await loadHistory());
+      await sendBackgroundToWatch(await loadBackgroundSettings());
       setSyncSuccess(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       syncSuccessTimerRef.current = setTimeout(() => setSyncSuccess(false), 3000);
@@ -326,13 +333,6 @@ export default function App() {
   }
 
   const theme = styles(isDark);
-  const chartData =
-    history.length > 1
-      ? [...history].reverse().slice(-20).map((r) => ({
-          value: toMgDl(r.value, r.unit),
-          label: formatTime(r.timestamp).split(' ').pop() || '',
-        }))
-      : [];
 
   const renderRightActions = (ts: number) => (
     <TouchableOpacity
@@ -378,6 +378,8 @@ export default function App() {
             <Text style={theme.buttonSecondaryText}>Open Accessibility settings</Text>
           </TouchableOpacity>
         </View>
+
+        <BackgroundSettingsCard isDark={isDark} />
 
         {permissionStatus === 'authorized' && (
           <>
@@ -429,28 +431,14 @@ export default function App() {
               </View>
             </View>
 
-            {chartData.length >= 2 && (
+            {history.length >= 2 && (
               <View style={theme.card}>
                 <Text style={theme.cardTitle}>Trend</Text>
-                <View style={{ height: 120, marginTop: 8 }}>
-                  <LineChart
-                    data={chartData}
-                    width={280}
-                    height={100}
-                    spacing={chartData.length > 5 ? 40 : 60}
-                    hideDataPoints={chartData.length > 10}
-                    color={isDark ? '#80CBC4' : '#00897B'}
-                    thickness={2}
-                    startOpacity={0.9}
-                    endOpacity={0.2}
-                    areaChart
-                    curved
-                    hideRules
-                    hideYAxisText
-                    xAxisThickness={0}
-                    yAxisThickness={0}
-                  />
-                </View>
+                <SparklineChart
+                  history={history}
+                  color={isDark ? '#80CBC4' : '#00897B'}
+                  isDark={isDark}
+                />
               </View>
             )}
 

@@ -5,6 +5,7 @@ node_modules/
 apps/watch/android/.gradle/
 apps/watch/android/app/build/
 apps/watch/android/build/
+apps/watch/android/local.properties
 apps/mobile/android/
 apps/mobile/ios/
 

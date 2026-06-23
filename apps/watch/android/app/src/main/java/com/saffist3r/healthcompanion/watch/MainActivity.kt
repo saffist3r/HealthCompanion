@@ -51,6 +51,8 @@ class MainActivity : ComponentActivity() {
             requestPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
         super.onCreate(savedInstanceState)
+        GlycemiaHolder.init(applicationContext)
+        BackgroundSettingsHolder.init(applicationContext)
         setContent {
             val viewModel: MainViewModel = viewModel(
                 factory = MainViewModelFactory(application)
@@ -60,11 +62,13 @@ class MainActivity : ComponentActivity() {
             val timeAgo by viewModel.timeAgo.observeAsState("")
             val statusColor by viewModel.statusColor.observeAsState(0xFF80CBC4.toInt())
             val statusLabel by viewModel.statusLabel.observeAsState("")
+            val bgSettings by BackgroundSettingsHolder.settings.observeAsState(BackgroundSettings())
+            val textColor = Color(BackgroundPresets.solidColorFor(bgSettings.textColor))
 
-            val pagerState = rememberPagerState(pageCount = { 2 })
+            val pagerState = rememberPagerState(pageCount = { 3 })
 
             Box(modifier = Modifier.fillMaxSize()) {
-                AnimatedBackground(statusColor = statusColor)
+                WatchBackground(statusColor = statusColor)
 
                 HorizontalPager(
                     state = pagerState,
@@ -78,6 +82,7 @@ class MainActivity : ComponentActivity() {
                                 glycemia = glycemia,
                                 timeAgo = timeAgo,
                                 statusColor = statusColor,
+                                textColor = textColor,
                                 onTap = { viewModel.refresh() }
                             )
                             1 -> DetailsScreen(
@@ -85,8 +90,10 @@ class MainActivity : ComponentActivity() {
                                 statusLabel = statusLabel,
                                 timeAgo = timeAgo,
                                 statusColor = statusColor,
+                                textColor = textColor,
                                 onTap = { viewModel.refresh() }
                             )
+                            2 -> SettingsScreen()
                         }
                 }
             }
@@ -100,6 +107,7 @@ private fun MainScreen(
     glycemia: String,
     timeAgo: String,
     statusColor: Int,
+    textColor: Color,
     onTap: () -> Unit
 ) {
     val scale by animateFloatAsState(
@@ -120,7 +128,7 @@ private fun MainScreen(
             text = time,
             fontSize = 28.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color.White
+            color = textColor
         )
         AnimatedContent(
             targetState = glycemia,
@@ -144,15 +152,19 @@ private fun MainScreen(
                 text = timeAgo,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.9f),
+                color = textColor.copy(alpha = 0.85f),
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
+        SparklineChart(
+            modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
+            lineColor = Color(statusColor)
+        )
         if (glycemia == "--") {
             Text(
                 text = "Swipe down to sync",
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.7f),
+                color = textColor.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
@@ -165,6 +177,7 @@ private fun DetailsScreen(
     statusLabel: String,
     timeAgo: String,
     statusColor: Int,
+    textColor: Color,
     onTap: () -> Unit
 ) {
     Column(
@@ -187,14 +200,14 @@ private fun DetailsScreen(
             text = glycemia,
             fontSize = 32.sp,
             fontWeight = FontWeight.Medium,
-            color = Color.White.copy(alpha = 0.9f),
+            color = textColor.copy(alpha = 0.9f),
             modifier = Modifier.padding(top = 8.dp)
         )
         if (timeAgo.isNotEmpty()) {
             Text(
                 text = timeAgo,
                 fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.7f),
+                color = textColor.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 4.dp)
             )
         }

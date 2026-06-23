@@ -4,7 +4,7 @@ A Wear OS watch face that displays time, glycemia (blood glucose), heart rate, a
 
 ![Health Companion Watch Face](assets/watch-face-screenshot.png)
 
-**Latest release:** [v1.0.0](RELEASES.md#release-v100) · [Changelog](CHANGELOG.md)
+**Latest release:** [v1.1.0](RELEASES.md#release-v110) · [Changelog](CHANGELOG.md)
 
 Glycemia values are automatically synced from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
 
@@ -18,10 +18,12 @@ Use this repository to build and run the app yourself on your own devices.
 |---------|-------------|
 | **Time & Date** | Large time display with date (dd/MM/yyyy) underneath |
 | **Glycemia** | Blood glucose from CapAPS Fx, synced from phone notifications |
-| **Glycemia Trend** | Sparkline chart showing last 24 readings |
-| **Heart Rate** | Live BPM from watch sensor (♥ icon) |
-| **Steps** | Step count from watch sensor (👣 icon) |
+| **Trend** | Animated arrows on the watch face (↑ / ↓ / →); 12h chart on the phone app |
+| **Heart Rate** | Live BPM from watch sensor with vector heart icon |
+| **Steps** | Step count from watch sensor with vector footprint icon |
 | **Status Colors** | Green (in range), orange (high), red (low/very high) |
+| **Customization** | Watch background (animated / solid / gradient / image slideshow), text color, status tint |
+| **Low alert** | Watch vibrates on new reading below 70 mg/dL |
 
 ---
 
@@ -43,7 +45,22 @@ flowchart LR
 
 1. **CapAPS Fx** on your phone sends notifications with glycemia readings.
 2. **Health Companion** (phone app) reads those notifications and syncs the value to the watch via Wear OS Data Layer.
-3. The **watch face** shows time, glycemia, sparkline, heart rate, and steps.
+3. The **watch face** shows time, glycemia, trend arrows, heart rate, and steps.
+
+---
+
+## Watch customization
+
+On the **phone app**, open **Watch background** to:
+
+- Choose style: **Animated**, **Solid**, **Gradient**, or **Image**
+- Pick **text color** for time, date, and stats on the watch face
+- Select **multiple images** for a slideshow (15s–120s interval)
+- Toggle **status color tint**
+
+Changes sync automatically; use **Sync to watch** on the glycemia card to push glycemia, 12h history, and background in one go.
+
+On the **watch app**, swipe to the **Settings** page to adjust background and text color locally.
 
 ---
 
@@ -102,6 +119,8 @@ npm run build -w @health-companion/shared
 ```
 
 (Or run `npm run prepare` which builds shared and applies patches.)
+
+**Important:** Always build `@health-companion/shared` before a phone release APK so TypeScript changes are compiled to `dist/`.
 
 ### 3. Build and Install Phone App
 
@@ -182,20 +201,27 @@ HealthCompanion/
 │   ├── mobile/                 # Phone app (Expo / React Native)
 │   │   ├── App.tsx             # Main UI
 │   │   ├── index.ts            # Entry, notification listener
+│   │   ├── plugins/            # Expo config plugin (Wear OS bridge)
 │   │   └── src/
-│   │       └── wearSync.ts     # Sync glycemia to watch via Data Layer
+│   │       ├── wearSync.ts     # Sync glycemia, history, background to watch
+│   │       ├── backgroundSettings.ts
+│   │       └── components/     # BackgroundSettingsCard, SparklineChart
 │   └── watch/                  # Wear OS watch app
 │       └── android/
 │           └── app/src/main/java/.../watch/
 │               ├── HealthCompanionWatchFaceService.kt   # Watch face
 │               ├── GlycemiaDataListenerService.kt       # Receives data from phone
-│               ├── GlycemiaHolder.kt                    # Glycemia state
+│               ├── GlycemiaHolder.kt                    # Glycemia + 12h history
+│               ├── BackgroundSettingsHolder.kt          # Background + text color
+│               ├── TrendArrowRenderer.kt                # Rising/falling arrows
+│               ├── StatsIconsRenderer.kt                # Heart & steps icons
 │               ├── HeartRateHolder.kt / HeartRateMonitor.kt
 │               ├── StepsHolder.kt / StepsMonitor.kt
+│               ├── SettingsScreen.kt                    # Watch settings UI
 │               └── MainActivity.kt                      # App UI + permission requests
 ├── packages/
-│   ├── shared/                 # Shared code (parsing, types)
-│   │   └── src/index.ts        # parseGlycemiaFromNotification, isCapAPSFxPackage
+│   ├── shared/                 # Shared code (parsing, types, background, sparkline)
+│   │   └── src/                # background.ts, sparkline.ts, index.ts
 │   └── database/               # Shared database types
 ├── patches/                    # patch-package patches (e.g. notification listener + Wear)
 ├── scripts/
@@ -226,11 +252,10 @@ The app parses glycemia from CapAPS Fx (CamAPS FX) notifications. Supported pack
 - `com.camdiab.fx_alert`
 - `com.camdiab`
 
-Supported formats in notification text:
+Supported formats in notification text (must include an explicit unit):
 
-- `X.X mmol/L`, `X.X mg/dL`
-- `BG: X.X`, `Glucose: X.X`, `CGM: X.X`
-- Other common patterns (see `packages/shared/src/index.ts`)
+- `X.X mmol/L`, `X.X mg/dL`, `X.X mmol`
+- Values **without** `mg/dL` or `mmol/L` are ignored (avoids bolus/insulin lines)
 
 ---
 
@@ -240,17 +265,17 @@ Supported formats in notification text:
 
 1. **Notification access** – Ensure Health Companion has Notification Access on the phone.
 2. **Phone and watch paired** – Both must be connected (Bluetooth or WiFi).
-3. **Sync from phone** – Open the Health Companion phone app; it syncs on launch. You can also use any “Sync to watch” action if available.
+3. **Sync from phone** – Open the Health Companion phone app; it syncs on launch. Use **Sync to watch** to push glycemia, 12h history, and background settings.
 4. **CapAPS notifications** – CapAPS Fx must have sent at least one notification with a glycemia value.
 5. **Refresh on watch** – Open the watch app and tap the screen to trigger a refresh.
 
-### Heart rate shows "♥ --"
+### Heart rate shows "--" or icon without value
 
 1. **Grant BODY_SENSORS** – Open the Health Companion app on the watch and accept the Body sensors permission.
 2. **Wait for retry** – The watch face retries sensor registration every 30 seconds.
 3. **Device support** – Some Wear OS 4+ devices limit direct heart rate sensor access; behavior may vary by manufacturer.
 
-### Steps show "👣 --"
+### Steps show "--" or icon without value
 
 1. **Grant ACTIVITY_RECOGNITION** – Open the Health Companion app on the watch and accept the Activity recognition permission.
 2. **Step sensors** – The app uses `TYPE_STEP_COUNTER` (cumulative) or `TYPE_STEP_DETECTOR` (per-step) as fallback. Support varies by device.

@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   parseGlycemiaFromNotification,
   isCapAPSFxPackage,
+  MAX_GLYCEMIA_HISTORY,
 } from '@health-companion/shared';
 
 import App from './App';
@@ -14,7 +15,7 @@ import { sendGlycemiaToWatch } from './src/wearSync';
 
 const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
 const HISTORY_KEY = '@health_companion/history';
-const MAX_HISTORY = 20;
+const MAX_HISTORY = MAX_GLYCEMIA_HISTORY;
 
 async function appendToHistory(reading: { value: number; unit: string; timestamp: number }) {
   try {
@@ -95,11 +96,22 @@ const headlessNotificationListener = async (payload: {
   try {
     await AsyncStorage.setItem(GLYCEMIA_ASYNC_KEY, JSON.stringify(reading));
     await appendToHistory(reading);
-    await sendGlycemiaToWatch(reading);
+    await sendGlycemiaToWatch(reading, await loadHistoryForSync());
   } catch (_) {
     // Ignore storage errors in headless context
   }
 };
+
+async function loadHistoryForSync(): Promise<{ value: number; unit: string; timestamp: number }[]> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
 
 AppRegistry.registerHeadlessTask(
   RNAndroidNotificationListenerHeadlessJsName,

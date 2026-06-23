@@ -2,6 +2,28 @@
 
 This document explains how releases work and what is included in each release.
 
+## Release v1.1.0
+
+**Date:** 2026-06-23
+
+### Highlights
+
+- Watch face **background customization** (animated, solid, gradient, image slideshow) and **text color**
+- **Trend arrows** on watch face; **12h sparkline** on phone and watch app
+- **Sync to watch** pushes glycemia, history, and background settings
+- Stricter glycemia parsing; **low glucose vibration** on watch
+
+### Build
+
+```bash
+npm run prepare
+./scripts/build-release.sh
+```
+
+See [CHANGELOG.md](CHANGELOG.md#110---2026-06-23) for full details.
+
+---
+
 ## Release v1.0.0
 
 ### What's Included

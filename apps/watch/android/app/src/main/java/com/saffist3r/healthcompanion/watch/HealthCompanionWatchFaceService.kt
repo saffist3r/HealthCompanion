@@ -1,12 +1,12 @@
 package com.saffist3r.healthcompanion.watch
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.Shader
@@ -37,6 +37,8 @@ class HealthCompanionWatchFaceService : WatchFaceService() {
 
     override fun onCreate() {
         super.onCreate()
+        GlycemiaHolder.init(applicationContext)
+        BackgroundSettingsHolder.init(applicationContext)
         HeartRateMonitor.start(applicationContext)
         StepsMonitor.start(applicationContext)
         handler.postDelayed(retryRunnable, 5_000L) // First retry after 5s
@@ -58,11 +60,12 @@ class HealthCompanionWatchFaceService : WatchFaceService() {
         currentUserStyleRepository: CurrentUserStyleRepository
     ): WatchFace {
         val renderer = HealthCompanionRenderer(
+            applicationContext,
             surfaceHolder,
             currentUserStyleRepository,
             watchState,
             CanvasType.SOFTWARE,
-            0L
+            1000L
         )
         return WatchFace(WatchFaceType.DIGITAL, renderer)
     }
@@ -77,6 +80,7 @@ class HealthCompanionWatchFaceService : WatchFaceService() {
 }
 
 class HealthCompanionRenderer(
+    private val appContext: Context,
     surfaceHolder: SurfaceHolder,
     currentUserStyleRepository: CurrentUserStyleRepository,
     private val watchState: WatchState,
@@ -92,13 +96,13 @@ class HealthCompanionRenderer(
     private val timePaint = Paint().apply {
         isAntiAlias = true
         color = Color.WHITE
-        textSize = 60f
+        textSize = 68f
         textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
     private val glycemiaPaint = Paint().apply {
         isAntiAlias = true
-        textSize = 38f
+        textSize = 46f
         textAlign = Paint.Align.CENTER
         typeface = try {
             android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
@@ -109,31 +113,24 @@ class HealthCompanionRenderer(
     private val timeAgoPaint = Paint().apply {
         isAntiAlias = true
         color = Color.argb(180, 255, 255, 255)
-        textSize = 22f
+        textSize = 26f
         textAlign = Paint.Align.CENTER
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
     }
     private val datePaint = Paint().apply {
         isAntiAlias = true
         color = Color.argb(180, 255, 255, 255)
-        textSize = 20f
+        textSize = 24f
         textAlign = Paint.Align.CENTER
     }
     private val statsPaint = Paint().apply {
         isAntiAlias = true
         color = Color.argb(180, 210, 210, 210)
-        textSize = 24f
-        textAlign = Paint.Align.CENTER
+        textSize = 28f
+        textAlign = Paint.Align.LEFT
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
     private val glowPaint = Paint().apply { isAntiAlias = true }
-    private val shapePaint = Paint().apply { isAntiAlias = true }
-    private val sparklinePaint = Paint().apply {
-        isAntiAlias = true
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
 
     private val defaultColor = Color.parseColor("#81C784")
     @Volatile private var glycemiaDisplay = "--"
@@ -141,15 +138,45 @@ class HealthCompanionRenderer(
     @Volatile private var glycemiaColor = Color.parseColor("#81C784")
     @Volatile private var heartBpm: Int? = null
     @Volatile private var stepsCount: Int? = null
+    @Volatile private var backgroundSettings = BackgroundSettings()
+    private val tickHandler = Handler(Looper.getMainLooper())
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            val settings = backgroundSettings
+            val trend = GlycemiaTrendDetector.detect()
+            val isAmbient = try {
+                watchState.isAmbient.value == true
+            } catch (_: Exception) {
+                false
+            }
+            val needsArrowTick = !isAmbient && trend != GlycemiaTrend.UNKNOWN
+            val needsFastTick = settings.type == BackgroundType.ANIMATED ||
+                (settings.type == BackgroundType.IMAGE && settings.effectiveImageIds().size > 1) ||
+                needsArrowTick
+            if (needsFastTick) {
+                invalidate()
+            }
+            val delayMs = when {
+                needsArrowTick -> 80L
+                settings.type == BackgroundType.ANIMATED -> 350L
+                settings.type == BackgroundType.IMAGE && settings.effectiveImageIds().size > 1 ->
+                    1000L
+                else -> 60_000L
+            }
+            tickHandler.postDelayed(this, delayMs)
+        }
+    }
 
     init {
         Handler(Looper.getMainLooper()).post {
             GlycemiaHolder.glycemiaDisplay.observeForever { glycemiaDisplay = it ?: "--" }
             GlycemiaHolder.timeAgo.observeForever { timeAgoDisplay = it ?: "" }
             GlycemiaHolder.statusColor.observeForever { glycemiaColor = it ?: defaultColor }
+            BackgroundSettingsHolder.settings.observeForever { backgroundSettings = it ?: BackgroundSettings() }
             HeartRateHolder.bpm.observeForever { heartBpm = it }
             StepsHolder.steps.observeForever { stepsCount = it }
         }
+        tickHandler.postDelayed(tickRunnable, 1000L)
     }
 
     override fun render(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime) {
@@ -164,60 +191,19 @@ class HealthCompanionRenderer(
                 false
             }
 
-            // Black background
-            canvas.drawColor(Color.BLACK)
+            val w = bounds.width().toFloat()
+            val h = bounds.height().toFloat()
+
+            BackgroundCanvasRenderer.draw(
+                canvas,
+                bounds,
+                isAmbient,
+                glycemiaColor,
+                backgroundSettings,
+                appContext
+            )
 
             if (!isAmbient) {
-                // Animated floating shapes - faster drift
-                val t = System.currentTimeMillis() / 1000f
-                val w = bounds.width().toFloat()
-                val h = bounds.height().toFloat()
-                val colors = intArrayOf(
-                    Color.argb(40, 77, 208, 225),   // teal
-                    Color.argb(30, 255, 171, 145),  // coral
-                    Color.argb(25, 179, 157, 219),  // lavender
-                    Color.argb(35, 129, 199, 132)   // green
-                )
-                val baseRadii = floatArrayOf(38f, 22f, 48f, 28f, 42f, 18f, 52f, 32f, 45f, 25f)
-                for (i in 0..9) {
-                    val phaseH = t * (0.55f + i * 0.08f) + i * 1.2f
-                    val phaseV = t * (0.45f + i * 0.06f) + i * 0.7f
-                    val x = centerX + (w * 0.45f) * kotlin.math.sin(phaseH)
-                    val y = centerY + (h * 0.4f) * kotlin.math.cos(phaseV * 1.1f + i * 0.5f)
-                    val baseR = baseRadii[i % baseRadii.size]
-                    val radius = baseR + 6f * kotlin.math.sin(t * 0.3f + i * 0.8f).toFloat()
-                    shapePaint.color = colors[i % colors.size]
-                    canvas.drawCircle(x, y, radius.coerceAtLeast(12f), shapePaint)
-                }
-
-                // Sparkline (glycemia trend) - x-axis by time (10–15 min spacing), oldest left, newest right
-                val history = GlycemiaHolder.getHistoryForSparkline().reversed()
-                if (history.size >= 2) {
-                    val sparkW = w * 0.55f
-                    val sparkH = 24f
-                    val sparkLeft = centerX - sparkW / 2
-                    val sparkTop = centerY + 56f
-                    val tMin = history.minOfOrNull { it.second } ?: 0L
-                    val tMax = history.maxOfOrNull { it.second } ?: 1L
-                    val tRange = (tMax - tMin).coerceAtLeast(60_000L)
-                    val vMin = history.minOfOrNull { it.first } ?: 0.0
-                    val vMax = history.maxOfOrNull { it.first } ?: 100.0
-                    val vRange = (vMax - vMin).coerceAtLeast(20.0)
-                    val path = Path()
-                    for ((i, p) in history.withIndex()) {
-                        val (v, ts) = p
-                        val xFrac = ((ts - tMin).toFloat() / tRange).coerceIn(0f, 1f)
-                        val x = sparkLeft + xFrac * sparkW
-                        val norm = ((v - vMin) / vRange).toFloat().coerceIn(0f, 1f)
-                        val y = sparkTop + sparkH - norm * sparkH
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                    }
-                    sparklinePaint.strokeWidth = 2.5f
-                    sparklinePaint.color = Color.argb(200, Color.red(glycemiaColor), Color.green(glycemiaColor), Color.blue(glycemiaColor))
-                    canvas.drawPath(path, sparklinePaint)
-                    sparklinePaint.strokeWidth = 2f
-                }
-
                 // Glow pulse
                 val pulse = 0.6f + 0.4f * kotlin.math.sin(2 * Math.PI * System.currentTimeMillis() / 2500).toFloat()
                 val haloRadius = 44f + 10f * pulse
@@ -231,44 +217,58 @@ class HealthCompanionRenderer(
 
                 glycemiaPaint.color = glycemiaColor
                 glycemiaPaint.setShadowLayer(8f + 4f * pulse, 0f, 0f, glycemiaColor)
-                timeAgoPaint.color = Color.argb(200, 255, 255, 255)
             } else {
-                timePaint.color = Color.argb(179, 255, 255, 255)
                 glycemiaPaint.color = Color.argb(179, 255, 255, 255)
                 glycemiaPaint.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-                timeAgoPaint.color = Color.argb(128, 255, 255, 255)
             }
 
-            timePaint.color = Color.WHITE
+            val textBase = BackgroundPresets.solidColorFor(backgroundSettings.textColor)
+            val textAlpha = if (isAmbient) 179 else 255
+            timePaint.color = Color.argb(textAlpha, Color.red(textBase), Color.green(textBase), Color.blue(textBase))
             timePaint.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+            datePaint.color = Color.argb((textAlpha * 0.75f).toInt(), Color.red(textBase), Color.green(textBase), Color.blue(textBase))
+            timeAgoPaint.color = Color.argb((textAlpha * 0.8f).toInt(), Color.red(textBase), Color.green(textBase), Color.blue(textBase))
+            statsPaint.color = Color.argb((textAlpha * 0.82f).toInt(), Color.red(textBase), Color.green(textBase), Color.blue(textBase))
 
             // Time (big)
             val timeStr = zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
-            canvas.drawText(timeStr, centerX, centerY - 66f, timePaint)
+            canvas.drawText(timeStr, centerX, centerY - 74f, timePaint)
 
-            // Date under time, smaller (dd/MM/yyyy)
+            // Date under time
             val dateStr = zonedDateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-            if (isAmbient) datePaint.color = Color.argb(140, 255, 255, 255)
-            canvas.drawText(dateStr, centerX, centerY - 34f, datePaint)
-            if (isAmbient) datePaint.color = Color.argb(180, 255, 255, 255)
+            canvas.drawText(dateStr, centerX, centerY - 36f, datePaint)
 
             if (!isAmbient) glycemiaPaint.color = glycemiaColor
-            canvas.drawText(glycemiaDisplay, centerX, centerY + 16f, glycemiaPaint)
+            canvas.drawText(glycemiaDisplay, centerX, centerY + 14f, glycemiaPaint)
 
             if (timeAgoDisplay.isNotEmpty()) {
-                canvas.drawText(timeAgoDisplay, centerX, centerY + 46f, timeAgoPaint)
+                canvas.drawText(timeAgoDisplay, centerX, centerY + 48f, timeAgoPaint)
             }
 
-            // Stats row under chart: heart + steps (bigger, readable)
-            val statsY = centerY + 112f
-            statsPaint.textSize = 22f
-            if (isAmbient) statsPaint.color = Color.argb(140, 220, 220, 220)
-            val hrStr = heartBpm?.let { "♥ $it" } ?: "♥ --"
-            val stepsStr = stepsCount?.let { "👣 %,d".format(it) } ?: "👣 --"
-            val statsText = "$hrStr   $stepsStr"
-            canvas.drawText(statsText, centerX, statsY, statsPaint)
-            if (isAmbient) statsPaint.color = Color.argb(180, 210, 210, 210)
-            statsPaint.textSize = 24f
+            val trend = GlycemiaTrendDetector.detect()
+            if (trend != GlycemiaTrend.UNKNOWN) {
+                TrendArrowRenderer.draw(
+                    canvas,
+                    centerX,
+                    centerY + 62f,
+                    trend,
+                    glycemiaColor,
+                    isAmbient
+                )
+            }
+
+            // Stats: heart left, steps right
+            val statsY = centerY + 118f
+            statsPaint.textSize = 28f
+            StatsIconsRenderer.drawStatsRow(
+                canvas,
+                centerX,
+                statsY,
+                w,
+                heartBpm,
+                stepsCount,
+                statsPaint
+            )
         } catch (e: Exception) {
             Log.e("HCWatchFace", "Render error", e)
             canvas.drawColor(Color.BLACK)
