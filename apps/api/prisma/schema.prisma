@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id        String   @id
+  createdAt DateTime @default(now())
+  label     String?
+  meals     Meal[]
+  glucose   GlucoseSample[]
+  activity  ActivityDay[]
+}
+
+model Meal {
+  id              String   @id @default(uuid())
+  deviceId        String
+  device          Device   @relation(fields: [deviceId], references: [id])
+  createdAt       DateTime @default(now())
+  eatenAt         DateTime
+  mealType        String
+  photoPath       String?
+  itemsJson       String
+  macrosJson      String
+  notes           String?
+  aiSummary       String?
+  carbEstimateNote String?
+  warningsJson    String   @default("[]")
+  suggestionsJson String   @default("[]")
+  source          String   @default("ai_photo")
+}
+
+model GlucoseSample {
+  id        String   @id @default(uuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  value     Float
+  unit      String
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  @@index([deviceId, timestamp])
+}
+
+model ActivityDay {
+  id              String   @id @default(uuid())
+  deviceId        String
+  device          Device   @relation(fields: [deviceId], references: [id])
+  date            String
+  steps           Int      @default(0)
+  activeMinutes   Int?
+  caloriesBurned  Float?
+  workoutsJson    String   @default("[]")
+  syncedAt        DateTime @default(now())
+  source          String   @default("health_connect")
+
+  @@unique([deviceId, date])
+}

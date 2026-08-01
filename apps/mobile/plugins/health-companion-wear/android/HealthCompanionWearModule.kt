@@ -4,18 +4,22 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
+import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.Asset
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class HealthCompanionWearModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -155,6 +159,56 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
                     .addOnFailureListener { e -> promise.reject("SYNC_ERROR", e.message, e) }
             } catch (e: Exception) {
                 promise.reject("SYNC_ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun getLatestWatchSteps(promise: Promise) {
+        executor.execute {
+            try {
+                val uri = Uri.parse("wear://*/health_companion/steps")
+                val task = Wearable.getDataClient(reactContext).getDataItems(uri)
+                val items = Tasks.await(task, 8, TimeUnit.SECONDS)
+                var bestSteps = 0
+                var bestDate = ""
+                var bestTs = 0L
+                try {
+                    for (item in items) {
+                        val dataMap = DataMapItem.fromDataItem(item).dataMap
+                        val ts = dataMap.getLong("timestamp", 0L)
+                        if (ts >= bestTs) {
+                            bestTs = ts
+                            bestSteps = dataMap.getInt("steps", 0)
+                            bestDate = dataMap.getString("date") ?: ""
+                        }
+                    }
+                } finally {
+                    items.release()
+                }
+
+                // Also cache locally for when Wear buffer is empty mid-session
+                val prefs = reactContext.getSharedPreferences("health_companion", Context.MODE_PRIVATE)
+                if (bestTs > 0) {
+                    prefs.edit()
+                        .putInt("watch_steps", bestSteps)
+                        .putString("watch_steps_date", bestDate)
+                        .putLong("watch_steps_ts", bestTs)
+                        .apply()
+                } else {
+                    bestSteps = prefs.getInt("watch_steps", 0)
+                    bestDate = prefs.getString("watch_steps_date", "") ?: ""
+                    bestTs = prefs.getLong("watch_steps_ts", 0L)
+                }
+
+                val map = Arguments.createMap()
+                map.putBoolean("available", bestTs > 0)
+                map.putInt("steps", bestSteps)
+                map.putString("date", bestDate)
+                map.putDouble("timestamp", bestTs.toDouble())
+                promise.resolve(map)
+            } catch (e: Exception) {
+                promise.reject("STEPS_ERROR", e.message, e)
             }
         }
     }

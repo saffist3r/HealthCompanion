@@ -70,4 +70,6 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.3.1")
     implementation("com.google.android.gms:play-services-wearable:18.1.0")
     implementation("androidx.wear.watchface:watchface:1.2.0-alpha06")
+    implementation("androidx.health:health-services-client:1.0.0")
+    implementation("com.google.guava:guava:33.3.1-android")
 }

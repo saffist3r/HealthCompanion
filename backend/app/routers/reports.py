@@ -1,0 +1,426 @@
+from __future__ import annotations
+
+from datetime import datetime, time, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import household_device_ids, require_user
+from app.models import (
+    ActivityDay,
+    CareVisit,
+    GlucoseSample,
+    Injury,
+    InjuryPainLog,
+    Meal,
+    PumpLogEvent,
+    SportMatch,
+    StressLog,
+    User,
+)
+from app.routers.meals import serialize_meal
+from app.services.daily_report_mail import send_daily_report_email
+from app.services.day_debriefs import (
+    get_day_debrief,
+    list_day_debriefs,
+    serialize_day_debrief,
+    upsert_day_debrief,
+)
+from app.services.email_smtp import smtp_configured
+from app.services.gemini_insights import generate_daily_ai_insights
+from app.services.report_pdf import build_daily_pdf
+from app.services.report_share import (
+    build_qr_png,
+    get_or_create_share,
+    get_valid_share,
+    serialize_share,
+    share_page_url,
+)
+from app.services.reports import (
+    build_daily_report,
+    build_weekly_report,
+    list_date_keys,
+    monday_of,
+    to_date_key,
+)
+
+router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def _pick_activity(rows: list[ActivityDay]) -> ActivityDay | None:
+    if not rows:
+        return None
+    # Prefer the richest row (steps), then fill Energy Score from any sibling row.
+    best = max(rows, key=lambda r: (r.steps or 0, r.calories_burned or 0, r.energy_score or 0))
+    if best.energy_score is None:
+        for row in rows:
+            if row.energy_score is not None:
+                best.energy_score = row.energy_score
+                break
+    return best
+
+
+def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
+    from app.services.body_profile import compute_targets_for_day, latest_weight, serialize_weight
+
+    targets = compute_targets_for_day(db, date)
+    weight_row = latest_weight(db, on_or_before=date)
+    weight = serialize_weight(weight_row) if weight_row else None
+
+    if not device_ids:
+        return build_daily_report(
+            date=date,
+            meals=[],
+            glucose=[],
+            activity=None,
+            care_visits=[],
+            sport_matches=[],
+            stress_logs=[],
+            pump_events=[],
+            injuries=[],
+            calorie_targets=targets,
+            weight=weight,
+        )
+
+    start = datetime.strptime(date, "%Y-%m-%d")
+    end = datetime.combine(start.date(), time(23, 59, 59, 999999))
+    meals = (
+        db.query(Meal)
+        .filter(Meal.device_id.in_(device_ids), Meal.eaten_at >= start, Meal.eaten_at <= end)
+        .order_by(Meal.eaten_at.asc())
+        .all()
+    )
+    glucose = (
+        db.query(GlucoseSample)
+        .filter(
+            GlucoseSample.device_id.in_(device_ids),
+            GlucoseSample.timestamp >= start,
+            GlucoseSample.timestamp <= end,
+        )
+        .order_by(GlucoseSample.timestamp.asc())
+        .all()
+    )
+    activity_rows = (
+        db.query(ActivityDay)
+        .filter(ActivityDay.device_id.in_(device_ids), ActivityDay.date == date)
+        .all()
+    )
+    care_visits = (
+        db.query(CareVisit)
+        .filter(CareVisit.device_id.in_(device_ids), CareVisit.date == date)
+        .order_by(CareVisit.created_at.asc())
+        .all()
+    )
+    sport_matches = (
+        db.query(SportMatch)
+        .filter(SportMatch.device_id.in_(device_ids), SportMatch.date == date)
+        .order_by(SportMatch.created_at.asc())
+        .all()
+    )
+    stress_logs = (
+        db.query(StressLog)
+        .filter(StressLog.device_id.in_(device_ids), StressLog.date == date)
+        .order_by(StressLog.created_at.asc())
+        .all()
+    )
+    pump_events = (
+        db.query(PumpLogEvent)
+        .filter(
+            PumpLogEvent.device_id.in_(device_ids),
+            PumpLogEvent.timestamp >= start,
+            PumpLogEvent.timestamp <= end,
+        )
+        .order_by(PumpLogEvent.timestamp.asc())
+        .all()
+    )
+    from app.services.injuries import serialize_injury
+
+    open_injuries = (
+        db.query(Injury)
+        .filter(
+            Injury.device_id.in_(device_ids),
+            Injury.status.in_(("active", "healing")),
+        )
+        .order_by(Injury.started_on.asc())
+        .all()
+    )
+    # Also include healed injuries that still have a pain log today.
+    pain_today = (
+        db.query(InjuryPainLog)
+        .filter(InjuryPainLog.device_id.in_(device_ids), InjuryPainLog.date == date)
+        .all()
+    )
+    pain_by_injury = {p.injury_id: p for p in pain_today}
+    injury_ids = {i.id for i in open_injuries} | set(pain_by_injury.keys())
+    if injury_ids - {i.id for i in open_injuries}:
+        extra = (
+            db.query(Injury)
+            .filter(Injury.id.in_(injury_ids - {i.id for i in open_injuries}))
+            .all()
+        )
+        open_injuries = list(open_injuries) + list(extra)
+
+    injury_dicts = []
+    for inj in open_injuries:
+        today_p = pain_by_injury.get(inj.id)
+        latest = (
+            db.query(InjuryPainLog)
+            .filter(InjuryPainLog.injury_id == inj.id)
+            .order_by(InjuryPainLog.date.desc())
+            .first()
+        )
+        injury_dicts.append(
+            serialize_injury(inj, latest_pain=latest, today_pain=today_p)
+        )
+
+    return build_daily_report(
+        date=date,
+        meals=meals,
+        glucose=glucose,
+        activity=_pick_activity(activity_rows),
+        care_visits=care_visits,
+        sport_matches=sport_matches,
+        stress_logs=stress_logs,
+        pump_events=pump_events,
+        injuries=injury_dicts,
+        calorie_targets=targets,
+        weight=weight,
+    )
+
+
+@router.get("/daily")
+def daily_report(
+    date: str | None = Query(None),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    day = date or to_date_key(datetime.now())
+    return _load_daily(db, household_device_ids(db), day)
+
+
+@router.get("/daily/pdf")
+def daily_report_pdf(
+    date: str | None = Query(None),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Downloadable PDF with Gemini AI insights for the selected day."""
+    day = date or to_date_key(datetime.now())
+    daily = _load_daily(db, household_device_ids(db), day)
+    ai = generate_daily_ai_insights(daily)
+    upsert_day_debrief(db, daily, ai)
+    share = get_or_create_share(db, date=day, user_id=user.id)
+    pdf = build_daily_pdf(daily=daily, ai=ai, share_url=share_page_url(share.token))
+    filename = f"health-companion-{day}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/daily/share")
+def daily_report_share(
+    date: str | None = Query(None),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create or refresh a public share link + QR for the daily report."""
+    day = date or to_date_key(datetime.now())
+    share = get_or_create_share(db, date=day, user_id=user.id)
+    return serialize_share(share)
+
+
+@router.get("/share/{token}")
+def shared_report_meta(token: str, db: Session = Depends(get_db)) -> dict:
+    """Public metadata for a shared daily report (no auth)."""
+    share = get_valid_share(db, token)
+    if not share:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+    return serialize_share(share)
+
+
+@router.get("/share/{token}/pdf")
+def shared_report_pdf(token: str, db: Session = Depends(get_db)) -> Response:
+    """Public PDF download for a shared daily report (no auth)."""
+    share = get_valid_share(db, token)
+    if not share:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+    daily = _load_daily(db, household_device_ids(db), share.date)
+    ai = generate_daily_ai_insights(daily)
+    upsert_day_debrief(db, daily, ai)
+    pdf = build_daily_pdf(daily=daily, ai=ai, share_url=share_page_url(share.token))
+    filename = f"health-companion-{share.date}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "private, max-age=300",
+        },
+    )
+
+
+@router.get("/share/{token}/qr.png")
+def shared_report_qr(token: str, db: Session = Depends(get_db)) -> Response:
+    """PNG QR code pointing at the public share page."""
+    share = get_valid_share(db, token)
+    if not share:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+    png = build_qr_png(share_page_url(share.token))
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+@router.post("/daily/email")
+def daily_report_email(
+    date: str | None = Query(None),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Email today's (or selected day's) AI PDF report to REPORT_EMAIL_TO."""
+    if not smtp_configured():
+        raise HTTPException(status_code=503, detail="SMTP is not configured on the server")
+    try:
+        return send_daily_report_email(db, date=date)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/debriefs")
+def list_debriefs(
+    limit: int = Query(30, ge=1, le=200),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List archived day debriefs (newest first)."""
+    rows = list_day_debriefs(db, limit=limit)
+    return {"debriefs": [serialize_day_debrief(r, full=False) for r in rows]}
+
+
+@router.get("/debriefs/{date}")
+def get_debrief(
+    date: str,
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Full archived debrief for a calendar date."""
+    if not date or len(date) != 10:
+        raise HTTPException(status_code=400, detail="date (YYYY-MM-DD) required")
+    row = get_day_debrief(db, date)
+    if not row:
+        raise HTTPException(status_code=404, detail="No debrief archived for this date")
+    return serialize_day_debrief(row, full=True)
+
+
+@router.get("/weekly")
+def weekly_report(
+    date: str | None = Query(None),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    anchor = date or to_date_key(datetime.now())
+    week_start = monday_of(anchor)
+    end = datetime.strptime(week_start, "%Y-%m-%d") + timedelta(days=6)
+    week_end = end.strftime("%Y-%m-%d")
+    ids = household_device_ids(db)
+    days = [_load_daily(db, ids, d) for d in list_date_keys(week_start, week_end)]
+    return build_weekly_report(week_start=week_start, week_end=week_end, days=days)
+
+
+@router.get("/dashboard")
+def dashboard(
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated household view for the React web dashboard."""
+    ids = household_device_ids(db)
+    today = to_date_key(datetime.now())
+    daily = _load_daily(db, ids, today)
+    week_start = monday_of(today)
+    end = datetime.strptime(week_start, "%Y-%m-%d") + timedelta(days=6)
+    week_end = end.strftime("%Y-%m-%d")
+    days = [_load_daily(db, ids, d) for d in list_date_keys(week_start, week_end)]
+    weekly = build_weekly_report(week_start=week_start, week_end=week_end, days=days)
+
+    recent_q = db.query(Meal)
+    if ids:
+        recent_q = recent_q.filter(Meal.device_id.in_(ids))
+    recent = recent_q.order_by(Meal.eaten_at.desc()).limit(8).all()
+
+    nutrition = daily["nutrition"]["macros"]
+    activity = daily.get("activity") or {}
+    glucose = daily["glucose"]
+    today_workouts = activity.get("workouts") or [] if activity else []
+    today_workout_min = sum(
+        int(w.get("durationMin") or 0) for w in today_workouts if isinstance(w, dict)
+    )
+    today_care = daily.get("careVisits") or []
+    today_matches = daily.get("sportMatches") or []
+    today_stress = daily.get("stressLogs") or []
+    today_injuries = daily.get("injuries") or []
+    today_pump = daily.get("pumpEvents") or []
+    today_insulin = round(
+        sum(float(p.get("units") or 0) for p in today_pump if p.get("kind") == "insulin_delivered"),
+        2,
+    )
+
+    return {
+        "deviceIds": ids,
+        "mealCount": nutrition and daily["nutrition"]["mealCount"],
+        "todayCarbsG": nutrition.get("carbsG", 0),
+        "todayProteinG": nutrition.get("proteinG", 0),
+        "todayFatG": nutrition.get("fatG", 0),
+        "todayCaloriesKcal": nutrition.get("caloriesKcal", 0),
+        "calorieTargets": daily.get("calorieTargets"),
+        "calorieBalance": daily.get("calorieBalance"),
+        "weight": daily.get("weight"),
+        "todaySteps": activity.get("steps", 0) if activity else 0,
+        "todayActiveMinutes": activity.get("activeMinutes") if activity else None,
+        "todayCaloriesBurned": activity.get("caloriesBurned") if activity else None,
+        "todayEnergyScore": activity.get("energyScore") if activity else None,
+        "todayActivitySource": activity.get("source") if activity else None,
+        "todayActivitySyncedAt": activity.get("syncedAt") if activity else None,
+        "todayWorkouts": today_workouts,
+        "todayWorkoutMinutes": today_workout_min,
+        "todayCareVisits": today_care,
+        "todaySportMatches": today_matches,
+        "todayStressLogs": today_stress,
+        "todayInjuries": today_injuries,
+        "todayPumpEvents": today_pump,
+        "todayInsulinDeliveredU": today_insulin,
+        "todayPumpEventCount": len(today_pump),
+        "glucoseAvgMgDl": glucose.get("avgMgDl"),
+        "timeInRangePct": glucose.get("timeInRangePct"),
+        "todayHypoEventCount": glucose.get("hypoEventCount") or 0,
+        "todayHypoEvents": glucose.get("hypoEvents") or [],
+        "recentMeals": [serialize_meal(m).model_dump() for m in recent],
+        "dailyReport": daily,
+        "weeklyReport": weekly,
+        "sports": {
+            "todaySteps": activity.get("steps", 0) if activity else 0,
+            "todayEnergyScore": activity.get("energyScore") if activity else None,
+            "todayActivitySource": activity.get("source") if activity else None,
+            "todayActivitySyncedAt": activity.get("syncedAt") if activity else None,
+            "todayWorkoutMinutes": today_workout_min,
+            "todayWorkoutCount": len(today_workouts),
+            "todayCaloriesBurned": activity.get("caloriesBurned") if activity else None,
+            "weekSteps": weekly["totals"].get("totalSteps", 0),
+            "weekWorkoutMinutes": weekly["totals"].get("workoutMinutes", 0),
+            "weekWorkoutCount": weekly["totals"].get("workoutCount", 0),
+            "weekActiveCalories": weekly["totals"].get("activeCalories", 0),
+            "recentWorkouts": weekly.get("workouts") or [],
+            "careVisits": weekly.get("careVisits") or [],
+            "sportMatches": weekly.get("sportMatches") or [],
+            "stressLogs": weekly.get("stressLogs") or [],
+            "padelWins": weekly["totals"].get("padelWins", 0),
+            "padelLosses": weekly["totals"].get("padelLosses", 0),
+            "stressLogCount": weekly["totals"].get("stressLogCount", 0),
+            "stressHighCount": weekly["totals"].get("stressHighCount", 0),
+        },
+    }

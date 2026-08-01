@@ -5,6 +5,37 @@ All notable changes to Health Companion will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 1.5.x (full companion)
+
+### Added
+
+- **Injury tracking** — persistent cases (type, body area, exercises) + daily pain 0–10 (slider); tags for sport/kine/osteo/etc.; included in daily AI prompt, debrief archive, and PDF
+- **Web Injuries page** + Compose / mobile `+` entry flows
+- **Care visits**, sport sessions, weight logging, pump notification sync, Energy Score (Samsung Health)
+- Auth (JWT), household device scoping, daily report email + shareable PDF links
+- Kubernetes deploy under `k8s/` (see [SECURITY.md](SECURITY.md) before pushing secrets)
+
+### Security
+
+- Env templates use placeholders only; `k8s/secrets.yaml` and `backend/.env` stay gitignored
+- `./k8s/deploy.sh` requires `REGISTRY_PASS` from the environment (no hardcoded registry password)
+- Default API URLs point at localhost so forks do not hit a maintainer deployment
+
+## [Unreleased] — 1.2.0 (diabetes companion)
+
+### Added
+
+- **FastAPI + PostgreSQL backend** (`backend/`) with Gemini meal vision
+- **React (Vite) web dashboard** (`frontend/`) — meals, daily/weekly reports, charts
+- `docker-compose.yml` for Postgres + backend + frontend (HomeManager / MyMeals style)
+- Mobile tab navigation: Glucose, Meals, Reports, Activity, Settings
+- Meal capture UI, Health Connect activity import, shared nutrition/report types
+
+### Changed
+
+- AI provider: **Gemini** (replaces OpenAI for meal photo analysis)
+- Default API port **8000**; legacy Node/SQLite API under `apps/api` is deprecated
+
 ## [1.1.0] - 2026-06-23
 
 ### Added

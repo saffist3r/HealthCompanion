@@ -5,13 +5,16 @@ import RNAndroidNotificationListener, {
 } from 'react-native-android-notification-listener';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  parseGlycemiaFromNotification,
+  parseGlycemiaFromNotificationParts,
+  parsePumpLogFromNotificationParts,
   isCapAPSFxPackage,
   MAX_GLYCEMIA_HISTORY,
 } from '@health-companion/shared';
 
 import App from './App';
 import { sendGlycemiaToWatch } from './src/wearSync';
+import { pushGlucoseToCloud } from './src/glucoseCloudSync';
+import { pushPumpEventToCloud } from './src/pumpCloudSync';
 
 const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
 const HISTORY_KEY = '@health_companion/history';
@@ -37,7 +40,19 @@ interface NotificationPayload {
   extraInfoText?: string;
   tickerText?: string;
   extrasText?: string;
+  /** Android StatusBarNotification postTime (ms since epoch), as string */
+  time?: string;
   groupedMessages?: Array<{ title?: string; text?: string }>;
+}
+
+function notificationPostTimeMs(notification: NotificationPayload): number {
+  const raw = notification.time;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 1e11) return Math.round(n);
+    if (Number.isFinite(n) && n > 1e9) return Math.round(n * 1000);
+  }
+  return Date.now();
 }
 
 const headlessNotificationListener = async (payload: {
@@ -77,7 +92,13 @@ const headlessNotificationListener = async (payload: {
     notification.summaryText,
     notification.extraInfoText,
     notification.tickerText,
-    notification.extrasText,
+    // extrasText often dumps Android class names — only keep if it looks human
+    notification.extrasText &&
+    /insulin|delivered|reservoir|battery|glucose|hypo|occlusion|sensor|high|low/i.test(
+      notification.extrasText
+    )
+      ? notification.extrasText
+      : undefined,
   ].filter(Boolean) as string[];
 
   const grouped = notification.groupedMessages ?? [];
@@ -86,17 +107,44 @@ const headlessNotificationListener = async (payload: {
     if (msg.text) parts.push(msg.text);
   }
 
-  const text = parts.join(' ');
-  const reading = parseGlycemiaFromNotification(text);
+  const postedAt = notificationPostTimeMs(notification);
+  const reading = parseGlycemiaFromNotificationParts(parts);
+  const pumpEvent = parsePumpLogFromNotificationParts(parts, {
+    packageId,
+    timestamp: postedAt,
+  });
   if (__DEV__) {
-    console.log('[HealthCompanion] Parsed text:', text.substring(0, 200), 'reading:', reading ? JSON.stringify(reading) : 'null');
+    const text = parts.join(' ');
+    console.log(
+      '[HealthCompanion] Parsed text:',
+      text.substring(0, 200),
+      'reading:',
+      reading ? JSON.stringify(reading) : 'null',
+      'pump:',
+      pumpEvent ? JSON.stringify(pumpEvent) : 'null',
+      'postTime:',
+      postedAt
+    );
   }
+
+  if (pumpEvent) {
+    try {
+      pushPumpEventToCloud(pumpEvent).catch(() => {});
+    } catch (_) {
+      // Ignore in headless context
+    }
+  }
+
   if (!reading) return;
 
   try {
-    await AsyncStorage.setItem(GLYCEMIA_ASYNC_KEY, JSON.stringify(reading));
-    await appendToHistory(reading);
-    await sendGlycemiaToWatch(reading, await loadHistoryForSync());
+    // Prefer CapAPS post time so refreshes of the same reading don't skew history
+    const stamped = { ...reading, timestamp: reading.timestamp || postedAt };
+    await AsyncStorage.setItem(GLYCEMIA_ASYNC_KEY, JSON.stringify(stamped));
+    await appendToHistory(stamped);
+    await sendGlycemiaToWatch(stamped, await loadHistoryForSync());
+    // Store on the web dashboard as soon as CapAPS delivers a reading
+    pushGlucoseToCloud(stamped).catch(() => {});
   } catch (_) {
     // Ignore storage errors in headless context
   }

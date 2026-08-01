@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: healthcompanion-config
+  namespace: healthcompanion
+data:
+  DATABASE_HOST: "postgres"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "healthcompanion"
+  DATABASE_USER: "healthcompanion"
+  GEMINI_MODEL: "gemini-flash-latest"
+  UPLOAD_DIR: "/app/uploads"
+  DAILY_CARB_TARGET_G: "180"
+  CORS_ORIGINS: "https://healthcompanion.saffist3r.xyz"
+  PUBLIC_URL: "https://healthcompanion.saffist3r.xyz"

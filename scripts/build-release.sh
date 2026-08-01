@@ -1,9 +1,10 @@
 #!/bin/bash
-# Build release APKs for Health Companion v1.0.0
-# Output: release/v1.0.0/
+# Build release APKs for Health Companion
+# Output: release/$VERSION/
+# Usage: ./scripts/build-release.sh [version]   (default below)
 
 set -e
-VERSION="1.0.0"
+VERSION="${1:-1.1.0}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_DIR="$ROOT/release/$VERSION"

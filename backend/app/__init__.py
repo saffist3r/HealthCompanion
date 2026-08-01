@@ -1,0 +1,1 @@
+# Health Companion FastAPI package

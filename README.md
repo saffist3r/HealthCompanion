@@ -1,14 +1,67 @@
 # Health Companion
 
-A Wear OS watch face that displays time, glycemia (blood glucose), heart rate, and steps.
+A Wear OS watch face plus Android phone companion and optional self-hosted web/API for diabetes day-to-day: glycemia, meals, activity, injuries, care visits, and AI-assisted reports.
 
 ![Health Companion Watch Face](assets/watch-face-screenshot.png)
 
-**Latest release:** [v1.1.0](RELEASES.md#release-v110) · [Changelog](CHANGELOG.md)
+**Latest tagged release:** [v1.1.0](RELEASES.md#release-v110) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
-Glycemia values are automatically synced from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
+> **Current tree (v1.5.x):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini), Samsung Health / Health Connect activity, injury + pain tracking, pump notification sync, JWT auth. Deploy notes in [`k8s/`](k8s/README.md).
 
-Use this repository to build and run the app yourself on your own devices.
+Glycemia values sync from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
+
+Use this repository to build and run the app on **your own** devices and servers. See [SECURITY.md](SECURITY.md) before publishing forks or deploying — never commit `.env`, `k8s/secrets.yaml`, meal photos, or database dumps.
+
+---
+
+## Diabetes companion (phone + API + web)
+
+The mobile app includes **Meals**, **Reports**, **Activity**, and **Settings** tabs on top of CapAPS glucose → watch sync.
+
+| Feature | How it works |
+|---------|----------------|
+| Meal photos | Camera/gallery → **Gemini** (server) → carbs/protein/fat + diabetes warnings |
+| Food log | Stored in **your** PostgreSQL via FastAPI (`backend/`) |
+| Web dashboard | React (Vite) at `frontend/` — daily stats, charts, meals, reports, injuries |
+| Reports | Daily & weekly nutrition + glucose TIR + steps; AI agent prompt + PDF |
+| Injuries | Persistent cases + daily pain slider (0–10); wired into reports / AI |
+| Activity | Health Connect + Samsung Health (steps, Energy Score, workouts) |
+| API keys | `GEMINI_API_KEY` and DB credentials stay on the server — never on the phone |
+
+### Run backend + Postgres + web
+
+```bash
+cp backend/.env.example backend/.env
+# set GEMINI_API_KEY and JWT_SECRET (see SECURITY.md)
+
+docker compose up -d db
+cd backend && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# another terminal
+cd frontend && npm install && npm run dev
+```
+
+- API: http://localhost:8000/docs  
+- Web: http://localhost:5173  
+
+On a physical phone, set **Settings → API base URL** to `http://<your-lan-ip>:8000` (or your HTTPS origin in production).
+
+See [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md), and [SECURITY.md](SECURITY.md).
+
+### Deploy to cluster (Minikube)
+
+Kubernetes manifests and deploy script live in [`k8s/`](k8s/README.md):
+
+```bash
+./k8s/setup-secrets.sh          # creates gitignored k8s/secrets.yaml
+export REGISTRY_PASS='…'        # required — never commit
+./k8s/deploy.sh
+```
+
+Edit hostnames in `k8s/ingress.yaml` / `k8s/configmap.yaml` for your domain.
+
 
 ---
 
@@ -20,10 +73,14 @@ Use this repository to build and run the app yourself on your own devices.
 | **Glycemia** | Blood glucose from CapAPS Fx, synced from phone notifications |
 | **Trend** | Animated arrows on the watch face (↑ / ↓ / →); 12h chart on the phone app |
 | **Heart Rate** | Live BPM from watch sensor with vector heart icon |
-| **Steps** | Step count from watch sensor with vector footprint icon |
+| **Steps** | Daily step count from watch sensor (since midnight) |
 | **Status Colors** | Green (in range), orange (high), red (low/very high) |
 | **Customization** | Watch background (animated / solid / gradient / image slideshow), text color, status tint |
 | **Low alert** | Watch vibrates on new reading below 70 mg/dL |
+| **Meal AI** | Photograph meals → server-side AI macros + diabetes warnings |
+| **Reports** | Daily / weekly nutrition + glucose + activity + injuries |
+| **Injuries** | Cases + daily pain logs for rehab / AI context |
+| **Health Connect** | Import steps / workouts (e.g. from Samsung Health) |
 
 ---
 

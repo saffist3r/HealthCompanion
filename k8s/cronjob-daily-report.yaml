@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-report-email
+  namespace: healthcompanion
+  labels:
+    app: daily-report-email
+spec:
+  # 07:00 Europe/Paris every day
+  schedule: "0 7 * * *"
+  timeZone: Europe/Paris
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: daily-report-email
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: registry-secret
+          containers:
+            - name: send
+              image: registry.saffist3r.xyz/healthcompanion-backend:VERSION_TAG
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "app.jobs.send_daily_report"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: DATABASE_URL
+                - name: GEMINI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: GEMINI_API_KEY
+                      optional: true
+                - name: GEMINI_MODEL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: healthcompanion-config
+                      key: GEMINI_MODEL
+                - name: SMTP_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: SMTP_HOST
+                - name: SMTP_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: SMTP_PORT
+                - name: SMTP_SSL
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: SMTP_SSL
+                - name: SMTP_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: SMTP_USER
+                - name: SMTP_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: SMTP_PASSWORD
+                - name: REPORT_EMAIL_TO
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: REPORT_EMAIL_TO
+                - name: REPORT_EMAIL_FROM
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: REPORT_EMAIL_FROM
+                      optional: true
+                - name: REPORT_EMAIL_FROM_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: healthcompanion-secrets
+                      key: REPORT_EMAIL_FROM_NAME
+                      optional: true
+                - name: UPLOAD_DIR
+                  valueFrom:
+                    configMapKeyRef:
+                      name: healthcompanion-config
+                      key: UPLOAD_DIR
+              volumeMounts:
+                - name: uploads
+                  mountPath: /app/uploads
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+          volumes:
+            - name: uploads
+              persistentVolumeClaim:
+                claimName: uploads-pvc

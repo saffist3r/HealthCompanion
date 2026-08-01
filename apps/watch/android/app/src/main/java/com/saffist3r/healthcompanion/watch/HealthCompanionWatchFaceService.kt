@@ -34,18 +34,27 @@ class HealthCompanionWatchFaceService : WatchFaceService() {
             handler.postDelayed(this, 30_000L) // Retry every 30s (picks up permission grant)
         }
     }
+    private val stepsFlushRunnable = object : Runnable {
+        override fun run() {
+            StepsMonitor.flush()
+            handler.postDelayed(this, 60_000L)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         GlycemiaHolder.init(applicationContext)
         BackgroundSettingsHolder.init(applicationContext)
+        StepsHolder.bind(applicationContext)
         HeartRateMonitor.start(applicationContext)
         StepsMonitor.start(applicationContext)
         handler.postDelayed(retryRunnable, 5_000L) // First retry after 5s
+        handler.postDelayed(stepsFlushRunnable, 10_000L)
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(retryRunnable)
+        handler.removeCallbacks(stepsFlushRunnable)
         HeartRateMonitor.stop()
         StepsMonitor.stop()
         super.onDestroy()

@@ -1,6 +1,19 @@
 # Dependencies
 node_modules/
 
+# Env / secrets (never commit real credentials or health-data dumps)
+.env
+.env.*
+!.env.example
+**/.env
+!**/.env.example
+backend/.env
+apps/api/.env
+k8s/secrets.yaml
+*.pem
+*.key
+!**/gradle/wrapper/**
+
 # Build outputs
 apps/watch/android/.gradle/
 apps/watch/android/app/build/
@@ -9,13 +22,25 @@ apps/watch/android/local.properties
 apps/mobile/android/
 apps/mobile/ios/
 
+# API / backend local data (meal photos, DBs — personal health data)
+apps/api/uploads/
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+backend/uploads/
+backend/.venv/
+backend/*.db
+**/__pycache__/
+*.py[cod]
+frontend/node_modules/
+frontend/dist/
+
 # IDE
 .idea/
 
 # OS
 .DS_Store
 
-# Release APKs (large binaries - attach to GitHub Releases instead)
+# Release APKs (large binaries — attach to GitHub Releases instead)
 release/*/*.apk
 
 # Expo / React Native

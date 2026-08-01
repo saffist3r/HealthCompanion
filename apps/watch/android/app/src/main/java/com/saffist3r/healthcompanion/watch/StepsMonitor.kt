@@ -1,96 +1,147 @@
 package com.saffist3r.healthcompanion.watch
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import androidx.health.services.client.HealthServices
+import androidx.health.services.client.PassiveListenerCallback
+import androidx.health.services.client.data.DataPointContainer
+import androidx.health.services.client.data.DataType
+import androidx.health.services.client.data.PassiveListenerConfig
+import androidx.health.services.client.PassiveMonitoringClient
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.MoreExecutors
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.Volatile
 
+/**
+ * Reads **today's** steps from Wear Health Services ([DataType.STEPS_DAILY]), which is
+ * the same platform source Samsung Health / Activity uses on Galaxy Watch.
+ *
+ * Falls back to the legacy [Sensor.TYPE_STEP_COUNTER] path only if Health Services
+ * is unavailable.
+ */
 object StepsMonitor {
     private const val TAG = "StepsMonitor"
-    private const val PREFS = "steps_prefs"
-    private const val KEY_ACCUMULATED = "accumulated_steps"
-
-    @Volatile private var sensorManager: SensorManager? = null
-    @Volatile private var counterListener: SensorEventListener? = null
-    @Volatile private var detectorListener: SensorEventListener? = null
-
     private const val ACTIVITY_RECOGNITION = android.Manifest.permission.ACTIVITY_RECOGNITION
 
-    fun start(context: Context) {
-        if (counterListener != null || detectorListener != null) return
-        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+    @Volatile private var appContext: Context? = null
+    @Volatile private var passiveClient: PassiveMonitoringClient? = null
+    private val started = AtomicBoolean(false)
+    private val executor = Executors.newSingleThreadExecutor()
 
-        // Try TYPE_STEP_COUNTER first (cumulative since boot)
-        val stepCounter = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        if (stepCounter != null) {
-            try {
-                val listener = object : SensorEventListener {
-                    override fun onSensorChanged(event: SensorEvent) {
-                        if (event.values.isNotEmpty()) {
-                            val steps = event.values[0].toInt()
-                            if (steps >= 0) StepsHolder.update(steps)
-                        }
-                    }
-                    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
-                }
-                if (sm.registerListener(listener, stepCounter, SensorManager.SENSOR_DELAY_NORMAL)) {
-                    counterListener = listener
-                    sensorManager = sm
-                    Log.d(TAG, "Step counter started")
-                    return
-                }
-            } catch (e: SecurityException) {
-                Log.w(TAG, "Step counter needs ACTIVITY_RECOGNITION permission", e)
-            }
+    private val listener = object : PassiveListenerCallback {
+        override fun onNewDataPointsReceived(dataPoints: DataPointContainer) {
+            val points = dataPoints.getData(DataType.STEPS_DAILY)
+            val latest = points.maxByOrNull { it.endDurationFromBoot.toMillis() } ?: return
+            val steps = latest.value.toInt().coerceAtLeast(0)
+            Log.d(TAG, "STEPS_DAILY=$steps")
+            StepsHolder.update(steps)
         }
 
-        // Fallback: TYPE_STEP_DETECTOR (fires per step, we accumulate)
-        val stepDetector = sm.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
-        if (stepDetector != null) {
-            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            var accumulated = prefs.getInt(KEY_ACCUMULATED, 0)
+        override fun onPermissionLost() {
+            Log.w(TAG, "Health Services permission lost")
+        }
+    }
 
-            val listener = object : SensorEventListener {
-                override fun onSensorChanged(event: SensorEvent) {
-                    if (event.values.isNotEmpty() && event.values[0] >= 1f) {
-                        accumulated += event.values[0].toInt()
-                        prefs.edit().putInt(KEY_ACCUMULATED, accumulated).apply()
-                        StepsHolder.update(accumulated)
+    fun start(context: Context) {
+        if (!started.compareAndSet(false, true)) return
+        val app = context.applicationContext
+        appContext = app
+
+        if (!hasPermission(app)) {
+            Log.w(TAG, "ACTIVITY_RECOGNITION not granted — will retry")
+            started.set(false)
+            // Keep sensor fallback so the face still shows something
+            StepsSensorFallback.start(app)
+            return
+        }
+
+        try {
+            val client = HealthServices.getClient(app).passiveMonitoringClient
+            passiveClient = client
+            Futures.addCallback(
+                client.getCapabilitiesAsync(),
+                object : FutureCallback<androidx.health.services.client.data.PassiveMonitoringCapabilities> {
+                    override fun onSuccess(
+                        result: androidx.health.services.client.data.PassiveMonitoringCapabilities?
+                    ) {
+                        val supported =
+                            result?.supportedDataTypesPassiveMonitoring?.contains(DataType.STEPS_DAILY) == true
+                        if (!supported) {
+                            Log.w(TAG, "STEPS_DAILY not supported — using sensor fallback")
+                            StepsSensorFallback.start(app)
+                            return
+                        }
+                        val config = PassiveListenerConfig.builder()
+                            .setDataTypes(setOf(DataType.STEPS_DAILY))
+                            .build()
+                        client.setPassiveListenerCallback(config, listener)
+                        // Pull latest buffered daily total ASAP
+                        Futures.addCallback(
+                            client.flushAsync(),
+                            object : FutureCallback<Void> {
+                                override fun onSuccess(result: Void?) {
+                                    Log.d(TAG, "Health Services flush requested")
+                                }
+                                override fun onFailure(t: Throwable) {
+                                    Log.w(TAG, "Health Services flush failed", t)
+                                }
+                            },
+                            MoreExecutors.directExecutor()
+                        )
+                        Log.d(TAG, "Health Services STEPS_DAILY listener registered")
                     }
-                }
-                override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
-            }
-            if (sm.registerListener(listener, stepDetector, SensorManager.SENSOR_DELAY_NORMAL)) {
-                detectorListener = listener
-                sensorManager = sm
-                StepsHolder.update(accumulated)
-                Log.d(TAG, "Step detector started (accumulated=$accumulated)")
-            }
-        } else {
-            Log.w(TAG, "No step sensor available")
+
+                    override fun onFailure(t: Throwable) {
+                        Log.w(TAG, "Health Services capabilities failed — sensor fallback", t)
+                        StepsSensorFallback.start(app)
+                    }
+                },
+                executor
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Health Services unavailable — sensor fallback", e)
+            StepsSensorFallback.start(app)
         }
     }
 
     fun stop() {
-        counterListener?.let { sensorManager?.unregisterListener(it) }
-        detectorListener?.let { sensorManager?.unregisterListener(it) }
-        counterListener = null
-        detectorListener = null
-        sensorManager = null
+        started.set(false)
+        try {
+            passiveClient?.clearPassiveListenerCallbackAsync()
+        } catch (_: Exception) {
+            /* ignore */
+        }
+        passiveClient = null
+        StepsSensorFallback.stop()
         Log.d(TAG, "Steps monitor stopped")
     }
-
-    private fun hasPermission(context: Context): Boolean =
-        ContextCompat.checkSelfPermission(context, ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
 
     fun restart(context: Context) {
         stop()
         start(context)
     }
+
+    /** Ask Health Services to deliver the latest daily total (e.g. on watch-face tick). */
+    fun flush() {
+        val client = passiveClient ?: return
+        Futures.addCallback(
+            client.flushAsync(),
+            object : FutureCallback<Void> {
+                override fun onSuccess(result: Void?) {}
+                override fun onFailure(t: Throwable) {
+                    Log.w(TAG, "flush failed", t)
+                }
+            },
+            MoreExecutors.directExecutor()
+        )
+    }
+
+    private fun hasPermission(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, ACTIVITY_RECOGNITION) ==
+            PackageManager.PERMISSION_GRANTED
 }

@@ -10,30 +10,52 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#f8fafc"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.saffist3r.healthcompanion"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/health-companion-logo.png",
-        "backgroundColor": "#ffffff"
-      },
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/health-companion-logo.png",
+          "backgroundColor": "#f8fafc"
+        },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.saffist3r.healthcompanion"
+      "package": "com.saffist3r.healthcompanion",
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "./plugins/withHealthCompanionWear",
+      "./plugins/withSamsungHealth",
+      "./plugins/withHealthConnectSetup",
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29,
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Health Companion to pick a watch background image."
+          "photosPermission": "Allow Health Companion to photograph meals and pick watch background images.",
+          "cameraPermission": "Allow Health Companion to photograph meals for nutrition analysis."
         }
       ]
     ]

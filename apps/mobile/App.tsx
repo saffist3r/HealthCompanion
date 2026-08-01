@@ -1,573 +1,284 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
-  Linking,
-  NativeModules,
+  ActivityIndicator,
   Platform,
-  StyleSheet,
-  Text,
-  View,
   TouchableOpacity,
-  AppState,
-  ScrollView,
-  RefreshControl,
-  LayoutAnimation,
-  UIManager,
   useColorScheme,
-  type AppStateStatus,
+  View,
+  Text,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import RNAndroidNotificationListener from 'react-native-android-notification-listener';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import Svg, { Circle } from 'react-native-svg';
-import type { GlycemiaReading } from '@health-companion/shared';
 import {
-  getGlycemiaStatusColor,
-  getGlycemiaStatusLabel,
-  toMgDl,
-  MAX_GLYCEMIA_HISTORY,
-  SPARKLINE_WINDOW_MS,
-} from '@health-companion/shared';
-import { sendGlycemiaToWatch, sendBackgroundToWatch } from './src/wearSync';
-import { BackgroundSettingsCard } from './src/components/BackgroundSettingsCard';
-import { SparklineChart } from './src/components/SparklineChart';
-import { loadBackgroundSettings } from './src/backgroundSettings';
+  NavigationContainer,
+  DarkTheme,
+  DefaultTheme,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { startGlucoseAutoSync, stopGlucoseAutoSync } from './src/glucoseCloudSync';
+import { startPumpAutoSync, stopPumpAutoSync } from './src/pumpCloudSync';
+import { startActivityAutoSync, stopActivityAutoSync } from './src/activityCloudSync';
+import DashboardScreen from './src/screens/DashboardScreen';
+import GlucoseScreen from './src/screens/GlucoseScreen';
+import MealsScreen from './src/screens/MealsScreen';
+import CaptureMealScreen from './src/screens/CaptureMealScreen';
+import ReportsScreen from './src/screens/ReportsScreen';
+import ActivityScreen from './src/screens/ActivityScreen';
+import SettingsHubScreen from './src/screens/SettingsHubScreen';
+import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import AddEntrySheet from './src/components/AddEntrySheet';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+const Tab = createBottomTabNavigator();
+const MealsStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
 
-const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
-const HISTORY_KEY = '@health_companion/history';
-const MAX_HISTORY = MAX_GLYCEMIA_HISTORY;
-const GlycemiaStorage = NativeModules.GlycemiaStorage;
+/** Content row for text-only tabs (no icon slot). */
+const TAB_BAR_CONTENT_HEIGHT = 44;
+/**
+ * Android gesture nav often reports only ~20dp via safe-area, while the
+ * mandatory/tappable system zone is ~48dp — tabs must clear that full zone.
+ */
+const ANDROID_NAV_CLEARANCE = 48;
 
-function formatTimeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  const min = Math.floor(diff / 60000);
-  const hr = Math.floor(min / 60);
-  const day = Math.floor(hr / 24);
-  if (min < 1) return 'Just now';
-  if (min < 60) return `${min}m ago`;
-  if (hr < 24) return `${hr}h ago`;
-  return `${day}d ago`;
-}
-
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  }
+function TabLabel({ label, color }: { label: string; color: string }) {
   return (
-    d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
-    ' ' +
-    d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    <Text style={{ fontSize: 12, color, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>
+      {label}
+    </Text>
   );
 }
 
-async function loadLatestGlycemia(): Promise<GlycemiaReading | null> {
-  try {
-    let raw = await AsyncStorage.getItem(GLYCEMIA_ASYNC_KEY);
-    if (!raw && GlycemiaStorage?.getLastGlycemia) {
-      raw = await GlycemiaStorage.getLastGlycemia();
-    }
-    if (!raw) return null;
-    return JSON.parse(raw) as GlycemiaReading;
-  } catch {
-    return null;
-  }
-}
-
-async function loadHistory(): Promise<GlycemiaReading[]> {
-  try {
-    const raw = await AsyncStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as GlycemiaReading[];
-    if (!Array.isArray(arr)) return [];
-    const cutoff = Date.now() - SPARKLINE_WINDOW_MS;
-    return arr.filter((r) => r.timestamp >= cutoff).slice(0, MAX_HISTORY);
-  } catch {
-    return [];
-  }
-}
-
-async function appendToHistory(reading: GlycemiaReading): Promise<void> {
-  const history = await loadHistory();
-  const filtered = history.filter((r) => Math.abs(r.timestamp - reading.timestamp) > 5000);
-  const updated = [reading, ...filtered].slice(0, MAX_HISTORY);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-}
-
-async function removeFromHistory(timestamp: number): Promise<void> {
-  const history = await loadHistory();
-  const updated = history.filter((r) => r.timestamp !== timestamp);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-}
-
-function StatusRing({
-  reading,
-  size = 160,
-  strokeWidth = 12,
-  color,
-  isDark,
-}: {
-  reading: GlycemiaReading;
-  size?: number;
-  strokeWidth?: number;
-  color: string;
-  isDark: boolean;
-}) {
-  const mgDl = toMgDl(reading.value, reading.unit);
-  const maxVal = 300;
-  const progress = Math.min(1, Math.max(0, (mgDl - 0) / maxVal));
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - progress);
-
+function MealsStackScreen() {
+  const isDark = useColorScheme() === 'dark';
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}
-          strokeWidth={strokeWidth}
-          fill="transparent"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="transparent"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View style={{ alignItems: 'center' }}>
-        <Text
-          style={{
-            fontSize: 36,
-            fontWeight: '700',
-            color: color,
-          }}
-        >
-          {reading.value} {reading.unit}
-        </Text>
-        <Text
-          style={{
-            fontSize: 13,
-            color: isDark ? 'rgba(255,255,255,0.7)' : '#888',
-            marginTop: 2,
-          }}
-        >
-          {getGlycemiaStatusLabel(reading)}
-        </Text>
-      </View>
-    </View>
+    <MealsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerTintColor: isDark ? '#e6edf3' : '#111',
+      }}
+    >
+      <MealsStack.Screen name="MealsList" component={MealsScreen} options={{ title: 'Meals' }} />
+      <MealsStack.Screen
+        name="CaptureMeal"
+        component={CaptureMealScreen}
+        options={{ title: 'Capture meal' }}
+      />
+    </MealsStack.Navigator>
   );
 }
 
-function EmptyState({ isDark }: { isDark: boolean }) {
-  const textColor = isDark ? 'rgba(255,255,255,0.8)' : '#666';
+function SettingsStackScreen() {
+  const isDark = useColorScheme() === 'dark';
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 }}>
-      <View
+    <SettingsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerTintColor: isDark ? '#e6edf3' : '#111',
+      }}
+    >
+      <SettingsStack.Screen
+        name="SettingsHub"
+        component={SettingsHubScreen}
+        options={{ title: 'Settings', headerShown: false }}
+      />
+      <SettingsStack.Screen
+        name="WatchSettings"
+        component={WatchSettingsScreen}
+        options={{ title: 'Watch' }}
+      />
+      <SettingsStack.Screen
+        name="AppSettings"
+        component={SettingsScreen}
+        options={{ title: 'Connection' }}
+      />
+    </SettingsStack.Navigator>
+  );
+}
+
+function MainTabs() {
+  const isDark = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
+  const [composeOpen, setComposeOpen] = useState(false);
+  const bottomInset =
+    Platform.OS === 'android'
+      ? Math.max(insets.bottom, ANDROID_NAV_CLEARANCE)
+      : Math.max(insets.bottom, 8);
+  const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + bottomInset;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        initialRouteName="Today"
+        safeAreaInsets={{ top: 0, right: 0, left: 0, bottom: 0 }}
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#0d9488',
+          tabBarInactiveTintColor: isDark ? '#8b949e' : '#9ca3af',
+          tabBarShowIcon: false,
+          tabBarIconStyle: { display: 'none', height: 0, width: 0 },
+          tabBarLabelPosition: 'below-icon',
+          tabBarItemStyle: {
+            justifyContent: 'center',
+            paddingTop: 0,
+            paddingBottom: 0,
+          },
+          tabBarStyle: {
+            backgroundColor: isDark ? '#0d1117' : '#fff',
+            borderTopColor: isDark ? '#21262d' : '#e5e7eb',
+            height: tabBarHeight,
+            paddingBottom: bottomInset,
+            paddingTop: 0,
+          },
+        }}
+      >
+        <Tab.Screen
+          name="Today"
+          component={DashboardScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Today" color={color} />,
+            tabBarIcon: () => null,
+          }}
+        />
+        <Tab.Screen
+          name="Glucose"
+          component={GlucoseScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Glucose" color={color} />,
+            tabBarIcon: () => null,
+          }}
+        />
+        <Tab.Screen
+          name="Meals"
+          component={MealsStackScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Meals" color={color} />,
+            tabBarIcon: () => null,
+          }}
+        />
+        <Tab.Screen
+          name="Reports"
+          component={ReportsScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Reports" color={color} />,
+            tabBarIcon: () => null,
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Activity"
+          component={ActivityScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Activity" color={color} />,
+            tabBarIcon: () => null,
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsStackScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Settings" color={color} />,
+            tabBarIcon: () => null,
+          }}
+        />
+      </Tab.Navigator>
+
+      <TouchableOpacity
+        accessibilityLabel="Add entry"
         style={{
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: isDark ? 'rgba(128,203,196,0.2)' : 'rgba(128,203,196,0.3)',
+          position: 'absolute',
+          right: 20,
+          bottom: tabBarHeight + 16,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#0d9488',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 16,
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
         }}
+        onPress={() => setComposeOpen(true)}
       >
-        <Text style={{ fontSize: 40 }}>💧</Text>
-      </View>
-      <Text style={{ fontSize: 16, fontWeight: '600', color: textColor, textAlign: 'center' }}>
-        No reading yet
-      </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          color: isDark ? 'rgba(255,255,255,0.6)' : '#888',
-          textAlign: 'center',
-          marginTop: 8,
+        <Text style={{ color: '#fff', fontSize: 32, fontWeight: '300', marginTop: -2 }}>+</Text>
+      </TouchableOpacity>
+
+      <AddEntrySheet
+        visible={composeOpen}
+        onClose={() => setComposeOpen(false)}
+        onCaptureMeal={() => {
+          if (navigationRef.isReady()) {
+            navigationRef.navigate('Meals' as never, { screen: 'CaptureMeal' } as never);
+          }
         }}
-      >
-        Ensure CapAPS Fx is sending notifications and Health Companion has notification access.
-      </Text>
+      />
     </View>
   );
 }
 
-export default function App() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'authorized' | 'denied'>('unknown');
-  const [glycemia, setGlycemia] = useState<GlycemiaReading | null>(null);
-  const [history, setHistory] = useState<GlycemiaReading[]>([]);
-  const [syncing, setSyncing] = useState(false);
-  const [syncSuccess, setSyncSuccess] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const syncSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const refreshPermission = useCallback(async () => {
-    if (Platform.OS !== 'android') return;
-    try {
-      const status = await RNAndroidNotificationListener?.getPermissionStatus?.();
-      setPermissionStatus(status ?? 'unknown');
-    } catch {
-      setPermissionStatus('unknown');
-    }
-  }, []);
-
-  const refreshGlycemia = useCallback(async () => {
-    const reading = await loadLatestGlycemia();
-    setGlycemia(reading);
-    if (reading) {
-      await appendToHistory(reading);
-      setHistory(await loadHistory());
-    } else {
-      setHistory(await loadHistory());
-    }
-  }, []);
-
-  const refreshAll = useCallback(async () => {
-    setRefreshing(true);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    await refreshPermission();
-    await refreshGlycemia();
-    setRefreshing(false);
-  }, [refreshPermission, refreshGlycemia]);
-
-  const requestPermission = useCallback(() => {
-    RNAndroidNotificationListener?.requestPermission?.();
-  }, []);
+function RootNavigator() {
+  const isDark = useColorScheme() === 'dark';
+  const { ready, signedIn } = useAuth();
 
   useEffect(() => {
-    refreshPermission();
-    refreshGlycemia();
-    loadHistory().then(setHistory);
-  }, [refreshPermission, refreshGlycemia]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android' || permissionStatus === 'authorized') return;
-    const timer = setTimeout(() => {
-      Alert.alert(
-        'Notification access needed',
-        'Health Companion needs notification access to read glycemia from CapAPS Fx and sync to your watch.',
-        [
-          { text: 'Later', style: 'cancel' },
-          { text: 'Open settings', onPress: requestPermission },
-        ]
-      );
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [permissionStatus, requestPermission]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (state: AppStateStatus) => {
-      if (state === 'active') {
-        refreshPermission();
-        const reading = await loadLatestGlycemia();
-        setGlycemia(reading);
-        if (reading) {
-          await appendToHistory(reading);
-          setHistory(await loadHistory());
-          sendGlycemiaToWatch(reading, await loadHistory()).catch(() => {});
-        }
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  const openAccessibilitySettings = () => {
-    if (Platform.OS === 'android') {
-      Linking.sendIntent('android.settings.ACCESSIBILITY_SETTINGS').catch(() =>
-        Linking.openSettings()
-      );
+    if (!ready) return;
+    if (signedIn) {
+      startGlucoseAutoSync(5 * 60 * 1000);
+      startPumpAutoSync(5 * 60 * 1000);
+      startActivityAutoSync(15 * 60 * 1000);
+      return () => {
+        stopGlucoseAutoSync();
+        stopPumpAutoSync();
+        stopActivityAutoSync();
+      };
     }
-  };
+    stopGlucoseAutoSync();
+    stopPumpAutoSync();
+    stopActivityAutoSync();
+  }, [ready, signedIn]);
 
-  const syncToWatch = async () => {
-    if (!glycemia) return;
-    setSyncing(true);
-    setSyncSuccess(false);
-    try {
-      await sendGlycemiaToWatch(glycemia, await loadHistory());
-      await sendBackgroundToWatch(await loadBackgroundSettings());
-      setSyncSuccess(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      syncSuccessTimerRef.current = setTimeout(() => setSyncSuccess(false), 3000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleDeleteReading = async (ts: number) => {
-    await removeFromHistory(ts);
-    setHistory(await loadHistory());
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  };
-
-  if (Platform.OS !== 'android') {
+  if (!ready) {
     return (
-      <View style={[styles(isDark).container, styles(isDark).scrollView]}>
-        <Text style={styles(isDark).message}>
-          Health Companion runs on Android only (phone + Wear OS watch).
-        </Text>
-        <StatusBar style="auto" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isDark ? '#0d1117' : '#f5f7fa',
+        }}
+      >
+        <ActivityIndicator color="#0d9488" />
       </View>
     );
   }
 
-  const theme = styles(isDark);
-
-  const renderRightActions = (ts: number) => (
-    <TouchableOpacity
-      onPress={() => handleDeleteReading(ts)}
-      style={[theme.deleteAction, { justifyContent: 'center', paddingHorizontal: 20 }]}
-    >
-      <Text style={{ color: '#fff', fontWeight: '600' }}>Delete</Text>
-    </TouchableOpacity>
-  );
-
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ScrollView
-        style={theme.scrollView}
-        contentContainerStyle={theme.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} />}
-      >
-        <Text style={theme.title}>Health Companion</Text>
-
-        {permissionStatus !== 'authorized' && (
-          <View style={theme.card}>
-            <Text style={theme.cardTitle}>Notification access</Text>
-            <Text style={theme.hint}>
-              Grant notification access so the app can read glycemia from CapAPS Fx and sync to your
-              watch.
-            </Text>
-            <TouchableOpacity style={theme.button} onPress={requestPermission} activeOpacity={0.8}>
-              <Text style={theme.buttonText}>Open settings</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={theme.card}>
-          <Text style={theme.cardTitle}>Accessibility (recommended)</Text>
-          <Text style={theme.hint}>
-            Enable Health Companion under Accessibility for best compatibility.
-          </Text>
-          <TouchableOpacity
-            style={theme.buttonSecondary}
-            onPress={openAccessibilitySettings}
-            activeOpacity={0.8}
-          >
-            <Text style={theme.buttonSecondaryText}>Open Accessibility settings</Text>
-          </TouchableOpacity>
-        </View>
-
-        <BackgroundSettingsCard isDark={isDark} />
-
-        {permissionStatus === 'authorized' && (
-          <>
-            <View style={theme.card}>
-              <Text style={theme.cardTitle}>Latest glycemia</Text>
-              {glycemia ? (
-                <>
-                  <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                    <StatusRing
-                      reading={glycemia}
-                      color={getGlycemiaStatusColor(glycemia)}
-                      isDark={isDark}
-                    />
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                    <Text style={theme.timeAgo}>
-                      Updated {formatTimeAgo(glycemia.timestamp)}
-                    </Text>
-                    {syncSuccess && (
-                      <Text style={{ marginLeft: 8, fontSize: 14, color: '#81C784' }}>✓ Synced</Text>
-                    )}
-                  </View>
-                </>
-              ) : (
-                <EmptyState isDark={isDark} />
-              )}
-              <View style={theme.buttonRow}>
-                <TouchableOpacity
-                  style={theme.buttonSecondary}
-                  onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    refreshGlycemia();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={theme.buttonSecondaryText}>Refresh</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[theme.buttonSecondary, syncing && theme.buttonDisabled]}
-                  onPress={syncToWatch}
-                  disabled={syncing}
-                  activeOpacity={0.8}
-                >
-                  <Text style={theme.buttonSecondaryText}>
-                    {syncing ? 'Syncing…' : 'Sync to watch'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {history.length >= 2 && (
-              <View style={theme.card}>
-                <Text style={theme.cardTitle}>Trend</Text>
-                <SparklineChart
-                  history={history}
-                  color={isDark ? '#80CBC4' : '#00897B'}
-                  isDark={isDark}
-                />
-              </View>
-            )}
-
-            {history.length > 0 && (
-              <View style={theme.card}>
-                <Text style={theme.cardTitle}>Recent readings</Text>
-                {history.slice(0, 10).map((r, i) => (
-                  <Swipeable
-                    key={r.timestamp}
-                    renderRightActions={() => renderRightActions(r.timestamp)}
-                    overshootRight={false}
-                  >
-                    <View
-                      style={[
-                        theme.historyRow,
-                        {
-                          backgroundColor: `${getGlycemiaStatusColor(r)}15`,
-                          borderRadius: 8,
-                          marginBottom: 4,
-                          paddingHorizontal: 12,
-                        },
-                      ]}
-                    >
-                      <Text style={[theme.historyValue, { color: getGlycemiaStatusColor(r) }]}>
-                        {r.value} {r.unit}
-                        <Text style={[theme.historyTime, { marginLeft: 8 }]}>
-                          {getGlycemiaStatusLabel(r)}
-                        </Text>
-                      </Text>
-                      <Text style={theme.historyTime}>{formatTime(r.timestamp)}</Text>
-                    </View>
-                  </Swipeable>
-                ))}
-              </View>
-            )}
-          </>
-        )}
-
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-      </ScrollView>
-    </GestureHandlerRootView>
-  );
+  return signedIn ? <MainTabs /> : <LoginScreen />;
 }
 
-const styles = (isDark: boolean) =>
-  StyleSheet.create({
-    scrollView: { flex: 1, backgroundColor: isDark ? '#0D1117' : '#f5f5f5' },
-    container: {
-      padding: 20,
-      paddingTop: 56,
-      paddingBottom: 40,
-    },
-    title: {
-      fontSize: 26,
-      fontWeight: '700',
-      marginBottom: 20,
-      color: isDark ? '#fff' : '#1a1a2e',
-    },
-    card: {
-      backgroundColor: isDark ? '#161B22' : '#fff',
-      borderRadius: 12,
-      padding: 18,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    cardTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: 8,
-      color: isDark ? '#fff' : '#1a1a2e',
-    },
-    hint: {
-      fontSize: 14,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#666',
-      marginBottom: 12,
-    },
-    timeAgo: {
-      fontSize: 13,
-      color: isDark ? 'rgba(255,255,255,0.6)' : '#888',
-    },
-    historyRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 10,
-    },
-    historyValue: { fontSize: 16, fontWeight: '600' },
-    historyTime: { fontSize: 13, color: isDark ? 'rgba(255,255,255,0.6)' : '#888' },
-    button: {
-      backgroundColor: '#007AFF',
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-    },
-    buttonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    buttonSecondary: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      alignSelf: 'flex-start',
-    },
-    buttonSecondaryText: {
-      color: '#007AFF',
-      fontSize: 14,
-    },
-    buttonRow: {
-      flexDirection: 'row',
-      gap: 16,
-      flexWrap: 'wrap',
-    },
-    buttonDisabled: {
-      opacity: 0.6,
-    },
-    deleteAction: {
-      backgroundColor: '#E57373',
-      justifyContent: 'center',
-      minWidth: 80,
-    },
-    message: {
-      fontSize: 16,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#666',
-      textAlign: 'center',
-    },
-  });
+export default function App() {
+  const isDark = useColorScheme() === 'dark';
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider>
+          <NavigationContainer
+            ref={navigationRef}
+            theme={isDark ? DarkTheme : DefaultTheme}
+          >
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
+}

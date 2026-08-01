@@ -9,11 +9,16 @@
   "scripts": {
     "prepare": "npm run build -w @health-companion/shared && patch-package",
     "mobile": "npm run start --workspace=apps/mobile",
+    "web": "npm run dev --prefix frontend",
+    "api": "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "api:legacy": "npm run dev --workspace=@health-companion/api",
     "logcat": "adb logcat *:S ReactNative:V ReactNativeJS:V RNAndroidNotificationListener:V",
     "watch": "npm run start --workspace=apps/watch",
     "build:mobile": "npm run build --workspace=apps/mobile",
     "build:watch": "npm run build --workspace=apps/watch",
-    "build:release": "./scripts/build-release.sh"
+    "build:release": "./scripts/build-release.sh",
+    "compose:up": "docker compose up -d db backend",
+    "compose:all": "docker compose up -d"
   },
   "engines": {
     "node": ">=18.0.0",
