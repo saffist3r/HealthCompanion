@@ -48,3 +48,6 @@ release/*/*.apk
 dist/
 *.tsbuildinfo
 node_modules
+
+# Personal LinkedIn content drafts (not for GitHub)
+Linkedin/
