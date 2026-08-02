@@ -5,13 +5,23 @@ All notable changes to Health Companion will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — 1.5.x (full companion)
+## [Unreleased]
+
+### Added
+
+- Customizable **TIR / glucose targets** and daily carb target in Settings (web)
+- Settings **tabs** (Glucose / Body / Prefs / Account) with suggested range chips
+- Dedicated entry icons (caffeine, injury, check-in, weight, stress, running, cycling, swimming, walking)
+- French **i18n** for the web app and new reports (PDF / email / AI); English remains the archive default
+- Traefik / nginx routing so mobile API POSTs hit the backend (not the SPA)
+
+## [1.5.0] - 2026-08-02
 
 ### Added
 
 - **Injury tracking** — persistent cases (type, body area, exercises) + daily pain 0–10 (slider); tags for sport/kine/osteo/etc.; included in daily AI prompt, debrief archive, and PDF
 - **Web Injuries page** + Compose / mobile `+` entry flows
-- **Care visits**, sport sessions, weight logging, pump notification sync, Energy Score (Samsung Health)
+- Care visits, sport sessions, weight logging, **pump notification** sync, Energy Score (Samsung Health)
 - Auth (JWT), household device scoping, daily report email + shareable PDF links
 - Kubernetes deploy under `k8s/` (see [SECURITY.md](SECURITY.md) before pushing secrets)
 
@@ -21,7 +31,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `./k8s/deploy.sh` requires `REGISTRY_PASS` from the environment (no hardcoded registry password)
 - Default API URLs point at localhost so forks do not hit a maintainer deployment
 
-## [Unreleased] — 1.2.0 (diabetes companion)
+> Milestone tag for the full companion line. Later **1.5.x** patches continued on the same major.minor (deployed up through 1.5.40+).
+
+## [1.4.0] - 2026-08-02
+
+### Added
+
+- **Care visits** — Kiné / Ostéo / Podologue / Other
+- **Sport sessions** — padel Won / Lost / Draw + score
+- **Samsung Health** activity / Energy Score sync
+- **Sports** dashboard page; entries appear on daily/weekly reports
+
+## [1.3.0] - 2026-08-02
+
+### Added
+
+- **JWT authentication** and household member accounts
+- Household **device scoping** across glucose, meals, and activity
+- Polished web **dashboard** metrics and layout
+- Hardened **Kubernetes** deploy path for the public site
+
+## [1.2.0] - 2026-08-02
 
 ### Added
 
@@ -118,5 +148,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Glycemia formats: mmol/L, mg/dL
 - Wear OS 3+ (Samsung Galaxy Watch, Pixel Watch, etc.)
 
-[1.1.0]: https://github.com/Saffist3r/HealthCompanion/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/Saffist3r/HealthCompanion/releases/tag/v1.0.0
+[Unreleased]: https://github.com/saffist3r/HealthCompanion/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0
+[1.4.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0
+[1.3.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0
+[1.2.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0
+[1.1.0]: https://github.com/saffist3r/HealthCompanion/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0
