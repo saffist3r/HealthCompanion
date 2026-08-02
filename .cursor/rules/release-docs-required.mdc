@@ -1,0 +1,28 @@
+---
+description: Never release or deploy without changelog and docs
+alwaysApply: true
+---
+
+# Release & deploy require documentation
+
+Do **not** bump `VERSION`, run `./k8s/deploy.sh`, create git tags, or publish GitHub releases until docs are updated in the **same change set** (or immediately before).
+
+## Required before every deploy / release
+
+1. **`VERSION`** — bump patch/minor as appropriate.
+2. **`CHANGELOG.md`** — move work out of `[Unreleased]` into a dated section for that version (Keep a Changelog format). Keep a fresh `[Unreleased]` stub.
+3. **`RELEASES.md`** — add or update the release entry with highlights + link to the GitHub release/tag when tagged.
+4. **`README.md`** — if the “latest tagged release” or feature summary is wrong, fix it.
+5. For **tagged** milestones (`vX.Y.Z`): push the annotated tag **and** create the GitHub release; keep `.github/release-notes/` in sync when that path is used.
+
+## Do not
+
+- Deploy a new `VERSION` with only code and no changelog entry.
+- Create tags/releases as a retrospective catch-up without updating `CHANGELOG.md` / `RELEASES.md` / `README.md` in the same push (or the next immediate commit before announcing).
+- Treat “docs later” as acceptable for production deploys.
+
+## Order of operations
+
+```text
+code → VERSION + CHANGELOG (+ RELEASES/README if needed) → commit → deploy and/or tag+GitHub release
+```
