@@ -1,0 +1,101 @@
+name: Create milestone releases
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create v1.2.0 – v1.5.0 releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          create() {
+            local tag="$1" title="$2" file="$3"
+            if gh release view "$tag" --repo saffist3r/HealthCompanion >/dev/null 2>&1; then
+              echo "Release $tag already exists"
+            else
+              gh release create "$tag" --repo saffist3r/HealthCompanion --title "$title" --notes-file "$file"
+              echo "Created $tag"
+            fi
+          }
+
+          cat > /tmp/v1.2.0.md <<'EOF'
+          ## Diabetes companion foundation
+
+          First major line beyond the Wear OS watch face (v1.0–v1.1).
+
+          ### Added
+          - **FastAPI + PostgreSQL** backend with Gemini meal vision
+          - **React (Vite) web dashboard** — meals, daily/weekly reports, charts
+          - `docker-compose.yml` for Postgres + backend + frontend
+          - Mobile tabs: Glucose, Meals, Reports, Activity, Settings
+          - Meal capture UI, Health Connect activity import, shared nutrition/report types
+
+          ### Changed
+          - AI provider: **Gemini** (replaces OpenAI for meal photo analysis)
+          - Default API port **8000**
+
+          > Retrospective release: this line was deployed live before the public monorepo ship commit. Tag points at that ship commit for history anchoring.
+          EOF
+          # strip accidental leading indent from the heredoc above
+          sed -i 's/^          //' /tmp/v1.2.0.md
+
+          cat > /tmp/v1.3.0.md <<'EOF'
+          ## Auth & household dashboard
+
+          ### Added
+          - **JWT authentication** and household member accounts
+          - Household **device scoping** across glucose, meals, and activity
+          - Polished web **dashboard** metrics and layout
+          - Hardened **Kubernetes** deploy path for the public site
+
+          > Retrospective release: deployed as the auth/dashboard line before the public monorepo ship. Tag points at that ship commit for history anchoring.
+          EOF
+          sed -i 's/^          //' /tmp/v1.3.0.md
+
+          cat > /tmp/v1.4.0.md <<'EOF'
+          ## Care visits & sports
+
+          ### Added
+          - **Care visits** — Kiné / Ostéo / Podologue / Other
+          - **Sport sessions** — padel Won / Lost / Draw + score
+          - **Samsung Health** activity / Energy Score sync
+          - **Sports** dashboard page; entries appear on daily/weekly reports
+
+          Public site: https://healthcompanion.saffist3r.xyz
+
+          > Retrospective release: this line first went live around v1.4.0 on the cluster. Tag points at the public monorepo ship commit for history anchoring.
+          EOF
+          sed -i 's/^          //' /tmp/v1.4.0.md
+
+          cat > /tmp/v1.5.0.md <<'EOF'
+          ## Full companion stack
+
+          First git-published milestone of the full Health Companion platform (phone + API + web + watch).
+
+          ### Added
+          - **Injury tracking** — cases (type, body area, exercises) + daily pain 0–10
+          - Web **Injuries** page + Compose / mobile `+` entry flows
+          - Care visits, sport sessions, weight logging, **pump notification** sync
+          - Samsung Health / Health Connect **Energy Score**
+          - Auth (JWT), household device scoping
+          - Daily report **email**, shareable **PDF** links, AI day debriefs
+          - Kubernetes deploy under `k8s/` (public-safe secrets)
+
+          ### Note
+          The 1.5.x line continued with later patches after this milestone tag (TIR settings, i18n, icons, etc.).
+
+          ### Security
+          - Env templates use placeholders only; deploy requires `REGISTRY_PASS` from the environment
+
+          See CHANGELOG.md and k8s/README.md.
+          EOF
+          sed -i 's/^          //' /tmp/v1.5.0.md
+
+          create v1.2.0 "Health Companion v1.2.0" /tmp/v1.2.0.md
+          create v1.3.0 "Health Companion v1.3.0" /tmp/v1.3.0.md
+          create v1.4.0 "Health Companion v1.4.0" /tmp/v1.4.0.md
+          create v1.5.0 "Health Companion v1.5.0" /tmp/v1.5.0.md
