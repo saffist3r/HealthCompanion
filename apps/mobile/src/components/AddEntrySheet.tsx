@@ -19,36 +19,54 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
+  AdhdIntensity,
   CareVisitKind,
+  CaffeineDrink,
+  FocusLevel,
   Injury,
   InjuryActivityKind,
   InjuryBodyArea,
   InjuryType,
+  MoodLevel,
   SportIntensity,
   SportKind,
   SportMatchResult,
+  StressLevel,
+  TaskInitiation,
+  WakeQuality,
 } from '@health-companion/shared';
 import {
+  ADHD_INTENSITY_OPTIONS,
+  CAFFEINE_DRINK_OPTIONS,
+  FOCUS_OPTIONS,
   INJURY_ACTIVITY_OPTIONS,
   INJURY_BODY_AREA_OPTIONS,
   INJURY_TYPE_OPTIONS,
+  MOOD_OPTIONS,
   SPORT_INTENSITY_OPTIONS,
   SPORT_KIND_OPTIONS,
+  STRESS_LEVEL_OPTIONS,
+  TASK_INITIATION_OPTIONS,
+  WAKE_QUALITY_OPTIONS,
   isCompetitiveSport,
   toDateKey,
 } from '@health-companion/shared';
 import {
   createCareVisit,
+  createCaffeineLog,
   createInjury,
   createSportMatch,
+  createStressLog,
+  fetchDayCheckIn,
   fetchInjuries,
   logInjuryPain,
   logWeight,
+  upsertDayCheckIn,
 } from '../api/client';
 import { getAccessToken } from '../api/auth';
 import { AppIcons, careKindIcon, sportResultIcon } from '../ui/appIcons';
 
-export type EntryKind = 'meal' | 'care' | 'sport' | 'weight' | 'injury';
+export type EntryKind = 'meal' | 'care' | 'sport' | 'weight' | 'injury' | 'checkin' | 'caffeine' | 'stress';
 type InjuryMode = 'choose' | 'new' | 'pain';
 
 function painColor(score: number) {
@@ -57,14 +75,36 @@ function painColor(score: number) {
   return '#10b981';
 }
 
-function PainScoreSlider({
+function stressColor(score: number) {
+  if (score < 40) return '#e11d48';
+  if (score < 70) return '#f59e0b';
+  return '#10b981';
+}
+
+function stressLevelFromScore(score: number): StressLevel {
+  if (score >= 70) return 'calm';
+  if (score >= 40) return 'ok';
+  return 'high';
+}
+
+function ScoreSlider({
   value,
   onChange,
   isDark,
+  label,
+  max,
+  colorFor,
+  lowLabel,
+  highLabel,
 }: {
   value: number;
   onChange: (n: number) => void;
   isDark: boolean;
+  label: string;
+  max: number;
+  colorFor: (n: number) => string;
+  lowLabel: string;
+  highLabel: string;
 }) {
   const [trackWidth, setTrackWidth] = useState(1);
   const onChangeRef = useRef(onChange);
@@ -73,7 +113,7 @@ function PainScoreSlider({
 
   const scoreFromX = (x: number) => {
     const w = widthRef.current || 1;
-    return Math.round(Math.max(0, Math.min(10, (x / w) * 10)));
+    return Math.round(Math.max(0, Math.min(max, (x / w) * max)));
   };
 
   const pan = useMemo(
@@ -84,11 +124,11 @@ function PainScoreSlider({
         onPanResponderGrant: (e) => onChangeRef.current(scoreFromX(e.nativeEvent.locationX)),
         onPanResponderMove: (e) => onChangeRef.current(scoreFromX(e.nativeEvent.locationX)),
       }),
-    []
+    [max]
   );
 
-  const color = painColor(value);
-  const thumbLeft = Math.max(0, Math.min(trackWidth - 28, (value / 10) * trackWidth - 14));
+  const color = colorFor(value);
+  const thumbLeft = Math.max(0, Math.min(trackWidth - 28, (value / max) * trackWidth - 14));
 
   return (
     <View style={{ marginBottom: 12 }}>
@@ -101,13 +141,13 @@ function PainScoreSlider({
         }}
       >
         <Text style={{ color: isDark ? '#8b949e' : '#666', fontSize: 13, fontWeight: '600' }}>
-          Pain
+          {label}
         </Text>
         <Text style={{ color, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
           {value}
           <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#8b949e' : '#9ca3af' }}>
             {' '}
-            / 10
+            / {max}
           </Text>
         </Text>
       </View>
@@ -126,8 +166,8 @@ function PainScoreSlider({
           overflow: 'hidden',
         }}
         accessibilityRole="adjustable"
-        accessibilityLabel="Pain score"
-        accessibilityValue={{ min: 0, max: 10, now: value }}
+        accessibilityLabel={label}
+        accessibilityValue={{ min: 0, max, now: value }}
       >
         <View
           pointerEvents="none"
@@ -136,7 +176,7 @@ function PainScoreSlider({
             left: 0,
             top: 0,
             bottom: 0,
-            width: (value / 10) * trackWidth,
+            width: (value / max) * trackWidth,
             backgroundColor: color,
             opacity: 0.85,
             borderRadius: 18,
@@ -162,9 +202,59 @@ function PainScoreSlider({
         />
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>None</Text>
-        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>Worst</Text>
+        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>{lowLabel}</Text>
+        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>{highLabel}</Text>
       </View>
+    </View>
+  );
+}
+
+function PainScoreSlider({
+  value,
+  onChange,
+  isDark,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  isDark: boolean;
+}) {
+  return (
+    <ScoreSlider
+      value={value}
+      onChange={onChange}
+      isDark={isDark}
+      label="Pain"
+      max={10}
+      colorFor={painColor}
+      lowLabel="None"
+      highLabel="Worst"
+    />
+  );
+}
+
+function StressScoreSlider({
+  value,
+  onChange,
+  isDark,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  isDark: boolean;
+}) {
+  const level = stressLevelFromScore(value);
+  const levelLabel = STRESS_LEVEL_OPTIONS.find((o) => o.level === level)?.label || level;
+  return (
+    <View>
+      <ScoreSlider
+        value={value}
+        onChange={onChange}
+        isDark={isDark}
+        label={`Stress · ${levelLabel}`}
+        max={100}
+        colorFor={stressColor}
+        lowLabel="High stress"
+        highLabel="Calm"
+      />
     </View>
   );
 }
@@ -225,6 +315,22 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
   const [painScore, setPainScore] = useState(4);
   const [painActivity, setPainActivity] = useState<InjuryActivityKind | ''>('sport');
   const [painNotes, setPainNotes] = useState('');
+  const [mood, setMood] = useState<MoodLevel>('ok');
+  const [wakeQuality, setWakeQuality] = useState<WakeQuality>('ok');
+  const [focus, setFocus] = useState<FocusLevel>('ok');
+  const [restlessness, setRestlessness] = useState<AdhdIntensity>('ok');
+  const [overwhelm, setOverwhelm] = useState<AdhdIntensity>('ok');
+  const [taskInitiation, setTaskInitiation] = useState<TaskInitiation>('ok');
+  const [impulsivity, setImpulsivity] = useState<AdhdIntensity>('ok');
+  const [medicationTaken, setMedicationTaken] = useState(false);
+  const [hyperfocus, setHyperfocus] = useState(false);
+  const [sleepHours, setSleepHours] = useState('');
+  const [checkInNotes, setCheckInNotes] = useState('');
+  const [caffeineDrink, setCaffeineDrink] = useState<CaffeineDrink>('coffee');
+  const [caffeineTime, setCaffeineTime] = useState('');
+  const [caffeineNotes, setCaffeineNotes] = useState('');
+  const [stressScore, setStressScore] = useState(55);
+  const [stressNotes, setStressNotes] = useState('');
 
   useEffect(() => {
     if (visible) {
@@ -255,11 +361,59 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
       setPainScore(4);
       setPainActivity('sport');
       setPainNotes('');
+      setMood('ok');
+      setWakeQuality('ok');
+      setFocus('ok');
+      setRestlessness('ok');
+      setOverwhelm('ok');
+      setTaskInitiation('ok');
+      setImpulsivity('ok');
+      setMedicationTaken(false);
+      setHyperfocus(false);
+      setSleepHours('');
+      setCheckInNotes('');
+      setCaffeineDrink('coffee');
+      setCaffeineTime('');
+      setCaffeineNotes('');
+      setStressScore(55);
+      setStressNotes('');
       fetchInjuries('open')
         .then((list) => setOpenInjuries(list))
         .catch(() => setOpenInjuries([]));
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || kind !== 'checkin') return;
+    fetchDayCheckIn(date)
+      .then((row) => {
+        if (!row) return;
+        if (MOOD_OPTIONS.some((o) => o.value === row.mood)) setMood(row.mood as MoodLevel);
+        if (WAKE_QUALITY_OPTIONS.some((o) => o.value === row.wakeQuality)) {
+          setWakeQuality(row.wakeQuality as WakeQuality);
+        }
+        if (row.focus && FOCUS_OPTIONS.some((o) => o.value === row.focus)) {
+          setFocus(row.focus as FocusLevel);
+        }
+        if (row.restlessness && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.restlessness)) {
+          setRestlessness(row.restlessness as AdhdIntensity);
+        }
+        if (row.overwhelm && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.overwhelm)) {
+          setOverwhelm(row.overwhelm as AdhdIntensity);
+        }
+        if (row.taskInitiation && TASK_INITIATION_OPTIONS.some((o) => o.value === row.taskInitiation)) {
+          setTaskInitiation(row.taskInitiation as TaskInitiation);
+        }
+        if (row.impulsivity && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.impulsivity)) {
+          setImpulsivity(row.impulsivity as AdhdIntensity);
+        }
+        setMedicationTaken(!!row.medicationTaken);
+        setHyperfocus(!!row.hyperfocus);
+        setSleepHours(row.sleepHours != null ? String(row.sleepHours) : '');
+        setCheckInNotes(row.notes || '');
+      })
+      .catch(() => undefined);
+  }, [visible, kind, date]);
 
   const requireAuth = async () => {
     if (!(await getAccessToken())) {
@@ -343,6 +497,73 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
       finish();
     } catch (e) {
       Alert.alert('Weight', String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveCheckIn = async () => {
+    if (!(await requireAuth())) return;
+    const sleep = sleepHours.trim() ? Number(String(sleepHours).replace(',', '.')) : undefined;
+    if (sleep != null && (!Number.isFinite(sleep) || sleep < 0 || sleep > 24)) {
+      Alert.alert('Sleep', 'Enter sleep hours between 0 and 24.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await upsertDayCheckIn({
+        date,
+        mood,
+        wakeQuality,
+        focus,
+        restlessness,
+        overwhelm,
+        taskInitiation,
+        impulsivity,
+        medicationTaken,
+        hyperfocus,
+        sleepHours: sleep,
+        notes: checkInNotes.trim() || undefined,
+      });
+      finish();
+    } catch (e) {
+      Alert.alert('Check-in', String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveCaffeine = async () => {
+    if (!(await requireAuth())) return;
+    setBusy(true);
+    try {
+      await createCaffeineLog({
+        date,
+        time: caffeineTime.trim() || undefined,
+        drink: caffeineDrink,
+        notes: caffeineNotes.trim() || undefined,
+      });
+      finish();
+    } catch (e) {
+      Alert.alert('Caffeine', String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveStress = async () => {
+    if (!(await requireAuth())) return;
+    setBusy(true);
+    try {
+      await createStressLog({
+        date,
+        level: stressLevelFromScore(stressScore),
+        score: Math.round(stressScore),
+        notes: stressNotes.trim() || undefined,
+      });
+      finish();
+    } catch (e) {
+      Alert.alert('Stress', String(e));
     } finally {
       setBusy(false);
     }
@@ -458,8 +679,11 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
                 {(
                   [
                     { id: 'meal' as const, label: 'Meal', icon: AppIcons.meals },
-                    { id: 'weight' as const, label: 'Weight', icon: AppIcons.glucose },
-                    { id: 'injury' as const, label: 'Injury', icon: AppIcons.stress },
+                    { id: 'checkin' as const, label: 'Check-in', icon: AppIcons.checkin },
+                    { id: 'caffeine' as const, label: 'Caffeine', icon: AppIcons.caffeine },
+                    { id: 'stress' as const, label: 'Stress', icon: AppIcons.stress },
+                    { id: 'weight' as const, label: 'Weight', icon: AppIcons.weight },
+                    { id: 'injury' as const, label: 'Injury', icon: AppIcons.injury },
                     { id: 'care' as const, label: 'Care visit', icon: AppIcons.kine },
                     { id: 'sport' as const, label: 'Sport', icon: AppIcons.padel },
                   ] as const
@@ -681,6 +905,214 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
                 />
                 <TouchableOpacity style={t.btn} onPress={saveWeight} disabled={busy}>
                   {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.btnText}>Save weight</Text>}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {kind === 'checkin' ? (
+              <View>
+                <TouchableOpacity onPress={() => setKind(null)}>
+                  <Text style={t.back}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={t.hint}>
+                  One check-in per day — mood, wake, and ADHD ratings. Saving again updates it.
+                </Text>
+                <Text style={t.hint}>Mood</Text>
+                <View style={t.chipRow}>
+                  {MOOD_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, mood === opt.value && t.chipOn]}
+                      onPress={() => setMood(opt.value)}
+                    >
+                      <Text style={[t.chipText, mood === opt.value && t.chipTextOn]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>How you woke up</Text>
+                <View style={t.chipRow}>
+                  {WAKE_QUALITY_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, wakeQuality === opt.value && t.chipOn]}
+                      onPress={() => setWakeQuality(opt.value)}
+                    >
+                      <Text style={[t.chipText, wakeQuality === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>Focus / attention</Text>
+                <View style={t.chipRow}>
+                  {FOCUS_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, focus === opt.value && t.chipOn]}
+                      onPress={() => setFocus(opt.value)}
+                    >
+                      <Text style={[t.chipText, focus === opt.value && t.chipTextOn]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>Restlessness</Text>
+                <View style={t.chipRow}>
+                  {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, restlessness === opt.value && t.chipOn]}
+                      onPress={() => setRestlessness(opt.value)}
+                    >
+                      <Text style={[t.chipText, restlessness === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>Overwhelm</Text>
+                <View style={t.chipRow}>
+                  {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, overwhelm === opt.value && t.chipOn]}
+                      onPress={() => setOverwhelm(opt.value)}
+                    >
+                      <Text style={[t.chipText, overwhelm === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>Task initiation</Text>
+                <View style={t.chipRow}>
+                  {TASK_INITIATION_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, taskInitiation === opt.value && t.chipOn]}
+                      onPress={() => setTaskInitiation(opt.value)}
+                    >
+                      <Text style={[t.chipText, taskInitiation === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={t.hint}>Impulsivity</Text>
+                <View style={t.chipRow}>
+                  {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, impulsivity === opt.value && t.chipOn]}
+                      onPress={() => setImpulsivity(opt.value)}
+                    >
+                      <Text style={[t.chipText, impulsivity === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={t.chipRow}>
+                  <TouchableOpacity
+                    style={[t.chip, medicationTaken && t.chipOn]}
+                    onPress={() => setMedicationTaken((v) => !v)}
+                  >
+                    <Text style={[t.chipText, medicationTaken && t.chipTextOn]}>Meds taken</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[t.chip, hyperfocus && t.chipOn]}
+                    onPress={() => setHyperfocus((v) => !v)}
+                  >
+                    <Text style={[t.chipText, hyperfocus && t.chipTextOn]}>Hyperfocus</Text>
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={t.input}
+                  placeholder="Sleep hours (optional)"
+                  placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
+                  value={sleepHours}
+                  onChangeText={setSleepHours}
+                  keyboardType="decimal-pad"
+                />
+                <TextInput
+                  style={t.input}
+                  placeholder="Notes (optional)"
+                  placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
+                  value={checkInNotes}
+                  onChangeText={setCheckInNotes}
+                />
+                <TouchableOpacity style={t.btn} onPress={saveCheckIn} disabled={busy}>
+                  {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.btnText}>Save check-in</Text>}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {kind === 'caffeine' ? (
+              <View>
+                <TouchableOpacity onPress={() => setKind(null)}>
+                  <Text style={t.back}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={t.hint}>
+                  Defaults:{' '}
+                  {CAFFEINE_DRINK_OPTIONS.find((d) => d.value === caffeineDrink)?.mg ?? 95} mg for{' '}
+                  {CAFFEINE_DRINK_OPTIONS.find((d) => d.value === caffeineDrink)?.label}
+                </Text>
+                <View style={t.chipRow}>
+                  {CAFFEINE_DRINK_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[t.chip, caffeineDrink === opt.value && t.chipOn]}
+                      onPress={() => setCaffeineDrink(opt.value)}
+                    >
+                      <Text style={[t.chipText, caffeineDrink === opt.value && t.chipTextOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={t.input}
+                  placeholder="Time HH:MM (optional)"
+                  placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
+                  value={caffeineTime}
+                  onChangeText={setCaffeineTime}
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={t.input}
+                  placeholder="Notes (optional)"
+                  placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
+                  value={caffeineNotes}
+                  onChangeText={setCaffeineNotes}
+                />
+                <TouchableOpacity style={t.btn} onPress={saveCaffeine} disabled={busy}>
+                  {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.btnText}>Log drink</Text>}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {kind === 'stress' ? (
+              <View>
+                <TouchableOpacity onPress={() => setKind(null)}>
+                  <Text style={t.back}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={t.hint}>
+                  Slide to rate stress (0–100). Level maps automatically · Samsung Energy syncs from
+                  Activity.
+                </Text>
+                <StressScoreSlider
+                  value={stressScore}
+                  onChange={setStressScore}
+                  isDark={!!isDark}
+                />
+                <TextInput
+                  style={t.input}
+                  placeholder="Notes (optional)"
+                  placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
+                  value={stressNotes}
+                  onChangeText={setStressNotes}
+                />
+                <TouchableOpacity style={t.btn} onPress={saveStress} disabled={busy}>
+                  {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.btnText}>Save stress</Text>}
                 </TouchableOpacity>
               </View>
             ) : null}

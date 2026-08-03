@@ -1,9 +1,11 @@
 import { FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { getApiBase, isLoggedIn, login, setApiBase } from '../api';
+import { useLocale } from '../i18n';
 
 export default function LoginPage() {
   const nav = useNavigate();
+  const { t } = useLocale();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [apiUrl, setApiUrl] = useState(getApiBase());
@@ -22,7 +24,7 @@ export default function LoginPage() {
       nav('/', { replace: true });
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Login failed');
+      setError(typeof detail === 'string' ? detail : t('login.failed'));
     } finally {
       setBusy(false);
     }
@@ -32,15 +34,15 @@ export default function LoginPage() {
     <div className="login-shell">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="login-brand">
-          <img className="brand-mark" src="/brand-logo.png" alt="Health Companion" width={44} height={44} />
+          <img className="brand-mark" src="/brand-logo.png" alt={t('brand.name')} width={44} height={44} />
           <div>
-            <strong>Health Companion</strong>
-            <div className="brand-sub">Sign in to the household dashboard</div>
+            <strong>{t('brand.name')}</strong>
+            <div className="brand-sub">{t('login.subtitle')}</div>
           </div>
         </div>
 
         <label>
-          Email
+          {t('login.email')}
           <input
             type="email"
             autoComplete="username"
@@ -50,7 +52,7 @@ export default function LoginPage() {
           />
         </label>
         <label>
-          Password
+          {t('login.password')}
           <input
             type="password"
             autoComplete="current-password"
@@ -61,19 +63,16 @@ export default function LoginPage() {
           />
         </label>
         <label>
-          API URL
+          {t('login.apiUrl')}
           <input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} />
         </label>
 
         {error ? <div className="login-error">{error}</div> : null}
 
         <button type="submit" className="btn primary" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? t('common.loading') : t('login.submit')}
         </button>
-        <p className="login-hint">
-          Ask the household admin for an account. Doctor and family share the same glucose, meals, and
-          activity data after signing in.
-        </p>
+        <p className="login-hint">{t('login.hint')}</p>
       </form>
     </div>
   );

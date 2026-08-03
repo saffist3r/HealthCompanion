@@ -46,6 +46,12 @@ class Device(Base):
     stress_logs = relationship(
         "StressLog", back_populates="device", cascade="all, delete-orphan"
     )
+    day_checkins = relationship(
+        "DayCheckIn", back_populates="device", cascade="all, delete-orphan"
+    )
+    caffeine_logs = relationship(
+        "CaffeineLog", back_populates="device", cascade="all, delete-orphan"
+    )
     injuries = relationship(
         "Injury", back_populates="device", cascade="all, delete-orphan"
     )
@@ -152,10 +158,60 @@ class StressLog(Base):
     time: Mapped[str | None] = mapped_column(String(8), nullable=True)
     level: Mapped[str] = mapped_column(String(16), default="ok")  # calm|ok|high
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0–100 optional
+    # manual | samsung_energy (Energy Score proxy — continuous stress isn't exposed to 3P apps)
+    source: Mapped[str] = mapped_column(String(32), default="manual")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     device = relationship("Device", back_populates="stress_logs")
+
+
+class DayCheckIn(Base):
+    """One daily wellbeing check-in: mood, wake, and ADHD-relevant ratings."""
+
+    __tablename__ = "day_checkins"
+    __table_args__ = (UniqueConstraint("device_id", "date", name="uq_day_checkin_device_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(128), ForeignKey("devices.id"), index=True)
+    date: Mapped[str] = mapped_column(String(10), index=True)
+    mood: Mapped[str] = mapped_column(String(16), default="ok")  # terrible|low|ok|good|great
+    wake_quality: Mapped[str] = mapped_column(
+        String(16), default="ok"
+    )  # rough|groggy|ok|fresh|energized
+    # ADHD-relevant daily ratings
+    focus: Mapped[str] = mapped_column(String(16), default="ok")  # terrible|low|ok|good|great
+    restlessness: Mapped[str] = mapped_column(String(16), default="ok")  # low|ok|high
+    overwhelm: Mapped[str] = mapped_column(String(16), default="ok")  # low|ok|high
+    task_initiation: Mapped[str] = mapped_column(String(16), default="ok")  # stuck|slow|ok|easy
+    impulsivity: Mapped[str] = mapped_column(String(16), default="ok")  # low|ok|high
+    medication_taken: Mapped[bool] = mapped_column(Boolean, default=False)
+    hyperfocus: Mapped[bool] = mapped_column(Boolean, default=False)
+    sleep_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    device = relationship("Device", back_populates="day_checkins")
+
+
+class CaffeineLog(Base):
+    """Drink-based caffeine intakes (espresso, coffee, tea…)."""
+
+    __tablename__ = "caffeine_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(128), ForeignKey("devices.id"), index=True)
+    date: Mapped[str] = mapped_column(String(10), index=True)
+    time: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    drink: Mapped[str] = mapped_column(String(32), default="coffee")
+    caffeine_mg: Mapped[int] = mapped_column(Integer, default=95)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    device = relationship("Device", back_populates="caffeine_logs")
 
 
 class Injury(Base):
@@ -216,6 +272,13 @@ class BodyProfile(Base):
     age_years: Mapped[int] = mapped_column(Integer, default=30)
     activity: Mapped[str] = mapped_column(String(32), default="light")
     deficit_kcal: Mapped[float] = mapped_column(Float, default=500.0)
+    # Household UI/report language. English remains the default archive language.
+    locale: Mapped[str] = mapped_column(String(8), default="en")
+    # Personal glucose / TIR targets (mg/dL and % goal).
+    tir_low_mgdl: Mapped[float] = mapped_column(Float, default=70.0)
+    tir_high_mgdl: Mapped[float] = mapped_column(Float, default=180.0)
+    tir_goal_pct: Mapped[float] = mapped_column(Float, default=70.0)
+    daily_carb_target_g: Mapped[float] = mapped_column(Float, default=180.0)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -261,6 +324,8 @@ class DayDebrief(Base):
     watchouts_json: Mapped[str] = mapped_column(Text, default="[]")
     tomorrow_tips_json: Mapped[str] = mapped_column(Text, default="[]")
     source: Mapped[str] = mapped_column(String(32), default="fallback")  # gemini | fallback
+    # Language of the saved narrative (en is canonical / default archive).
+    locale: Mapped[str] = mapped_column(String(8), default="en")
     agent_prompt: Mapped[str] = mapped_column(Text, default="")
     facts_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

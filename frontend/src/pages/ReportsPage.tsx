@@ -24,8 +24,10 @@ import {
   type DayDebriefDetail,
 } from '../api';
 import { ChartTooltipBox, PageHeader, Panel, Segmented, StatCard, TirRing } from '../components/ui';
+import { useLocale } from '../i18n';
 
 export default function ReportsPage() {
+  const { t, locale } = useLocale();
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
   const [daily, setDaily] = useState<any>(null);
   const [weekly, setWeekly] = useState<any>(null);
@@ -37,12 +39,10 @@ export default function ReportsPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [share, setShare] = useState<DailyShare | null>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
-  const [promptCopied, setPromptCopied] = useState(false);
   const [debriefs, setDebriefs] = useState<DayDebriefSummary[]>([]);
   const [openDebriefDate, setOpenDebriefDate] = useState<string | null>(null);
   const [openDebrief, setOpenDebrief] = useState<DayDebriefDetail | null>(null);
   const [debriefBusy, setDebriefBusy] = useState(false);
-  const [archivePromptCopied, setArchivePromptCopied] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -64,6 +64,19 @@ export default function ReportsPage() {
   }, [mode, emailNote]);
 
   const reportDate = daily?.date;
+
+  const glucoseTargets = useMemo(() => {
+    const gt =
+      daily?.glucoseTargets ||
+      weekly?.days?.[0]?.glucoseTargets ||
+      weekly?.glucoseTargets ||
+      {};
+    return {
+      low: Number(gt.tirLowMgDl ?? 70),
+      high: Number(gt.tirHighMgDl ?? 180),
+      goal: Number(gt.tirGoalPct ?? 70),
+    };
+  }, [daily, weekly]);
 
   const refreshDebriefs = () => {
     fetchDebriefs(30)
@@ -90,7 +103,9 @@ export default function ReportsPage() {
     setEmailNote(null);
     try {
       const res = await emailDailyReport(reportDate);
-      setEmailNote(`Emailed report for ${res.date} to ${res.to || 'the configured recipient'}`);
+      setEmailNote(
+        t('reports.emailed', { date: res.date, to: res.to || 'the configured recipient' })
+      );
     } catch (e: any) {
       setError(String(e?.response?.data?.detail || e.message || e));
     } finally {
@@ -116,21 +131,9 @@ export default function ReportsPage() {
     if (!share?.shareUrl) return;
     try {
       await navigator.clipboard.writeText(share.shareUrl);
-      setShareNote('Link copied');
+      setShareNote(t('reports.linkCopied'));
     } catch {
       setShareNote(share.shareUrl);
-    }
-  };
-
-  const copyAgentPrompt = async () => {
-    const text = daily?.agentPrompt;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setPromptCopied(true);
-      window.setTimeout(() => setPromptCopied(false), 2000);
-    } catch {
-      setError('Could not copy agent prompt');
     }
   };
 
@@ -150,18 +153,6 @@ export default function ReportsPage() {
       setError(String(e?.response?.data?.detail || e.message || e));
     } finally {
       setDebriefBusy(false);
-    }
-  };
-
-  const copyArchivePrompt = async () => {
-    const text = openDebrief?.agentPrompt;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setArchivePromptCopied(true);
-      window.setTimeout(() => setArchivePromptCopied(false), 2000);
-    } catch {
-      setError('Could not copy agent prompt');
     }
   };
 
@@ -186,17 +177,17 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Analytics"
-        title="Reports"
-        lede="Daily and weekly rollups — download, email, or share a PDF with AI insights. Morning email at 07:00 Paris."
+        eyebrow={t('reports.eyebrow')}
+        title={t('reports.title')}
+        lede={t('settings.languageHelp')}
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented
               value={mode}
               onChange={(id) => setMode(id as 'daily' | 'weekly')}
               options={[
-                { id: 'daily', label: 'Daily' },
-                { id: 'weekly', label: 'Weekly' },
+                { id: 'daily', label: t('reports.daily') },
+                { id: 'weekly', label: t('reports.weekly') },
               ]}
             />
             <button
@@ -205,7 +196,7 @@ export default function ReportsPage() {
               disabled={pdfBusy || loading || mode !== 'daily'}
               onClick={downloadPdf}
             >
-              {pdfBusy ? 'Generating PDF…' : 'Download PDF'}
+              {pdfBusy ? t('common.loading') : t('reports.downloadPdf')}
             </button>
             <button
               className="btn secondary"
@@ -213,7 +204,7 @@ export default function ReportsPage() {
               disabled={shareBusy || loading || mode !== 'daily'}
               onClick={openShare}
             >
-              {shareBusy ? 'Preparing…' : 'Share QR'}
+              {shareBusy ? t('common.loading') : t('reports.share')}
             </button>
             <button
               className="btn"
@@ -221,7 +212,7 @@ export default function ReportsPage() {
               disabled={emailBusy || loading || mode !== 'daily'}
               onClick={emailPdf}
             >
-              {emailBusy ? 'Sending…' : 'Email PDF'}
+              {emailBusy ? t('common.loading') : t('reports.email')}
             </button>
           </div>
         }
@@ -232,18 +223,18 @@ export default function ReportsPage() {
       {loading ? <p className="muted">Loading report…</p> : null}
 
       {share ? (
-        <div className="modal-root" role="dialog" aria-modal="true" aria-label="Share daily report">
-          <button type="button" className="modal-backdrop" aria-label="Close" onClick={() => setShare(null)} />
+        <div className="modal-root" role="dialog" aria-modal="true" aria-label={t('reports.shareTitle')}>
+          <button type="button" className="modal-backdrop" aria-label={t('common.close')} onClick={() => setShare(null)} />
           <div className="modal-sheet share-modal">
             <div className="modal-head">
-              <h2>Share daily report</h2>
+              <h2>{t('reports.shareTitle')}</h2>
               <button type="button" className="btn ghost" onClick={() => setShare(null)}>
-                Close
+                {t('common.close')}
               </button>
             </div>
             <p className="muted">Scan to open the report for {share.date}. Link stays valid for 30 days.</p>
             <div className="share-qr-wrap">
-              <img src={share.qrUrl} alt="QR code for daily report share link" width={220} height={220} />
+              <img src={share.qrUrl} alt={t('reports.qrAlt')} width={220} height={220} />
             </div>
             <p className="share-url">{share.shareUrl}</p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -263,13 +254,13 @@ export default function ReportsPage() {
         <>
           <div className="stat-grid">
             <StatCard
-              label="Meals"
+              label={t('reports.meals')}
               value={daily.nutrition.mealCount}
               accent="teal"
               foot={daily.date}
             />
             <StatCard
-              label="Calories"
+              label={t('reports.calories')}
               value={Math.round(daily.nutrition.macros.caloriesKcal || 0)}
               unit="kcal"
               accent="amber"
@@ -290,7 +281,7 @@ export default function ReportsPage() {
               }
             />
             <StatCard
-              label="Weight"
+              label={t('reports.weight')}
               value={daily.weight?.weightKg ?? daily.calorieTargets?.weightKg ?? '—'}
               unit={
                 daily.weight?.weightKg != null || daily.calorieTargets?.weightKg != null
@@ -302,31 +293,31 @@ export default function ReportsPage() {
                 daily.calorieTargets?.bmi != null ? `BMI ${daily.calorieTargets.bmi}` : undefined
               }
             />
-            <StatCard label="Carbs" value={daily.nutrition.macros.carbsG} unit="g" accent="teal" />
-            <StatCard label="Protein" value={daily.nutrition.macros.proteinG} unit="g" accent="blue" />
-            <StatCard label="Fat" value={daily.nutrition.macros.fatG} unit="g" accent="amber" />
+            <StatCard label={t('reports.carbs')} value={daily.nutrition.macros.carbsG} unit="g" accent="teal" />
+            <StatCard label={t('reports.protein')} value={daily.nutrition.macros.proteinG} unit="g" accent="blue" />
+            <StatCard label={t('reports.fat')} value={daily.nutrition.macros.fatG} unit="g" accent="amber" />
             <StatCard
-              label="Avg glucose"
+              label={t('reports.avgGlucose')}
               value={daily.glucose.avgMgDl ?? '—'}
               unit={daily.glucose.avgMgDl != null ? 'mg/dL' : undefined}
               accent="amber"
               foot={`Low ${daily.glucose.lowCount} · High ${daily.glucose.highCount}`}
             />
             <StatCard
-              label="Hypoglycemia"
+              label={t('reports.hypoglycemia')}
               value={daily.glucose.hypoEventCount ?? 0}
               accent={(daily.glucose.hypoEventCount || 0) > 0 ? 'rose' : 'green'}
               badge={
                 (daily.glucose.hypoEventCount || 0) > 0
-                  ? { text: 'Episodes <70', tone: 'warn' }
-                  : { text: 'Clear', tone: 'good' }
+                  ? { text: t('reports.hypoEpisodes', { low: glucoseTargets.low }), tone: 'warn' }
+                  : { text: t('reports.clear'), tone: 'good' }
               }
               foot={
                 daily.glucose.minMgDl != null ? `Min ${daily.glucose.minMgDl} mg/dL` : undefined
               }
             />
             <StatCard
-              label="Steps"
+              label={t('reports.steps')}
               value={(daily.activity?.steps ?? 0).toLocaleString()}
               accent="green"
               foot={
@@ -345,21 +336,21 @@ export default function ReportsPage() {
               }
             />
             <StatCard
-              label="Energy score"
+              label={t('reports.energyScore')}
               value={
                 daily.activity?.energyScore != null
                   ? Math.round(daily.activity.energyScore)
                   : '—'
               }
               accent="amber"
-              foot="Samsung Health readiness"
+              foot={t('reports.energyHelp')}
               footIcon={
                 daily.activity?.energyScore != null || daily.activity?.source === 'samsung_health'
                   ? '/icons/icon-samsung.png'
                   : undefined
               }
             />            <StatCard
-              label="Workout min"
+              label={t('reports.workoutMin')}
               value={(daily.activity?.workouts || []).reduce(
                 (s: number, w: any) => s + (Number(w.durationMin) || 0),
                 0
@@ -369,7 +360,7 @@ export default function ReportsPage() {
               foot={`${(daily.activity?.workouts || []).length} session(s)`}
             />
             <StatCard
-              label="Active kcal"
+              label={t('reports.activeKcal')}
               value={
                 daily.activity?.caloriesBurned != null
                   ? Math.round(daily.activity.caloriesBurned)
@@ -380,7 +371,7 @@ export default function ReportsPage() {
           </div>
 
           {(daily.activity?.workouts || []).length > 0 ? (
-            <Panel title="Workouts today" subtitle="Synced from the phone">
+            <Panel title={t('reports.workoutsToday')} subtitle={t('reports.syncedPhone')}>
               <div className="meal-list">
                 {daily.activity.workouts.map((w: any, i: number) => (
                   <div key={i} className="meal-row">
@@ -401,11 +392,13 @@ export default function ReportsPage() {
           {(daily.careVisits || []).length > 0 ||
           (daily.sportMatches || []).length > 0 ||
           (daily.stressLogs || []).length > 0 ||
-          (daily.injuries || []).length > 0 ? (
+          (daily.injuries || []).length > 0 ||
+          daily.dayCheckIn ||
+          (daily.caffeineLogs || []).length > 0 ? (
             <div className="grid-2">
-              <Panel title="Care visits" subtitle="Kiné, Ostéo, Podologue…">
+              <Panel title={t('reports.careVisits')} subtitle={t('compose.careBlurb')}>
                 {(daily.careVisits || []).length === 0 ? (
-                  <p className="muted">None today.</p>
+                  <p className="muted">{t('reports.noneToday')}</p>
                 ) : (
                   <div className="meal-list">
                     {daily.careVisits.map((v: any) => (
@@ -422,9 +415,9 @@ export default function ReportsPage() {
                   </div>
                 )}
               </Panel>
-              <Panel title="Sport sessions" subtitle="Padel, gym, run, swim…">
+              <Panel title={t('reports.sportSessions')} subtitle="Padel, gym, run, swim…">
                 {(daily.sportMatches || []).length === 0 ? (
-                  <p className="muted">None today.</p>
+                  <p className="muted">{t('reports.noneToday')}</p>
                 ) : (
                   <div className="meal-list">
                     {daily.sportMatches.map((m: any) => (
@@ -461,7 +454,7 @@ export default function ReportsPage() {
                 )}
               </Panel>
               {(daily.injuries || []).length > 0 ? (
-                <Panel title="Injuries & pain" subtitle="Open cases and today’s scores">
+                <Panel title={t('reports.injuriesPain')} subtitle={t('reports.injuriesPain')}>
                   <div className="meal-list">
                     {daily.injuries.map((inj: any) => (
                       <div key={inj.id} className="meal-row">
@@ -492,9 +485,12 @@ export default function ReportsPage() {
                   </div>
                 </Panel>
               ) : null}
-              <Panel title="Hypoglycemia" subtitle="Episodes below 70 mg/dL">
+              <Panel
+                title={t('reports.hypoglycemia')}
+                subtitle={t('dashboard.hyposHelp', { low: glucoseTargets.low })}
+              >
                 {(daily.glucose.hypoEvents || []).length === 0 ? (
-                  <p className="muted">No hypo episodes today.</p>
+                  <p className="muted">{t('reports.noHypos')}</p>
                 ) : (
                   <div className="meal-list">
                     {daily.glucose.hypoEvents.map((h: any, i: number) => (
@@ -516,9 +512,9 @@ export default function ReportsPage() {
                   </div>
                 )}
               </Panel>
-              <Panel title="Pump log events" subtitle="Insulin & CapAPS alerts">
+              <Panel title={t('reports.pumpEvents')} subtitle={t('reports.pumpEvents')}>
                 {(daily.pumpEvents || []).length === 0 ? (
-                  <p className="muted">No pump events logged today.</p>
+                  <p className="muted">{t('reports.noPump')}</p>
                 ) : (
                   <div className="meal-list">
                     {[...(daily.pumpEvents || [])].reverse().map((e: any) => (
@@ -554,14 +550,14 @@ export default function ReportsPage() {
                 )}
               </Panel>
               {(daily.stressLogs || []).length > 0 ? (
-                <Panel title="Stress" subtitle="Check-ins today">
+                <Panel title={t('reports.stress')} subtitle={t('reports.checkIns')}>
                   <div className="meal-list">
                     {daily.stressLogs.map((s: any) => (
                       <div key={s.id} className="meal-row">
                         <div>
                           <strong>{s.levelLabel || s.level}</strong>
                           <div className="muted" style={{ fontSize: 12 }}>
-                            {s.score != null ? `Score ${s.score}` : 'No score'}
+                            {s.score != null ? `Score ${s.score}` : t('reports.noScore')}
                             {s.notes ? ` · ${s.notes}` : ''}
                           </div>
                         </div>
@@ -577,53 +573,72 @@ export default function ReportsPage() {
                   </div>
                 </Panel>
               ) : null}
+              {daily.dayCheckIn ? (
+                <Panel title={t('reports.moodAdhd')} subtitle={t('reports.dailyCheckIn')}>
+                  <div className="meal-list">
+                    <div className="meal-row">
+                      <div>
+                        <strong>
+                          Mood {daily.dayCheckIn.moodLabel || daily.dayCheckIn.mood} · focus{' '}
+                          {daily.dayCheckIn.focusLabel || daily.dayCheckIn.focus || '—'}
+                        </strong>
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          Woke {daily.dayCheckIn.wakeQualityLabel || daily.dayCheckIn.wakeQuality}
+                          {' · '}
+                          overwhelm {daily.dayCheckIn.overwhelmLabel || daily.dayCheckIn.overwhelm || '—'}
+                          {' · '}
+                          task {daily.dayCheckIn.taskInitiationLabel || daily.dayCheckIn.taskInitiation || '—'}
+                          {daily.dayCheckIn.medicationTaken ? ' · meds' : ''}
+                          {daily.dayCheckIn.hyperfocus ? ' · hyperfocus' : ''}
+                          {daily.dayCheckIn.notes ? ` · ${daily.dayCheckIn.notes}` : ''}
+                        </div>
+                      </div>
+                      <span className="stat-badge">Check-in</span>
+                    </div>
+                  </div>
+                </Panel>
+              ) : null}
+              {(daily.caffeineLogs || []).length > 0 ? (
+                <Panel
+                  title={t('reports.caffeine')}
+                  subtitle={`${(daily.caffeineLogs || []).reduce(
+                    (s: number, c: any) => s + (c.caffeineMg || 0),
+                    0
+                  )} mg today`}
+                >
+                  <div className="meal-list">
+                    {daily.caffeineLogs.map((c: any) => (
+                      <div key={c.id} className="meal-row">
+                        <div>
+                          <strong>{c.drinkLabel || c.drink}</strong>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            {c.caffeineMg} mg{c.time ? ` · ${c.time}` : ''}
+                          </div>
+                        </div>
+                        <span className="stat-badge">{c.caffeineMg} mg</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              ) : null}
             </div>
           ) : null}
 
-          <Panel
-            title="AI agent briefing"
-            subtitle="Copy this prompt into Cursor or ChatGPT for a day debrief"
-            action={
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={copyAgentPrompt}
-                disabled={!daily.agentPrompt}
-              >
-                {promptCopied ? 'Copied' : 'Copy prompt'}
-              </button>
-            }
-          >
-            {daily.agentPrompt ? (
-              <pre
-                style={{
-                  margin: 0,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  maxHeight: 280,
-                  overflow: 'auto',
-                  padding: 12,
-                  borderRadius: 10,
-                  background: 'var(--surface-2, #f1f5f9)',
-                }}
-              >
-                {daily.agentPrompt}
-              </pre>
-            ) : (
-              <p className="muted">No agent prompt for this day.</p>
-            )}
-          </Panel>
-
           <div className="grid-2">
-            <Panel title="Glucose quality" subtitle="Time in range for the day">
-              <TirRing value={daily.glucose.timeInRangePct} />
+            <Panel
+              title={t('reports.glucoseQuality')}
+              subtitle={t('dashboard.glucoseBandSub', {
+                low: glucoseTargets.low,
+                high: glucoseTargets.high,
+                goal: glucoseTargets.goal,
+              })}
+            >
+              <TirRing value={daily.glucose.timeInRangePct} goalPct={glucoseTargets.goal} />
               <div className="legend" style={{ justifyContent: 'center', marginTop: 8 }}>
                 <span>Min {daily.glucose.minMgDl ?? '—'} · Max {daily.glucose.maxMgDl ?? '—'}</span>
               </div>
             </Panel>
-            <Panel title="Insights" subtitle="Generated from today’s data">
+            <Panel title={t('reports.insights')} subtitle={t('reports.fromToday')}>
               <ul className="insight-list">
                 {daily.insights.map((i: string, idx: number) => (
                   <li key={idx}>{i}</li>
@@ -644,78 +659,79 @@ export default function ReportsPage() {
         <>
           <div className="stat-grid">
             <StatCard
-              label="Week meals"
+              label={t('reports.weekMeals')}
               value={weekly.totals.mealCount}
               accent="teal"
               foot={`${weekly.weekStart} → ${weekly.weekEnd}`}
             />
             <StatCard
-              label="Calories"
+              label={t('reports.calories')}
               value={Math.round(weekly.totals.macros.caloriesKcal || 0)}
               unit="kcal"
               accent="amber"
             />
             <StatCard
-              label="Total carbs"
+              label={t('reports.totalCarbs')}
               value={Math.round(weekly.totals.macros.carbsG)}
               unit="g"
               accent="teal"
             />
             <StatCard
-              label="Avg glucose"
+              label={t('reports.avgGlucose')}
               value={weekly.totals.avgGlucoseMgDl ?? '—'}
               unit={weekly.totals.avgGlucoseMgDl != null ? 'mg/dL' : undefined}
               accent="amber"
             />
             <StatCard
-              label="Avg TIR"
+              label={t('reports.avgTir')}
               value={weekly.totals.avgTimeInRangePct != null ? `${weekly.totals.avgTimeInRangePct}%` : '—'}
               accent="green"
               badge={
-                weekly.totals.avgTimeInRangePct != null && weekly.totals.avgTimeInRangePct >= 70
-                  ? { text: 'Strong week', tone: 'good' }
+                weekly.totals.avgTimeInRangePct != null &&
+                weekly.totals.avgTimeInRangePct >= glucoseTargets.goal
+                  ? { text: t('reports.strongWeek'), tone: 'good' }
                   : undefined
               }
             />
             <StatCard
-              label="Total steps"
+              label={t('reports.totalSteps')}
               value={weekly.totals.totalSteps.toLocaleString()}
               accent="blue"
             />
             <StatCard
-              label="Workouts"
+              label={t('reports.workouts')}
               value={weekly.totals.workoutCount ?? 0}
               accent="blue"
               foot={`${weekly.totals.workoutMinutes ?? 0} min`}
             />
             <StatCard
-              label="Active kcal"
+              label={t('reports.activeKcal')}
               value={weekly.totals.activeCalories ?? 0}
               accent="amber"
             />
             <StatCard
-              label="Care visits"
+              label={t('reports.careVisits')}
               value={weekly.totals.careVisitCount ?? 0}
               accent="teal"
             />
             <StatCard
-              label="Padel"
+              label={t('reports.padel')}
               value={`${weekly.totals.padelWins ?? 0}W–${weekly.totals.padelLosses ?? 0}L`}
               accent="green"
               foot={`${weekly.totals.sportMatchCount ?? 0} match(es)`}
             />
             <StatCard
-              label="Stress"
+              label={t('reports.stress')}
               value={weekly.totals.stressLogCount ?? 0}
               accent="amber"
               foot={
                 (weekly.totals.stressHighCount ?? 0) > 0
                   ? `${weekly.totals.stressHighCount} high`
-                  : 'Check-ins'
+                  : t('reports.checkIns')
               }
             />
             <StatCard
-              label="Protein total"
+              label={t('reports.proteinTotal')}
               value={Math.round(weekly.totals.macros.proteinG)}
               unit="g"
               accent="blue"
@@ -723,7 +739,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="grid-2">
-            <Panel title="Macros by day" subtitle="Carbs vs protein vs fat (g)">
+            <Panel title={t('reports.macrosByDay')} subtitle="Carbs vs protein vs fat (g)">
               <div className="chart-wrap tall">
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={weekChart}>
@@ -732,15 +748,15 @@ export default function ReportsPage() {
                     <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTooltipBox unit="g" />} />
                     <Legend />
-                    <Bar dataKey="carbs" name="Carbs" stackId="a" fill="#0d9488" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="protein" name="Protein" stackId="a" fill="#0ea5e9" />
-                    <Bar dataKey="fat" name="Fat" stackId="a" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="carbs" name={t('reports.carbs')} stackId="a" fill="#0d9488" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="protein" name={t('reports.protein')} stackId="a" fill="#0ea5e9" />
+                    <Bar dataKey="fat" name={t('reports.fat')} stackId="a" fill="#f59e0b" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </Panel>
 
-            <Panel title="Glucose & sports" subtitle="Avg glucose, steps, and workout minutes">
+            <Panel title={t('reports.glucoseSports')} subtitle="Avg glucose, steps, and workout minutes">
               <div className="chart-wrap tall">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={weekChart}>
@@ -760,8 +776,7 @@ export default function ReportsPage() {
                       yAxisId="left"
                       type="monotone"
                       dataKey="avg"
-                      name="Avg glucose"
-                      stroke="#d97706"
+                      name={t('reports.avgGlucose')} stroke="#d97706"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
                       connectNulls
@@ -770,8 +785,7 @@ export default function ReportsPage() {
                       yAxisId="right"
                       type="monotone"
                       dataKey="steps"
-                      name="Steps"
-                      stroke="#0ea5e9"
+                      name={t('reports.steps')} stroke="#0ea5e9"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -779,8 +793,7 @@ export default function ReportsPage() {
                       yAxisId="right"
                       type="monotone"
                       dataKey="workoutMin"
-                      name="Workout min"
-                      stroke="#0d9488"
+                      name={t('reports.workoutMin')} stroke="#0d9488"
                       strokeWidth={2}
                       dot={{ r: 3 }}
                     />
@@ -791,7 +804,7 @@ export default function ReportsPage() {
           </div>
 
           {(weekly.workouts || []).length > 0 ? (
-            <Panel title="Workouts this week" subtitle="Exercise sessions">
+            <Panel title={t('reports.workoutsWeek')} subtitle={t('reports.workoutsWeek')}>
               <div className="meal-list">
                 {weekly.workouts.map((w: any, i: number) => (
                   <div key={i} className="meal-row">
@@ -811,9 +824,10 @@ export default function ReportsPage() {
 
           {(weekly.careVisits || []).length > 0 ||
           (weekly.sportMatches || []).length > 0 ||
-          (weekly.stressLogs || []).length > 0 ? (
+          (weekly.stressLogs || []).length > 0 ||
+          (weekly.dayCheckIns || []).length > 0 ? (
             <div className="grid-2">
-              <Panel title="Care visits this week" subtitle="Kiné, Ostéo, Podologue…">
+              <Panel title="Care visits this week" subtitle={t('compose.careBlurb')}>
                 {(weekly.careVisits || []).length === 0 ? (
                   <p className="muted">None logged.</p>
                 ) : (
@@ -830,7 +844,7 @@ export default function ReportsPage() {
                   </div>
                 )}
               </Panel>
-              <Panel title="Matches this week" subtitle="Padel results">
+              <Panel title={t('reports.matchesWeek')} subtitle={t('reports.padelResults')}>
                 {(weekly.sportMatches || []).length === 0 ? (
                   <p className="muted">None logged.</p>
                 ) : (
@@ -859,7 +873,7 @@ export default function ReportsPage() {
                 )}
               </Panel>
               {(weekly.stressLogs || []).length > 0 ? (
-                <Panel title="Stress this week" subtitle="Check-ins">
+                <Panel title={t('reports.stressWeek')} subtitle={t('reports.checkIns')}>
                   <div className="meal-list">
                     {weekly.stressLogs.map((s: any) => (
                       <div key={s.id} className="meal-row">
@@ -882,10 +896,30 @@ export default function ReportsPage() {
                   </div>
                 </Panel>
               ) : null}
+              {(weekly.dayCheckIns || []).length > 0 ? (
+                <Panel title={t('reports.moodWeek')} subtitle="Daily check-ins">
+                  <div className="meal-list">
+                    {weekly.dayCheckIns.map((c: any) => (
+                      <div key={c.id} className="meal-row">
+                        <div>
+                          <strong>
+                            {c.moodLabel || c.mood} · woke {c.wakeQualityLabel || c.wakeQuality}
+                          </strong>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            {c.date}
+                            {c.notes ? ` · ${c.notes}` : ''}
+                          </div>
+                        </div>
+                        <span className="stat-badge">Check-in</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              ) : null}
             </div>
           ) : null}
 
-          <Panel title="Time in range by day" subtitle="Percent of readings in 70–180 mg/dL">
+          <Panel title={t('reports.tirByDay')} subtitle={t('reports.tirByDay')}>
             <div className="chart-wrap">
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={weekChart}>
@@ -899,7 +933,7 @@ export default function ReportsPage() {
             </div>
           </Panel>
 
-          <Panel title="Weekly insights">
+          <Panel title={t('reports.weeklyInsights')}>
             <ul className="insight-list">
               {weekly.insights.map((i: string, idx: number) => (
                 <li key={idx}>{i}</li>
@@ -909,14 +943,9 @@ export default function ReportsPage() {
         </>
       ) : null}
 
-      <Panel
-        title="Past debriefs"
-        subtitle="Archived AI day summaries (saved on morning email and PDF download) — RAG-ready"
-      >
+      <Panel title={t('reports.archive')} subtitle={t('reports.archiveHelp')}>
         {debriefs.length === 0 ? (
-          <p className="muted">
-            None yet. Download a PDF or wait for the 07:00 Paris email to archive the first debrief.
-          </p>
+          <p className="muted">{t('reports.noArchive')}</p>
         ) : (
           <div className="meal-list">
             {debriefs.map((d) => (
@@ -937,7 +966,12 @@ export default function ReportsPage() {
                   <div>
                     <strong>{d.date}</strong>
                     <div className="muted" style={{ fontSize: 12 }}>
-                      {d.headline || 'Day overview'}
+                      {d.headline || t('reports.dayOverview')}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      {t('reports.archiveLocale', {
+                        locale: d.locale === 'fr' ? t('locale.fr') : t('locale.en'),
+                      })}
                     </div>
                   </div>
                   <span className="stat-badge">{d.source}</span>
@@ -970,36 +1004,6 @@ export default function ReportsPage() {
                             <li key={i}>{t}</li>
                           ))}
                         </ul>
-                      </>
-                    ) : null}
-                    {openDebrief.agentPrompt ? (
-                      <>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: 6,
-                          }}
-                        >
-                          <strong style={{ fontSize: 13 }}>Agent prompt</strong>
-                          <button type="button" className="btn ghost" onClick={copyArchivePrompt}>
-                            {archivePromptCopied ? 'Copied' : 'Copy prompt'}
-                          </button>
-                        </div>
-                        <pre
-                          style={{
-                            margin: 0,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            fontSize: 11,
-                            lineHeight: 1.4,
-                            maxHeight: 200,
-                            overflow: 'auto',
-                          }}
-                        >
-                          {openDebrief.agentPrompt}
-                        </pre>
                       </>
                     ) : null}
                   </div>

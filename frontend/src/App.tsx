@@ -2,6 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { clearSession, getStoredUser, isLoggedIn } from './api';
 import ComposeModal from './components/ComposeModal';
+import { useLocale } from './i18n';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import MealsPage from './pages/MealsPage';
@@ -9,6 +10,7 @@ import ReportsPage from './pages/ReportsPage';
 import ShareReportPage from './pages/ShareReportPage';
 import SportsPage from './pages/SportsPage';
 import InjuriesPage from './pages/InjuriesPage';
+import MentalPage from './pages/MentalPage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
 
@@ -19,26 +21,28 @@ function Protected({ children }: { children: ReactNode }) {
 
 function AppShell() {
   const user = getStoredUser();
+  const { t } = useLocale();
   const [composeOpen, setComposeOpen] = useState(false);
 
   const links = [
-    { to: '/', label: 'Dashboard', end: true as boolean | undefined },
-    { to: '/meals', label: 'Meals' },
-    { to: '/sports', label: 'Sports' },
-    { to: '/injuries', label: 'Injuries' },
-    { to: '/reports', label: 'Reports' },
-    ...(user?.role === 'admin' ? [{ to: '/users', label: 'Users' }] : []),
-    { to: '/settings', label: 'Settings' },
+    { to: '/', label: t('nav.dashboard'), end: true as boolean | undefined },
+    { to: '/meals', label: t('nav.meals') },
+    { to: '/sports', label: t('nav.sports') },
+    { to: '/mental', label: t('nav.mental') },
+    { to: '/injuries', label: t('nav.injuries') },
+    { to: '/reports', label: t('nav.reports') },
+    ...(user?.role === 'admin' ? [{ to: '/users', label: t('nav.users') }] : []),
+    { to: '/settings', label: t('nav.settings') },
   ];
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <img className="brand-mark" src="/brand-logo.png" alt="Health Companion" width={44} height={44} />
+          <img className="brand-mark" src="/brand-logo.png" alt={t('brand.name')} width={44} height={44} />
           <div>
-            <strong>Health Companion</strong>
-            <div className="brand-sub">Diabetes insights</div>
+            <strong>{t('brand.name')}</strong>
+            <div className="brand-sub">{t('brand.tagline')}</div>
           </div>
         </div>
         <nav>
@@ -49,7 +53,7 @@ function AppShell() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className="label">Signed in</div>
+          <div className="label">{t('nav.signedIn')}</div>
           <p>
             {user?.displayName || user?.email || 'User'}
             {user?.role === 'admin' ? ' · admin' : ''}
@@ -62,14 +66,12 @@ function AppShell() {
               window.location.href = '/login';
             }}
           >
-            Sign out
+            {t('nav.signOut')}
           </button>
           <div className="label" style={{ marginTop: 16 }}>
-            Reminder
+            {t('nav.reminder')}
           </div>
-          <p>
-            Meal estimates and suggestions are not medical advice. Confirm carbs when you can.
-          </p>
+          <p>{t('nav.reminderBody')}</p>
         </div>
       </aside>
       <main className="main">
@@ -77,6 +79,7 @@ function AppShell() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/meals" element={<MealsPage />} />
           <Route path="/sports" element={<SportsPage />} />
+          <Route path="/mental" element={<MentalPage />} />
           <Route path="/injuries" element={<InjuriesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/users" element={<UsersPage />} />
@@ -87,7 +90,7 @@ function AppShell() {
       <button
         type="button"
         className="fab"
-        aria-label="Add entry"
+        aria-label={t('fab.add')}
         onClick={() => setComposeOpen(true)}
       >
         +

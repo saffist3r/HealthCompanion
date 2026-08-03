@@ -467,6 +467,79 @@ export async function deleteStressLog(id: string) {
   await ensureOk(res);
 }
 
+export async function fetchDayCheckIn(date: string) {
+  const res = await fetch(
+    `${await base()}/health-data/day-checkins?date=${encodeURIComponent(date)}`,
+    { headers: await headers() }
+  );
+  const data = await ensureOk(res);
+  return (data.dayCheckIn || null) as import('@health-companion/shared').DayCheckIn | null;
+}
+
+export async function upsertDayCheckIn(payload: {
+  date: string;
+  mood: import('@health-companion/shared').MoodLevel;
+  wakeQuality: import('@health-companion/shared').WakeQuality;
+  focus?: import('@health-companion/shared').FocusLevel;
+  restlessness?: import('@health-companion/shared').AdhdIntensity;
+  overwhelm?: import('@health-companion/shared').AdhdIntensity;
+  taskInitiation?: import('@health-companion/shared').TaskInitiation;
+  impulsivity?: import('@health-companion/shared').AdhdIntensity;
+  medicationTaken?: boolean;
+  hyperfocus?: boolean;
+  sleepHours?: number;
+  notes?: string;
+}) {
+  const res = await fetch(`${await base()}/health-data/day-checkins`, {
+    method: 'POST',
+    headers: await headers(),
+    body: JSON.stringify(payload),
+  });
+  const data = await ensureOk(res);
+  return data.dayCheckIn as import('@health-companion/shared').DayCheckIn;
+}
+
+export async function deleteDayCheckIn(id: string) {
+  const res = await fetch(`${await base()}/health-data/day-checkins/${id}`, {
+    method: 'DELETE',
+    headers: await headers(),
+  });
+  await ensureOk(res);
+}
+
+export async function fetchCaffeineLogs(date?: string) {
+  const q = date ? `?date=${encodeURIComponent(date)}` : '';
+  const res = await fetch(`${await base()}/health-data/caffeine-logs${q}`, {
+    headers: await headers(),
+  });
+  const data = await ensureOk(res);
+  return (data.caffeineLogs || []) as import('@health-companion/shared').CaffeineLog[];
+}
+
+export async function createCaffeineLog(payload: {
+  date: string;
+  time?: string;
+  drink: import('@health-companion/shared').CaffeineDrink;
+  caffeineMg?: number;
+  notes?: string;
+}) {
+  const res = await fetch(`${await base()}/health-data/caffeine-logs`, {
+    method: 'POST',
+    headers: await headers(),
+    body: JSON.stringify(payload),
+  });
+  const data = await ensureOk(res);
+  return data.caffeineLog as import('@health-companion/shared').CaffeineLog;
+}
+
+export async function deleteCaffeineLog(id: string) {
+  const res = await fetch(`${await base()}/health-data/caffeine-logs/${id}`, {
+    method: 'DELETE',
+    headers: await headers(),
+  });
+  await ensureOk(res);
+}
+
 export async function absoluteUploadUrl(photoUrl?: string): Promise<string | undefined> {
   if (!photoUrl) return undefined;
   if (photoUrl.startsWith('http')) return photoUrl;

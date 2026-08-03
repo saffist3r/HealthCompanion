@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Injury } from '../injuries';
 import { deleteInjury, fetchInjuries, updateInjury } from '../api';
-import { PageHeader, Panel, StatCard } from '../components/ui';
+import { PageHeader, Panel, StatCard } from '../components/ui'
+import { useLocale } from '../i18n';
 
 function todayKey() {
   const d = new Date();
@@ -12,8 +13,9 @@ function todayKey() {
 }
 
 function PainSpark({ scores }: { scores: number[] }) {
+  const { t } = useLocale();
   if (scores.length === 0) {
-    return <span className="muted" style={{ fontSize: 12 }}>No pain logs yet</span>;
+    return <span className="muted" style={{ fontSize: 12 }}>{t('injuries.noPain')}</span>;
   }
   const max = 10;
   return (
@@ -36,6 +38,7 @@ function PainSpark({ scores }: { scores: number[] }) {
 }
 
 export default function InjuriesPage() {
+  const { t } = useLocale();
   const [filter, setFilter] = useState<'open' | 'healed' | 'all'>('open');
   const [injuries, setInjuries] = useState<Injury[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -109,9 +112,9 @@ export default function InjuriesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Recovery"
-        title="Injuries"
-        lede="Track cases, daily pain (0–10), and treatment exercises. Included in daily AI reports."
+        eyebrow={t('injuries.eyebrow')}
+        title={t('injuries.title')}
+        lede={t('injuries.lede')}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             {(['open', 'healed', 'all'] as const).map((f) => (
@@ -121,7 +124,7 @@ export default function InjuriesPage() {
                 className={`chip ${filter === f ? 'on' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'open' ? 'Open' : f === 'healed' ? 'Healed' : 'All'}
+                {f === 'open' ? t('injuries.open') : f === 'healed' ? t('injuries.healed') : t('injuries.all')}
               </button>
             ))}
           </div>
@@ -129,25 +132,25 @@ export default function InjuriesPage() {
       />
 
       {error ? <p className="error">{error}</p> : null}
-      {loading ? <p className="muted">Loading injuries…</p> : null}
+      {loading ? <p className="muted">{t('injuries.loading')}</p> : null}
 
       <div className="stat-grid">
-        <StatCard label="Listed" value={injuries.length} accent="blue" />
+        <StatCard label={t('injuries.listed')} value={injuries.length} accent="blue" />
         <StatCard
-          label="Open (this view)"
+          label={t('injuries.openView')}
           value={openCount}
           accent="amber"
-          foot="Active or healing"
+          foot={t('injuries.activeHealing')}
         />
         <StatCard
-          label="Pain logged today"
+          label={t('injuries.painToday')}
           value={withPainToday}
           accent="rose"
-          foot={avgPainToday != null ? `Avg ${avgPainToday}/10` : 'Use + to log'}
+          foot={avgPainToday != null ? `Avg ${avgPainToday}/10` : t('injuries.usePlus')}
         />
       </div>
 
-      <Panel title="Cases" subtitle="Tap exercises to edit · mark healed when ready">
+      <Panel title={t('injuries.cases')} subtitle={t('injuries.casesHelp')}>
         {injuries.length === 0 && !loading ? (
           <p className="muted">No injuries in this filter. Use + → Injury to create a case.</p>
         ) : (
@@ -157,7 +160,15 @@ export default function InjuriesPage() {
               const label = inj.title || inj.bodyAreaLabel || inj.injuryTypeLabel || 'Injury';
               return (
                 <div key={inj.id} className="meal-row" style={{ alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+                    <img
+                      src="/icons/icon-injury.png"
+                      alt=""
+                      width={40}
+                      height={40}
+                      style={{ borderRadius: 10, flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
                     <strong>{label}</strong>
                     <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                       {[
@@ -193,14 +204,14 @@ export default function InjuriesPage() {
                             disabled={busyId === inj.id}
                             onClick={() => saveExercises(inj)}
                           >
-                            Save
+                            {t('common.save')}
                           </button>
                           <button
                             type="button"
                             className="btn ghost"
                             onClick={() => setEditingId(null)}
                           >
-                            Cancel
+                            {t('common.cancel')}
                           </button>
                         </div>
                       </div>
@@ -218,9 +229,10 @@ export default function InjuriesPage() {
                           ? `Exercises: ${inj.exerciseNotes.slice(0, 80)}${
                               inj.exerciseNotes.length > 80 ? '…' : ''
                             }`
-                          : 'Add treatment exercises'}
+                          : t('injuries.addTreatment')}
                       </button>
                     )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <span className="stat-badge">
@@ -237,7 +249,7 @@ export default function InjuriesPage() {
                         disabled={busyId === inj.id}
                         onClick={() => markHealed(inj)}
                       >
-                        Mark healed
+                        {t('injuries.markHealed')}
                       </button>
                     ) : null}
                     <button
@@ -246,7 +258,7 @@ export default function InjuriesPage() {
                       disabled={busyId === inj.id}
                       onClick={() => remove(inj)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>

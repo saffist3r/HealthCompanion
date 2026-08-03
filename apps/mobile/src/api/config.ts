@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = '@health_companion/api_base_url';
 
-/** Production API (cluster). Override in Settings for local debugging. */
-export const DEFAULT_API_BASE_URL = 'http://localhost:8000';
+/** Production API. Override in Settings for local debugging. */
+export const DEFAULT_API_BASE_URL = 'https://healthcompanion.saffist3r.xyz';
 
 const LEGACY_DEFAULTS = new Set([
   'http://10.0.2.2:8000',

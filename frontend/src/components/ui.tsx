@@ -1,3 +1,4 @@
+import { useLocale } from '../i18n';
 import type { ReactNode } from 'react';
 
 export function PageHeader({
@@ -92,12 +93,21 @@ export function Panel({
   );
 }
 
-export function TirRing({ value }: { value: number | null }) {
+export function TirRing({
+  value,
+  goalPct = 70,
+}: {
+  value: number | null;
+  goalPct?: number;
+}) {
+  const { t } = useLocale();
   const pct = value == null ? 0 : Math.max(0, Math.min(100, value));
+  const goal = Math.max(40, Math.min(100, goalPct));
   const r = 58;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
-  const color = value == null ? '#cbd5e1' : pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+  const color =
+    value == null ? '#cbd5e1' : pct >= goal ? '#10b981' : pct >= goal * 0.7 ? '#f59e0b' : '#ef4444';
 
   return (
     <div className="ring-wrap">
@@ -119,7 +129,7 @@ export function TirRing({ value }: { value: number | null }) {
         </svg>
         <div className="ring-center">
           <strong>{value == null ? '—' : `${Math.round(pct)}%`}</strong>
-          <span>time in range</span>
+          <span>{t('ui.tir')}</span>
         </div>
       </div>
     </div>

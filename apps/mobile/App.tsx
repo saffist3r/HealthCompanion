@@ -28,6 +28,7 @@ import MealsScreen from './src/screens/MealsScreen';
 import CaptureMealScreen from './src/screens/CaptureMealScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
+import MentalScreen from './src/screens/MentalScreen';
 import SettingsHubScreen from './src/screens/SettingsHubScreen';
 import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -169,6 +170,14 @@ function MainTabs() {
             tabBarLabel: ({ color }) => <TabLabel label="Reports" color={color} />,
             tabBarIcon: () => null,
             headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Mental"
+          component={MentalScreen}
+          options={{
+            tabBarLabel: ({ color }) => <TabLabel label="Mental" color={color} />,
+            tabBarIcon: () => null,
           }}
         />
         <Tab.Screen

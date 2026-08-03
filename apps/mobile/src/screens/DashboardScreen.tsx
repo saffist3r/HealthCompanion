@@ -122,6 +122,7 @@ export default function DashboardScreen() {
   const matches = data?.todaySportMatches || [];
   const care = data?.todayCareVisits || [];
   const injuries = data?.todayInjuries || [];
+  const checkIn = data?.todayDayCheckIn || null;
   const insights = [
     ...(data?.dailyReport?.insights || []),
     ...((data?.weeklyReport?.insights || []).slice(0, 2) as string[]),
@@ -227,10 +228,27 @@ export default function DashboardScreen() {
 
             <View style={t.card}>
               <Text style={t.cardTitle}>Today’s log</Text>
-              {meals.length === 0 && workouts.length === 0 && matches.length === 0 && care.length === 0 && injuries.length === 0 ? (
+              {meals.length === 0 && workouts.length === 0 && matches.length === 0 && care.length === 0 && injuries.length === 0 && !checkIn ? (
                 <Text style={t.line}>Nothing logged yet. Use + to add an entry.</Text>
               ) : (
                 <>
+                  {checkIn ? (
+                    <View style={t.row}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={t.rowTitle}>
+                          Mood {checkIn.moodLabel || checkIn.mood} · focus{' '}
+                          {checkIn.focusLabel || checkIn.focus || '—'}
+                        </Text>
+                        <Text style={t.line}>
+                          Woke {checkIn.wakeQualityLabel || checkIn.wakeQuality}
+                          {checkIn.overwhelm === 'high' ? ' · high overwhelm' : ''}
+                          {checkIn.medicationTaken ? ' · meds' : ''}
+                        </Text>
+                        {checkIn.notes ? <Text style={t.line}>{checkIn.notes}</Text> : null}
+                      </View>
+                      <Text style={t.badge}>Check-in</Text>
+                    </View>
+                  ) : null}
                   {meals.slice(0, 6).map((m: any) => (
                     <TouchableOpacity
                       key={m.id}

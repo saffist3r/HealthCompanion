@@ -9,10 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Customizable **TIR / glucose targets** and daily carb target in Settings (web)
-- Settings **tabs** (Glucose / Body / Prefs / Account) with suggested range chips
+- (none yet)
+
+## [1.5.40] - 2026-08-03
+
+### Added
+
+- Customizable **TIR / glucose targets** and daily carb target in Settings (web); used by dashboard, reports, and hypo logic
+- Settings **tabs** (Glucose / Body / Prefs / Account) with suggested range / goal / carb chips
 - Dedicated entry icons (caffeine, injury, check-in, weight, stress, running, cycling, swimming, walking)
 - French **i18n** for the web app and new reports (PDF / email / AI); English remains the archive default
+- **Mental** page (web) and expanded compose flows (check-in, caffeine, stress)
+- Cursor rule: numeric health scores use sliders
+
+### Fixed
+
 - Traefik / nginx routing so mobile API POSTs hit the backend (not the SPA)
 
 ## [1.5.0] - 2026-08-02
@@ -31,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `./k8s/deploy.sh` requires `REGISTRY_PASS` from the environment (no hardcoded registry password)
 - Default API URLs point at localhost so forks do not hit a maintainer deployment
 
-> Milestone tag for the full companion line. Later **1.5.x** patches continued on the same major.minor (deployed up through 1.5.40+).
+> Milestone tag for the full companion line. Later **1.5.x** patches continued on the same major.minor (see [1.5.40](#1540---2026-08-03)).
 
 ## [1.4.0] - 2026-08-02
 
@@ -149,6 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wear OS 3+ (Samsung Galaxy Watch, Pixel Watch, etc.)
 
 [Unreleased]: https://github.com/saffist3r/HealthCompanion/compare/v1.5.0...HEAD
+[1.5.40]: https://github.com/saffist3r/HealthCompanion/blob/main/CHANGELOG.md#1540---2026-08-03
 [1.5.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0
 [1.4.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0
 [1.3.0]: https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0

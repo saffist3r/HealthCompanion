@@ -32,9 +32,8 @@ class Settings(BaseSettings):
     report_email_to: str = ""
     report_email_from: str = ""
     report_email_from_name: str = "Health Companion"
-
-  // Public site URL used for share links / QR codes (override via PUBLIC_URL env)
-  public_url: str = "http://localhost:5173"
+    # Public site URL used for share links / QR codes (override via PUBLIC_URL env)
+    public_url: str = "http://localhost:5173"
     report_share_ttl_days: int = 30
 
     @property
@@ -54,6 +53,7 @@ class Settings(BaseSettings):
             and (self.smtp_password or "").strip()
             and (self.report_email_to or "").strip()
         )
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -5,7 +5,17 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.core.config import get_settings
-from app.models import ActivityDay, CareVisit, GlucoseSample, Meal, PumpLogEvent, SportMatch, StressLog
+from app.models import (
+    ActivityDay,
+    CareVisit,
+    CaffeineLog,
+    DayCheckIn,
+    GlucoseSample,
+    Meal,
+    PumpLogEvent,
+    SportMatch,
+    StressLog,
+)
 
 
 CARE_LABELS = {
@@ -18,6 +28,44 @@ STRESS_LABELS = {
     "calm": "Calm",
     "ok": "OK",
     "high": "High",
+}
+MOOD_LABELS = {
+    "terrible": "Terrible",
+    "low": "Low",
+    "ok": "OK",
+    "good": "Good",
+    "great": "Great",
+}
+WAKE_LABELS = {
+    "rough": "Rough",
+    "groggy": "Groggy",
+    "ok": "OK",
+    "fresh": "Fresh",
+    "energized": "Energized",
+}
+FOCUS_LABELS = MOOD_LABELS
+ADHD_INTENSITY_LABELS = {
+    "low": "Low",
+    "ok": "OK",
+    "high": "High",
+}
+TASK_INITIATION_LABELS = {
+    "stuck": "Stuck",
+    "slow": "Slow",
+    "ok": "OK",
+    "easy": "Easy",
+}
+CAFFEINE_DRINK_LABELS = {
+    "espresso": "Espresso",
+    "double_espresso": "Double espresso",
+    "coffee": "Coffee",
+    "iced_coffee": "Iced coffee",
+    "green_tea": "Green tea",
+    "black_tea": "Black tea",
+}
+STRESS_SOURCE_LABELS = {
+    "manual": "Manual",
+    "samsung_energy": "Samsung Energy Score",
 }
 PUMP_KIND_LABELS = {
     "insulin_delivered": "Insulin delivered",
@@ -71,6 +119,7 @@ def serialize_sport_match(row: SportMatch) -> dict[str, Any]:
 
 
 def serialize_stress_log(row: StressLog) -> dict[str, Any]:
+    source = getattr(row, "source", None) or "manual"
     return {
         "id": row.id,
         "date": row.date,
@@ -78,6 +127,53 @@ def serialize_stress_log(row: StressLog) -> dict[str, Any]:
         "level": row.level,
         "levelLabel": STRESS_LABELS.get(row.level, row.level),
         "score": row.score,
+        "source": source,
+        "sourceLabel": STRESS_SOURCE_LABELS.get(source, source),
+        "notes": row.notes,
+        "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
+    }
+
+
+def serialize_day_check_in(row: DayCheckIn) -> dict[str, Any]:
+    focus = getattr(row, "focus", None) or "ok"
+    restlessness = getattr(row, "restlessness", None) or "ok"
+    overwhelm = getattr(row, "overwhelm", None) or "ok"
+    task_initiation = getattr(row, "task_initiation", None) or "ok"
+    impulsivity = getattr(row, "impulsivity", None) or "ok"
+    return {
+        "id": row.id,
+        "date": row.date,
+        "mood": row.mood,
+        "moodLabel": MOOD_LABELS.get(row.mood, row.mood),
+        "wakeQuality": row.wake_quality,
+        "wakeQualityLabel": WAKE_LABELS.get(row.wake_quality, row.wake_quality),
+        "focus": focus,
+        "focusLabel": FOCUS_LABELS.get(focus, focus),
+        "restlessness": restlessness,
+        "restlessnessLabel": ADHD_INTENSITY_LABELS.get(restlessness, restlessness),
+        "overwhelm": overwhelm,
+        "overwhelmLabel": ADHD_INTENSITY_LABELS.get(overwhelm, overwhelm),
+        "taskInitiation": task_initiation,
+        "taskInitiationLabel": TASK_INITIATION_LABELS.get(task_initiation, task_initiation),
+        "impulsivity": impulsivity,
+        "impulsivityLabel": ADHD_INTENSITY_LABELS.get(impulsivity, impulsivity),
+        "medicationTaken": bool(getattr(row, "medication_taken", False)),
+        "hyperfocus": bool(getattr(row, "hyperfocus", False)),
+        "sleepHours": getattr(row, "sleep_hours", None),
+        "notes": row.notes,
+        "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
+        "updatedAt": int(row.updated_at.timestamp() * 1000) if row.updated_at else None,
+    }
+
+
+def serialize_caffeine_log(row: CaffeineLog) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "date": row.date,
+        "time": row.time,
+        "drink": row.drink,
+        "drinkLabel": CAFFEINE_DRINK_LABELS.get(row.drink, row.drink),
+        "caffeineMg": row.caffeine_mg,
         "notes": row.notes,
         "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
     }
@@ -127,19 +223,36 @@ def build_daily_report(
     care_visits: list[CareVisit] | None = None,
     sport_matches: list[SportMatch] | None = None,
     stress_logs: list[StressLog] | None = None,
+    day_check_in: DayCheckIn | None = None,
+    caffeine_logs: list[CaffeineLog] | None = None,
     pump_events: list[PumpLogEvent] | None = None,
     injuries: list[dict[str, Any]] | None = None,
     calorie_targets: dict[str, Any] | None = None,
     weight: dict[str, Any] | None = None,
+    glucose_targets: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from app.services.body_calories import intake_vs_targets
+    from app.services.body_profile import (
+        DEFAULT_CARB_TARGET_G,
+        DEFAULT_TIR_GOAL_PCT,
+        DEFAULT_TIR_HIGH,
+        DEFAULT_TIR_LOW,
+        glucose_targets_from_profile,
+    )
 
     settings = get_settings()
+    targets = glucose_targets or glucose_targets_from_profile(None)
+    tir_low = float(targets.get("tirLowMgDl") or DEFAULT_TIR_LOW)
+    tir_high = float(targets.get("tirHighMgDl") or DEFAULT_TIR_HIGH)
+    tir_goal = float(targets.get("tirGoalPct") or DEFAULT_TIR_GOAL_PCT)
+    carb_target = float(targets.get("dailyCarbTargetG") or settings.daily_carb_target_g or DEFAULT_CARB_TARGET_G)
     macros = _sum_meal_macros(meals)
-    glucose_summary = _glucose_summary(date, glucose)
+    glucose_summary = _glucose_summary(date, glucose, tir_low=tir_low, tir_high=tir_high)
     care = [serialize_care_visit(v) for v in (care_visits or [])]
     matches = [serialize_sport_match(m) for m in (sport_matches or [])]
     stress = [serialize_stress_log(s) for s in (stress_logs or [])]
+    check_in = serialize_day_check_in(day_check_in) if day_check_in else None
+    caffeine = [serialize_caffeine_log(c) for c in (caffeine_logs or [])]
     pump = [serialize_pump_event(p) for p in (pump_events or [])]
     injury_list = list(injuries or [])
     activity_summary = None
@@ -195,25 +308,32 @@ def build_daily_report(
                     }
                 )
 
-    if macros["carbsG"] > settings.daily_carb_target_g:
+    if macros["carbsG"] > carb_target:
         warnings.append(
             {
                 "severity": "caution",
                 "title": "Above daily carb target",
                 "message": (
-                    f"Logged {macros['carbsG']}g carbs vs target {settings.daily_carb_target_g}g."
+                    f"Logged {macros['carbsG']}g carbs vs target {carb_target:g}g."
                 ),
             }
         )
 
+    range_label = f"{tir_low:g}–{tir_high:g}"
     if glucose_summary["timeInRangePct"] is not None:
-        insights.append(f"Time in range (70–180): {glucose_summary['timeInRangePct']}%.")
-        if glucose_summary["timeInRangePct"] < 50:
+        insights.append(
+            f"Time in range ({range_label}): {glucose_summary['timeInRangePct']}% "
+            f"(goal ≥{tir_goal:g}%)."
+        )
+        if glucose_summary["timeInRangePct"] < tir_goal:
             warnings.append(
                 {
-                    "severity": "alert",
-                    "title": "Low time in range",
-                    "message": "Less than half of readings were in range today.",
+                    "severity": "alert" if glucose_summary["timeInRangePct"] < max(40.0, tir_goal * 0.7) else "caution",
+                    "title": "Below TIR goal",
+                    "message": (
+                        f"Time in range {glucose_summary['timeInRangePct']}% "
+                        f"vs personal goal {tir_goal:g}% ({range_label} mg/dL)."
+                    ),
                 }
             )
     else:
@@ -229,7 +349,7 @@ def build_daily_report(
         except (OSError, ValueError, OverflowError):
             clock = "—"
         insights.append(
-            f"{hypo_count} hypoglycemia episode(s) (<70 mg/dL); "
+            f"{hypo_count} hypoglycemia episode(s) (<{tir_low:g} mg/dL); "
             f"lowest {glucose_summary.get('minMgDl')} mg/dL · first ~{clock}."
         )
         warnings.append(
@@ -237,7 +357,7 @@ def build_daily_report(
                 "severity": "alert",
                 "title": "Hypoglycemia",
                 "message": (
-                    f"{hypo_count} episode(s) below 70 mg/dL today "
+                    f"{hypo_count} episode(s) below {tir_low:g} mg/dL today "
                     f"(min {glucose_summary.get('minMgDl')} mg/dL). "
                     "Treat per your care plan."
                 ),
@@ -245,7 +365,7 @@ def build_daily_report(
         )
     elif (glucose_summary.get("lowCount") or 0) > 0:
         insights.append(
-            f"{glucose_summary['lowCount']} reading(s) below 70 mg/dL."
+            f"{glucose_summary['lowCount']} reading(s) below {tir_low:g} mg/dL."
         )
     if activity_summary:
         insights.append(f"{activity_summary['steps']:,} steps.")
@@ -280,9 +400,38 @@ def build_daily_report(
     for s in stress:
         label = s.get("levelLabel") or s.get("level") or "stress"
         score = s.get("score")
-        insights.append(
-            f"Stress: {label}" + (f" ({score})" if score is not None else "") + "."
+        src = s.get("sourceLabel") or s.get("source")
+        bit = f"Stress: {label}"
+        if score is not None:
+            bit += f" ({score})"
+        if src and s.get("source") == "samsung_energy":
+            bit += " · Samsung Energy"
+        insights.append(bit + ".")
+
+    if check_in:
+        mood = check_in.get("moodLabel") or check_in.get("mood") or "mood"
+        wake = check_in.get("wakeQualityLabel") or check_in.get("wakeQuality") or "wake"
+        focus = check_in.get("focusLabel") or check_in.get("focus")
+        bits = [f"mood {mood}", f"woke {wake}"]
+        if focus:
+            bits.append(f"focus {focus}")
+        if check_in.get("overwhelm") == "high":
+            bits.append("high overwhelm")
+        if check_in.get("medicationTaken"):
+            bits.append("meds taken")
+        if check_in.get("hyperfocus"):
+            bits.append("hyperfocus")
+        if check_in.get("sleepHours") is not None:
+            bits.append(f"sleep {check_in['sleepHours']}h")
+        insights.append("Check-in: " + " · ".join(bits) + ".")
+
+    if caffeine:
+        total_mg = sum(int(c.get("caffeineMg") or 0) for c in caffeine)
+        drinks = ", ".join(
+            (c.get("drinkLabel") or c.get("drink") or "drink") for c in caffeine[:4]
         )
+        more = f" +{len(caffeine) - 4}" if len(caffeine) > 4 else ""
+        insights.append(f"Caffeine: {total_mg} mg · {drinks}{more}.")
 
     for inj in injury_list:
         area = inj.get("bodyAreaLabel") or inj.get("bodyArea") or "injury"
@@ -316,11 +465,19 @@ def build_daily_report(
         "careVisits": care,
         "sportMatches": matches,
         "stressLogs": stress,
+        "dayCheckIn": check_in,
+        "caffeineLogs": caffeine,
         "injuries": injury_list,
         "pumpEvents": pump,
         "weight": weight,
         "calorieTargets": calorie_targets,
         "calorieBalance": calorie_balance,
+        "glucoseTargets": {
+            "tirLowMgDl": tir_low,
+            "tirHighMgDl": tir_high,
+            "tirGoalPct": tir_goal,
+            "dailyCarbTargetG": carb_target,
+        },
         "insights": insights,
         "warnings": warnings,
     }
@@ -339,16 +496,20 @@ def build_day_activity_prompt(daily: dict[str, Any]) -> str:
         "## Glucose",
     ]
     g = daily.get("glucose") or {}
+    gt = daily.get("glucoseTargets") or {}
+    tir_low = float(gt.get("tirLowMgDl") or 70)
+    tir_high = float(gt.get("tirHighMgDl") or 180)
+    range_label = f"{tir_low:g}–{tir_high:g}"
     if g.get("readingCount"):
         lines.append(
             f"- Readings: {g.get('readingCount')} · avg {g.get('avgMgDl')} mg/dL · "
             f"min {g.get('minMgDl')} · max {g.get('maxMgDl')}"
         )
         if g.get("timeInRangePct") is not None:
-            lines.append(f"- Time in range (70–180): {g.get('timeInRangePct')}%")
+            lines.append(f"- Time in range ({range_label}): {g.get('timeInRangePct')}%")
         hypo = int(g.get("hypoEventCount") or 0)
         if hypo:
-            lines.append(f"- Hypoglycemia episodes (<70): {hypo}")
+            lines.append(f"- Hypoglycemia episodes (<{tir_low:g}): {hypo}")
         if g.get("lowCount"):
             lines.append(f"- Low readings: {g.get('lowCount')} · high readings: {g.get('highCount') or 0}")
     else:
@@ -427,7 +588,7 @@ def build_day_activity_prompt(daily: dict[str, Any]) -> str:
         lines.append("- No logged sport sessions.")
 
     lines.append("")
-    lines.append("## Care & stress")
+    lines.append("## Care visits")
     care = daily.get("careVisits") or []
     if care:
         for v in care:
@@ -436,15 +597,57 @@ def build_day_activity_prompt(daily: dict[str, Any]) -> str:
             lines.append(f"- Care: {label}{note}")
     else:
         lines.append("- No care visits.")
+
+    lines.append("")
+    lines.append("## Mental health")
     stress = daily.get("stressLogs") or []
     if stress:
         for s in stress:
             label = s.get("levelLabel") or s.get("level") or "stress"
             score = f" ({s['score']})" if s.get("score") is not None else ""
+            src = f" [{s.get('sourceLabel') or s.get('source')}]" if s.get("source") else ""
             note = f" — {s['notes']}" if s.get("notes") else ""
-            lines.append(f"- Stress: {label}{score}{note}")
+            lines.append(f"- Stress: {label}{score}{src}{note}")
     else:
-        lines.append("- No stress check-ins.")
+        lines.append("- No stress / Energy Score entries.")
+    check_in = daily.get("dayCheckIn")
+    if check_in:
+        lines.append(
+            f"- Mood: {check_in.get('moodLabel') or check_in.get('mood')} · "
+            f"wake: {check_in.get('wakeQualityLabel') or check_in.get('wakeQuality')}"
+        )
+        lines.append(
+            f"- ADHD: focus {check_in.get('focusLabel') or check_in.get('focus')} · "
+            f"restlessness {check_in.get('restlessnessLabel') or check_in.get('restlessness')} · "
+            f"overwhelm {check_in.get('overwhelmLabel') or check_in.get('overwhelm')} · "
+            f"task start {check_in.get('taskInitiationLabel') or check_in.get('taskInitiation')} · "
+            f"impulsivity {check_in.get('impulsivityLabel') or check_in.get('impulsivity')}"
+        )
+        flags = []
+        if check_in.get("medicationTaken"):
+            flags.append("medication taken")
+        if check_in.get("hyperfocus"):
+            flags.append("hyperfocus episode")
+        if check_in.get("sleepHours") is not None:
+            flags.append(f"sleep {check_in['sleepHours']}h")
+        if check_in.get("notes"):
+            flags.append(str(check_in["notes"]))
+        if flags:
+            lines.append("- " + " · ".join(flags))
+    else:
+        lines.append("- No mood / ADHD check-in.")
+    caffeine = daily.get("caffeineLogs") or []
+    if caffeine:
+        total_mg = sum(int(c.get("caffeineMg") or 0) for c in caffeine)
+        lines.append(f"- Caffeine total: {total_mg} mg ({len(caffeine)} drink(s))")
+        for c in caffeine:
+            when = f" @ {c['time']}" if c.get("time") else ""
+            note = f" — {c['notes']}" if c.get("notes") else ""
+            lines.append(
+                f"  - {c.get('drinkLabel') or c.get('drink')}{when} · {c.get('caffeineMg')} mg{note}"
+            )
+    else:
+        lines.append("- No caffeine logged.")
 
     lines.append("")
     lines.append("## Injuries & pain")
@@ -522,6 +725,13 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
     total_matches = 0
     total_stress = 0
     stress_high = 0
+    total_checkins = 0
+    mood_low = 0
+    wake_rough = 0
+    focus_low = 0
+    overwhelm_high = 0
+    total_caffeine_mg = 0
+    total_caffeine_drinks = 0
     padel_wins = 0
     padel_losses = 0
     gym_sessions = 0
@@ -533,6 +743,8 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
     recent_care: list[dict[str, Any]] = []
     recent_matches: list[dict[str, Any]] = []
     recent_stress: list[dict[str, Any]] = []
+    recent_checkins: list[dict[str, Any]] = []
+    recent_caffeine: list[dict[str, Any]] = []
     recent_hypos: list[dict[str, Any]] = []
 
     for d in days:
@@ -576,6 +788,22 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
             recent_stress.append(s)
             if s.get("level") == "high":
                 stress_high += 1
+        check_in = d.get("dayCheckIn")
+        if check_in:
+            total_checkins += 1
+            recent_checkins.append(check_in)
+            if check_in.get("mood") in ("terrible", "low"):
+                mood_low += 1
+            if check_in.get("wakeQuality") in ("rough", "groggy"):
+                wake_rough += 1
+            if check_in.get("focus") in ("terrible", "low"):
+                focus_low += 1
+            if check_in.get("overwhelm") == "high":
+                overwhelm_high += 1
+        for c in d.get("caffeineLogs") or []:
+            total_caffeine_drinks += 1
+            total_caffeine_mg += int(c.get("caffeineMg") or 0)
+            recent_caffeine.append(c)
         for h in d.get("glucose", {}).get("hypoEvents") or []:
             hypo_events_total += 1
             recent_hypos.append({**h, "date": d["date"]})
@@ -609,6 +837,21 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
         insights.append(f"{hypo_events_total} hypoglycemia episode(s) this week.")
     if total_stress:
         insights.append(f"{total_stress} stress check-in(s)" + (f" · {stress_high} high" if stress_high else "") + ".")
+    if total_checkins:
+        bits = [f"{total_checkins} mood/ADHD check-in(s)"]
+        if mood_low:
+            bits.append(f"{mood_low} low mood")
+        if wake_rough:
+            bits.append(f"{wake_rough} rough wake")
+        if focus_low:
+            bits.append(f"{focus_low} low focus")
+        if overwhelm_high:
+            bits.append(f"{overwhelm_high} high overwhelm")
+        insights.append(" · ".join(bits) + ".")
+    if total_caffeine_drinks:
+        insights.append(
+            f"{total_caffeine_drinks} caffeine drink(s) · {total_caffeine_mg} mg this week."
+        )
     if tir_values:
         avg_tir = sum(tir_values) / len(tir_values)
         insights.append(f"Average time in range: {round(avg_tir * 10) / 10}%.")
@@ -636,11 +879,20 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
             "hypoEventCount": hypo_events_total,
             "stressLogCount": total_stress,
             "stressHighCount": stress_high,
+            "dayCheckInCount": total_checkins,
+            "moodLowCount": mood_low,
+            "wakeRoughCount": wake_rough,
+            "focusLowCount": focus_low,
+            "overwhelmHighCount": overwhelm_high,
+            "caffeineDrinkCount": total_caffeine_drinks,
+            "caffeineMgTotal": total_caffeine_mg,
         },
         "workouts": list(reversed(recent_workouts))[-20:],
         "careVisits": list(reversed(recent_care))[-20:],
         "sportMatches": list(reversed(recent_matches))[-20:],
         "stressLogs": list(reversed(recent_stress))[-20:],
+        "dayCheckIns": list(reversed(recent_checkins))[-20:],
+        "caffeineLogs": list(reversed(recent_caffeine))[-30:],
         "hypoEvents": list(reversed(recent_hypos))[-30:],
         "insights": insights,
     }
@@ -709,7 +961,13 @@ def _sum_meal_macros(meals: list[Meal]) -> dict[str, float]:
     return {k: round(v * 10) / 10 for k, v in macros.items()}
 
 
-def _glucose_summary(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
+def _glucose_summary(
+    date: str,
+    samples: list[GlucoseSample],
+    *,
+    tir_low: float = 70.0,
+    tir_high: float = 180.0,
+) -> dict[str, Any]:
     if not samples:
         return {
             "date": date,
@@ -722,6 +980,8 @@ def _glucose_summary(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
             "highCount": 0,
             "hypoEventCount": 0,
             "hypoEvents": [],
+            "tirLowMgDl": tir_low,
+            "tirHighMgDl": tir_high,
         }
     ordered = sorted(samples, key=lambda s: s.timestamp or datetime.min)
     points = [
@@ -732,8 +992,8 @@ def _glucose_summary(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
         for s in ordered
     ]
     mg = [p["mgDl"] for p in points]
-    in_range = [v for v in mg if 70 <= v <= 180]
-    hypo_events = _hypo_events(points)
+    in_range = [v for v in mg if tir_low <= v <= tir_high]
+    hypo_events = _hypo_events(points, threshold=tir_low)
     return {
         "date": date,
         "readingCount": len(mg),
@@ -741,20 +1001,26 @@ def _glucose_summary(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
         "minMgDl": round(min(mg) * 10) / 10,
         "maxMgDl": round(max(mg) * 10) / 10,
         "timeInRangePct": round(len(in_range) / len(mg) * 1000) / 10,
-        "lowCount": len([v for v in mg if v < 70]),
-        "highCount": len([v for v in mg if v > 180]),
+        "lowCount": len([v for v in mg if v < tir_low]),
+        "highCount": len([v for v in mg if v > tir_high]),
         "hypoEventCount": len(hypo_events),
         "hypoEvents": hypo_events,
+        "tirLowMgDl": tir_low,
+        "tirHighMgDl": tir_high,
     }
 
 
-HYPO_THRESHOLD_MGDL = 70.0
+DEFAULT_HYPO_THRESHOLD_MGDL = 70.0
 # Gap between low readings that starts a new episode (ms)
 HYPO_GAP_MS = 30 * 60 * 1000
 
 
-def _hypo_events(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse contiguous readings < 70 mg/dL into hypoglycemia episodes."""
+def _hypo_events(
+    points: list[dict[str, Any]],
+    *,
+    threshold: float = DEFAULT_HYPO_THRESHOLD_MGDL,
+) -> list[dict[str, Any]]:
+    """Collapse contiguous readings below the personal low threshold into episodes."""
     events: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
 
@@ -779,7 +1045,7 @@ def _hypo_events(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for p in points:
         mg = float(p["mgDl"])
         ts = int(p["timestamp"] or 0)
-        if mg < HYPO_THRESHOLD_MGDL:
+        if mg < threshold:
             if current is None:
                 current = {
                     "startedAt": ts,

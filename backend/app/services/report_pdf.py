@@ -21,6 +21,7 @@ from reportlab.platypus import (
     Image as RLImage,
 )
 from app.core.config import get_settings
+from app.i18n.report_strings import pdf_strings
 
 TEAL = colors.HexColor("#0d9488")
 INK = colors.HexColor("#0f172a")
@@ -35,7 +36,9 @@ def build_daily_pdf(
     daily: dict[str, Any],
     ai: dict[str, Any],
     share_url: str | None = None,
+    locale: str | None = "en",
 ) -> bytes:
+    S = pdf_strings(locale)
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -50,63 +53,44 @@ def build_daily_pdf(
     styles = _styles()
     story: list[Any] = []
 
-    story.append(Paragraph("Health Companion", styles["brand"]))
-    story.append(Paragraph(f"Daily report · {daily.get('date')}", styles["subtitle"]))
+    story.append(Paragraph(S["brand"], styles["brand"]))
+    story.append(Paragraph(S["daily_report"].format(date=daily.get("date")), styles["subtitle"]))
     story.append(Spacer(1, 6 * mm))
 
-    story.append(Paragraph(ai.get("headline") or "Day overview", styles["h1"]))
+    story.append(Paragraph(ai.get("headline") or S["day_overview"], styles["h1"]))
     story.append(Paragraph(ai.get("summary") or "", styles["body"]))
     story.append(Spacer(1, 4 * mm))
 
-    story.append(_stats_table(daily))
+    story.append(_stats_table(daily, locale=locale))
     story.append(Spacer(1, 6 * mm))
 
-    story.append(Paragraph("AI insights", styles["h2"]))
+    story.append(Paragraph(S["ai_insights"], styles["h2"]))
     if ai.get("note"):
         story.append(Paragraph(str(ai["note"]), styles["note"]))
 
     if ai.get("highlights"):
-        story.append(Paragraph("Highlights", styles["h3"]))
+        story.append(Paragraph(S["highlights"], styles["h3"]))
         story.append(_bullets(ai["highlights"], styles))
 
     if ai.get("watchouts"):
-        story.append(Paragraph("Watch-outs", styles["h3"]))
+        story.append(Paragraph(S["watchouts"], styles["h3"]))
         story.append(_bullets(ai["watchouts"], styles, warn=True))
 
     if ai.get("tomorrowTips"):
-        story.append(Paragraph("Tips for tomorrow", styles["h3"]))
+        story.append(Paragraph(S["tomorrow_tips"], styles["h3"]))
         story.append(_bullets(ai["tomorrowTips"], styles))
 
     story.append(Spacer(1, 5 * mm))
-
-    agent_prompt = (daily.get("agentPrompt") or "").strip()
-    if agent_prompt:
-        story.append(Paragraph("AI agent briefing prompt", styles["h2"]))
-        story.append(
-            Paragraph(
-                "Copy into your AI agent for a day activity debrief:",
-                styles["note"],
-            )
-        )
-        # Escape HTML-ish chars for ReportLab Paragraph
-        safe = (
-            agent_prompt.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\n", "<br/>")
-        )
-        story.append(Paragraph(safe, styles["body"]))
-        story.append(Spacer(1, 5 * mm))
-    story.append(Paragraph("Day details", styles["h2"]))
+    story.append(Paragraph(S["day_details"], styles["h2"]))
 
     nutrition = daily.get("nutrition") or {}
     macros = nutrition.get("macros") or {}
     story.append(
         Paragraph(
-            f"<b>Nutrition:</b> {nutrition.get('mealCount', 0)} meal(s) · "
+            f"<b>{S['nutrition']}:</b> {S['meals_count'].format(n=nutrition.get('mealCount', 0))} · "
             f"{int(macros.get('caloriesKcal') or 0)} kcal · "
-            f"Carbs {macros.get('carbsG', 0)}g · Protein {macros.get('proteinG', 0)}g · "
-            f"Fat {macros.get('fatG', 0)}g",
+            f"{S['carbs']} {macros.get('carbsG', 0)}g · {S['protein']} {macros.get('proteinG', 0)}g · "
+            f"{S['fat']} {macros.get('fatG', 0)}g",
             styles["body"],
         )
     )
@@ -116,19 +100,20 @@ def build_daily_pdf(
     if targets:
         story.append(
             Paragraph(
-                f"<b>Calorie plan:</b> maintenance {targets.get('maintenanceKcal')} kcal · "
-                f"deficit target {targets.get('targetKcal')} kcal "
+                f"<b>{S['calorie_plan']}:</b> {S['maintenance']} {targets.get('maintenanceKcal')} kcal · "
+                f"{S['deficit_target']} {targets.get('targetKcal')} kcal "
                 f"(−{int(targets.get('deficitKcal') or 0)}) · "
-                f"BMI {targets.get('bmi')} · weight {targets.get('weightKg')} kg",
+                f"{S['bmi']} {targets.get('bmi')} · {S['weight']} {targets.get('weightKg')} kg",
                 styles["body"],
             )
         )
     if balance:
         rem = balance.get("remainingToTarget")
+        under = (rem or 0) >= 0
         story.append(
             Paragraph(
-                f"<b>Today vs target:</b> intake {balance.get('intakeKcal')} kcal · "
-                f"{'under' if (rem or 0) >= 0 else 'over'} by {abs(int(rem or 0))} kcal",
+                f"<b>{S['today_vs_target']}:</b> {S['intake']} {balance.get('intakeKcal')} kcal · "
+                f"{S['under'] if under else S['over']} by {abs(int(rem or 0))} kcal",
                 styles["body"],
             )
         )
@@ -137,28 +122,28 @@ def build_daily_pdf(
     if weight:
         story.append(
             Paragraph(
-                f"<b>Weight:</b> {weight.get('weightKg')} kg ({weight.get('date')})",
+                f"<b>{S['weight_label']}:</b> {weight.get('weightKg')} kg ({weight.get('date')})",
                 styles["body"],
             )
         )
 
     story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph("Meals", styles["h2"]))
+    story.append(Paragraph(S["meals"], styles["h2"]))
     meals = daily.get("meals") or []
     if not meals:
-        story.append(Paragraph("No meals logged this day.", styles["body"]))
+        story.append(Paragraph(S["no_meals"], styles["body"]))
     else:
-        story.append(_meals_table(meals, styles))
+        story.append(_meals_table(meals, styles, locale=locale))
 
     glucose = daily.get("glucose") or {}
     tir = glucose.get("timeInRangePct")
-    story.append(Paragraph("Glucose & activity", styles["h2"]))
+    story.append(Paragraph(S["glucose_activity"], styles["h2"]))
     story.append(
         Paragraph(
-            f"<b>Glucose:</b> avg {glucose.get('avgMgDl') or '—'} mg/dL · "
-            f"TIR {tir if tir is not None else '—'}% · "
-            f"Low {glucose.get('lowCount', 0)} · High {glucose.get('highCount', 0)} · "
-            f"Hypo episodes {glucose.get('hypoEventCount', 0)}",
+            f"<b>{S['glucose']}:</b> {S['avg']} {glucose.get('avgMgDl') or '—'} mg/dL · "
+            f"{S['tir']} {tir if tir is not None else '—'}% · "
+            f"{S['low']} {glucose.get('lowCount', 0)} · {S['high']} {glucose.get('highCount', 0)} · "
+            f"{S['hypo_episodes']} {glucose.get('hypoEventCount', 0)}",
             styles["body"],
         )
     )
@@ -171,30 +156,29 @@ def build_daily_pdf(
             except (OSError, ValueError, OverflowError, TypeError):
                 clock = "—"
             bits.append(f"{clock} min {h.get('minMgDl')} mg/dL ({h.get('durationMin', 0)} min)")
-        story.append(Paragraph(f"<b>Hypoglycemia:</b> " + " · ".join(bits), styles["body"]))
-
+        story.append(Paragraph(f"<b>{S['hypoglycemia']}:</b> " + " · ".join(bits), styles["body"]))
 
     activity = daily.get("activity") or {}
     if activity:
         energy = activity.get("energyScore")
         story.append(
             Paragraph(
-                f"<b>Activity:</b> {activity.get('steps', 0):,} steps"
-                + (f" · Energy score {int(round(energy))}" if energy is not None else "")
-                + (f" · via {activity.get('source')}" if activity.get("source") else ""),
+                f"<b>{S['activity']}:</b> {activity.get('steps', 0):,} {S['steps']}"
+                + (f" · {S['energy_score']} {int(round(energy))}" if energy is not None else "")
+                + (f" · {S['via']} {activity.get('source')}" if activity.get("source") else ""),
                 styles["body"],
             )
         )
     else:
-        story.append(Paragraph("<b>Activity:</b> No activity synced.", styles["body"]))
+        story.append(Paragraph(f"<b>{S['activity']}:</b> {S['no_activity']}", styles["body"]))
 
     workouts = (activity or {}).get("workouts") or []
     if workouts:
-        story.append(Paragraph("Workouts", styles["h3"]))
+        story.append(Paragraph(S["workouts"], styles["h3"]))
         story.append(
             _bullets(
                 [
-                    f"{w.get('name') or 'Workout'} · {w.get('durationMin') or 0} min"
+                    f"{w.get('name') or S['workout']} · {w.get('durationMin') or 0} min"
                     + (f" · {w.get('calories')} kcal" if w.get("calories") is not None else "")
                     for w in workouts
                 ],
@@ -203,9 +187,9 @@ def build_daily_pdf(
         )
 
     for label, key in (
-        ("Care visits", "careVisits"),
-        ("Sport matches", "sportMatches"),
-        ("Injuries & pain", "injuries"),
+        (S["care_visits"], "careVisits"),
+        (S["sport_matches"], "sportMatches"),
+        (S["injuries_pain"], "injuries"),
     ):
         rows = daily.get(key) or []
         if not rows:
@@ -238,6 +222,64 @@ def build_daily_pdf(
                 )
         story.append(_bullets(lines, styles))
 
+    check_in = daily.get("dayCheckIn")
+    if check_in:
+        story.append(Paragraph("Mood, ADHD & wake", styles["h3"]))
+        lines = [
+            f"Mood: {check_in.get('moodLabel') or check_in.get('mood')}"
+            + f" · Wake: {check_in.get('wakeQualityLabel') or check_in.get('wakeQuality')}"
+            + f" · Focus: {check_in.get('focusLabel') or check_in.get('focus') or '—'}"
+        ]
+        lines.append(
+            f"Restlessness: {check_in.get('restlessnessLabel') or check_in.get('restlessness') or '—'}"
+            + f" · Overwhelm: {check_in.get('overwhelmLabel') or check_in.get('overwhelm') or '—'}"
+            + f" · Task start: {check_in.get('taskInitiationLabel') or check_in.get('taskInitiation') or '—'}"
+            + f" · Impulsivity: {check_in.get('impulsivityLabel') or check_in.get('impulsivity') or '—'}"
+        )
+        flags = []
+        if check_in.get("medicationTaken"):
+            flags.append("medication taken")
+        if check_in.get("hyperfocus"):
+            flags.append("hyperfocus")
+        if check_in.get("sleepHours") is not None:
+            flags.append(f"sleep {check_in['sleepHours']}h")
+        if check_in.get("notes"):
+            flags.append(str(check_in["notes"]))
+        if flags:
+            lines.append(" · ".join(flags))
+        story.append(_bullets(lines, styles))
+
+    caffeine = daily.get("caffeineLogs") or []
+    if caffeine:
+        total_mg = sum(int(c.get("caffeineMg") or 0) for c in caffeine)
+        story.append(Paragraph(f"Caffeine ({total_mg} mg)", styles["h3"]))
+        story.append(
+            _bullets(
+                [
+                    f"{c.get('drinkLabel') or c.get('drink')}"
+                    + (f" @ {c['time']}" if c.get("time") else "")
+                    + f" · {c.get('caffeineMg')} mg"
+                    for c in caffeine
+                ],
+                styles,
+            )
+        )
+
+    stress = daily.get("stressLogs") or []
+    if stress:
+        story.append(Paragraph("Stress & Samsung Energy", styles["h3"]))
+        story.append(
+            _bullets(
+                [
+                    f"{s.get('levelLabel') or s.get('level')}"
+                    + (f" ({s['score']})" if s.get("score") is not None else "")
+                    + (f" · {s.get('sourceLabel') or s.get('source')}" if s.get("source") else "")
+                    for s in stress
+                ],
+                styles,
+            )
+        )
+
     pump_events = daily.get("pumpEvents") or []
     if pump_events:
         story.append(Paragraph("Pump log events", styles["h3"]))
@@ -257,21 +299,19 @@ def build_daily_pdf(
 
     story.append(Spacer(1, 8 * mm))
     if share_url:
-        story.append(_share_qr_block(share_url, styles))
+        story.append(_share_qr_block(share_url, styles, locale=locale))
         story.append(Spacer(1, 4 * mm))
-    story.append(
-        Paragraph(
-            "Not medical advice. Insights are generated to support self-tracking and lifestyle reflection.",
-            styles["footer"],
-        )
-    )
+    story.append(Paragraph(S["not_medical"], styles["footer"]))
 
     doc.build(story)
     return buffer.getvalue()
 
 
-def _share_qr_block(share_url: str, styles: dict[str, ParagraphStyle]) -> Table:
+def _share_qr_block(
+    share_url: str, styles: dict[str, ParagraphStyle], *, locale: str | None = "en"
+) -> Table:
     """QR + short copy so anyone can open the live report from the PDF."""
+    S = pdf_strings(locale)
     try:
         from app.services.report_share import build_qr_png
 
@@ -282,8 +322,7 @@ def _share_qr_block(share_url: str, styles: dict[str, ParagraphStyle]) -> Table:
         qr_img = Paragraph("—", styles["tableMuted"])
 
     copy = Paragraph(
-        "<b>Share this report</b><br/>"
-        "Scan the QR code to open the live daily PDF on any phone.<br/>"
+        f"<b>{_esc(S['share_scan'])}</b><br/>"
         f'<font size="7" color="#64748b">{_esc(share_url)}</font>',
         styles["body"],
     )
@@ -433,15 +472,8 @@ def _styles() -> dict[str, ParagraphStyle]:
     }
 
 
-def _meal_type_label(meal_type: str | None) -> str:
-    labels = {
-        "breakfast": "Breakfast",
-        "lunch": "Lunch",
-        "dinner": "Dinner",
-        "snack": "Snack",
-        "resucrage": "Resucrage",
-        "other": "Other",
-    }
+def _meal_type_label(meal_type: str | None, *, locale: str | None = "en") -> str:
+    labels = pdf_strings(locale).get("meal_types") or {}
     key = (meal_type or "other").lower()
     return labels.get(key, (meal_type or "Other").capitalize())
 
@@ -472,12 +504,18 @@ def _meal_thumb(photo_path: str | None, max_side: float = 26 * mm) -> Any:
         return Paragraph("—", styles["tableMuted"])
 
 
-def _meals_table(meals: list[dict[str, Any]], styles: dict[str, ParagraphStyle]) -> Table:
+def _meals_table(
+    meals: list[dict[str, Any]],
+    styles: dict[str, ParagraphStyle],
+    *,
+    locale: str | None = "en",
+) -> Table:
+    fr = (locale or "en").startswith("fr")
     header = [
-        Paragraph("Photo", styles["tableHead"]),
-        Paragraph("When", styles["tableHead"]),
-        Paragraph("Type", styles["tableHead"]),
-        Paragraph("Details", styles["tableHead"]),
+        Paragraph("Photo" if not fr else "Photo", styles["tableHead"]),
+        Paragraph("When" if not fr else "Heure", styles["tableHead"]),
+        Paragraph("Type" if not fr else "Type", styles["tableHead"]),
+        Paragraph("Details" if not fr else "Détails", styles["tableHead"]),
     ]
     rows: list[list[Any]] = [header]
 
@@ -504,14 +542,21 @@ def _meals_table(meals: list[dict[str, Any]], styles: dict[str, ParagraphStyle])
         if summary:
             detail_bits.append(_esc(summary))
         if (meal.get("mealType") or "").lower() == "resucrage":
-            detail_bits.append("<font color='#be123c'>Hypo treatment</font>")
+            detail_bits.append(
+                "<font color='#be123c'>"
+                + ("Traitement d’hypo" if fr else "Hypo treatment")
+                + "</font>"
+            )
 
         when = meal.get("time") or "—"
         rows.append(
             [
                 _meal_thumb(meal.get("photoPath")),
                 Paragraph(_esc(str(when)), styles["tableCell"]),
-                Paragraph(_esc(_meal_type_label(meal.get("mealType"))), styles["tableCell"]),
+                Paragraph(
+                    _esc(_meal_type_label(meal.get("mealType"), locale=locale)),
+                    styles["tableCell"],
+                ),
                 Paragraph("<br/>".join(detail_bits), styles["tableCell"]),
             ]
         )
@@ -547,8 +592,9 @@ def _esc(value: str) -> str:
     )
 
 
-def _stats_table(daily: dict[str, Any]) -> Table:
+def _stats_table(daily: dict[str, Any], *, locale: str | None = "en") -> Table:
     styles = _styles()
+    fr = (locale or "en").startswith("fr")
     nutrition = daily.get("nutrition") or {}
     macros = nutrition.get("macros") or {}
     glucose = daily.get("glucose") or {}
@@ -558,9 +604,9 @@ def _stats_table(daily: dict[str, Any]) -> Table:
 
     cells = [
         [
-            _stat_cell("Calories", f"{int(macros.get('caloriesKcal') or 0)}", styles),
+            _stat_cell("Calories" if not fr else "Calories", f"{int(macros.get('caloriesKcal') or 0)}", styles),
             _stat_cell(
-                "Target",
+                "Target" if not fr else "Objectif",
                 (
                     str(int((daily.get("calorieTargets") or {}).get("targetKcal")))
                     if (daily.get("calorieTargets") or {}).get("targetKcal") is not None
@@ -568,10 +614,10 @@ def _stats_table(daily: dict[str, Any]) -> Table:
                 ),
                 styles,
             ),
-            _stat_cell("Carbs", f"{macros.get('carbsG', 0)}g", styles),
-            _stat_cell("Steps", f"{(activity or {}).get('steps', 0):,}", styles),
+            _stat_cell("Carbs" if not fr else "Glucides", f"{macros.get('carbsG', 0)}g", styles),
+            _stat_cell("Steps" if not fr else "Pas", f"{(activity or {}).get('steps', 0):,}", styles),
             _stat_cell(
-                "Energy",
+                "Energy" if not fr else "Énergie",
                 str(int(round(energy))) if energy is not None else "—",
                 styles,
             ),

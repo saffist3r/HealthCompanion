@@ -15,11 +15,15 @@ def _dumps(value: Any) -> str:
 
 
 def serialize_day_debrief(row: DayDebrief, *, full: bool = True) -> dict[str, Any]:
+    locale = getattr(row, "locale", None) or "en"
+    if locale not in ("en", "fr"):
+        locale = "en"
     out: dict[str, Any] = {
         "id": row.id,
         "date": row.date,
         "headline": row.headline or "",
         "source": row.source or "fallback",
+        "locale": locale,
         "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
         "updatedAt": int(row.updated_at.timestamp() * 1000) if row.updated_at else None,
     }
@@ -53,14 +57,28 @@ def serialize_day_debrief(row: DayDebrief, *, full: bool = True) -> dict[str, An
     return out
 
 
-def upsert_day_debrief(db: Session, daily: dict[str, Any], ai: dict[str, Any]) -> DayDebrief:
-    """Create or refresh the archived debrief for daily['date']."""
+def upsert_day_debrief(
+    db: Session,
+    daily: dict[str, Any],
+    ai: dict[str, Any],
+    *,
+    locale: str | None = None,
+) -> DayDebrief:
+    """Create or refresh the archived debrief for daily['date'].
+
+    Callers should pass the English narrative for the primary archive when
+    possible — English is the canonical archive language. Structured facts
+    stay numeric / language-agnostic.
+    """
     day = str(daily.get("date") or "").strip()
     if not day or len(day) != 10:
         raise ValueError("daily.date (YYYY-MM-DD) required to archive debrief")
 
     agent_prompt = (daily.get("agentPrompt") or "").strip()
     facts = compact_report(daily)
+    loc = (locale or ai.get("locale") or "en").strip().lower()[:2]
+    if loc not in ("en", "fr"):
+        loc = "en"
     headline = str(ai.get("headline") or "").strip() or f"Day overview · {day}"
     summary = str(ai.get("summary") or "").strip()
     source = str(ai.get("source") or "fallback").strip() or "fallback"
@@ -76,12 +94,56 @@ def upsert_day_debrief(db: Session, daily: dict[str, Any], ai: dict[str, Any]) -
     row.watchouts_json = _dumps(ai.get("watchouts") or [])
     row.tomorrow_tips_json = _dumps(ai.get("tomorrowTips") or [])
     row.source = source[:32]
+    row.locale = loc
     row.agent_prompt = agent_prompt
     row.facts_json = json.dumps(facts, ensure_ascii=False)
 
     db.commit()
     db.refresh(row)
     return row
+
+
+def archive_daily_debrief(
+    db: Session,
+    daily: dict[str, Any],
+    *,
+    display_locale: str | None = "en",
+    display_ai: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], DayDebrief]:
+    """Build display-language AI for PDF/email, archive English narrative.
+
+    Returns (display_ai, debrief_row).
+    """
+    from app.services.gemini_insights import generate_daily_ai_insights
+
+    loc = (display_locale or "en").strip().lower()[:2]
+    if loc not in ("en", "fr"):
+        loc = "en"
+
+    ai_display = display_ai or generate_daily_ai_insights(daily, locale=loc)
+    if loc == "en":
+        row = upsert_day_debrief(db, daily, ai_display, locale="en")
+        return ai_display, row
+
+    # French (or other) for the deliverable; English for the archive.
+    ai_en = generate_daily_ai_insights(daily, locale="en")
+    row = upsert_day_debrief(db, daily, ai_en, locale="en")
+    try:
+        facts_obj = json.loads(row.facts_json or "{}")
+    except json.JSONDecodeError:
+        facts_obj = {}
+    facts_obj["frNarrative"] = {
+        "headline": ai_display.get("headline"),
+        "summary": ai_display.get("summary"),
+        "highlights": ai_display.get("highlights") or [],
+        "watchouts": ai_display.get("watchouts") or [],
+        "tomorrowTips": ai_display.get("tomorrowTips") or [],
+        "source": ai_display.get("source"),
+    }
+    row.facts_json = json.dumps(facts_obj, ensure_ascii=False)
+    db.commit()
+    db.refresh(row)
+    return ai_display, row
 
 
 def list_day_debriefs(db: Session, *, limit: int = 30) -> list[DayDebrief]:

@@ -8,6 +8,10 @@ export const AppIcons = {
   other: require('../../assets/icons/icon-care-other.png'),
   padel: require('../../assets/icons/icon-padel.png'),
   gym: require('../../assets/icons/icon-gym.png'),
+  running: require('../../assets/icons/icon-running.png'),
+  cycling: require('../../assets/icons/icon-cycling.png'),
+  swimming: require('../../assets/icons/icon-swimming.png'),
+  walking: require('../../assets/icons/icon-walking.png'),
   completed: require('../../assets/icons/icon-completed.png'),
   win: require('../../assets/icons/icon-win.png'),
   loss: require('../../assets/icons/icon-loss.png'),
@@ -19,6 +23,10 @@ export const AppIcons = {
   reports: require('../../assets/icons/icon-reports.png'),
   samsung: require('../../assets/icons/icon-samsung.png'),
   stress: require('../../assets/icons/icon-stress.png'),
+  caffeine: require('../../assets/icons/icon-caffeine.png'),
+  injury: require('../../assets/icons/icon-injury.png'),
+  checkin: require('../../assets/icons/icon-checkin.png'),
+  weight: require('../../assets/icons/icon-weight.png'),
   brand: require('../../assets/health-companion-logo.png'),
 } as const satisfies Record<string, ImageSourcePropType>;
 
@@ -31,8 +39,19 @@ export function sportResultIcon(result: SportMatchResult): ImageSourcePropType {
   return AppIcons[result] ?? AppIcons.padel;
 }
 
+const SPORT_ICONS: Record<string, ImageSourcePropType> = {
+  padel: AppIcons.padel,
+  gym: AppIcons.gym,
+  running: AppIcons.running,
+  cycling: AppIcons.cycling,
+  swimming: AppIcons.swimming,
+  walking: AppIcons.walking,
+};
+
 export function sportSessionIcon(sport?: string | null, result?: string | null): ImageSourcePropType {
-  if ((sport || '').toLowerCase() === 'gym' || result === 'completed') return AppIcons.gym;
+  const key = (sport || '').toLowerCase();
+  if (key === 'gym' || result === 'completed') return AppIcons.gym;
+  if (SPORT_ICONS[key]) return SPORT_ICONS[key];
   if (result === 'win' || result === 'loss' || result === 'draw') {
     return AppIcons[result];
   }

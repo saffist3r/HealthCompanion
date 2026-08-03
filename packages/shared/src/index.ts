@@ -12,6 +12,9 @@ export type GlycemiaUnit = 'mmol/L' | 'mg/dL';
 
 export type GlycemiaStatusLabel = 'Low' | 'In range' | 'High' | 'Very high';
 
+export const DEFAULT_TIR_LOW_MGDL = 70;
+export const DEFAULT_TIR_HIGH_MGDL = 180;
+
 /**
  * Convert reading to mg/dL for range comparison.
  */
@@ -22,10 +25,15 @@ export function toMgDl(value: number, unit: GlycemiaUnit): number {
 /**
  * Get status label for a glycemia reading.
  */
-export function getGlycemiaStatusLabel(reading: GlycemiaReading): GlycemiaStatusLabel {
+export function getGlycemiaStatusLabel(
+  reading: GlycemiaReading,
+  range?: { low?: number; high?: number }
+): GlycemiaStatusLabel {
   const mgDl = toMgDl(reading.value, reading.unit);
-  if (mgDl < 70) return 'Low';
-  if (mgDl <= 180) return 'In range';
+  const low = range?.low ?? DEFAULT_TIR_LOW_MGDL;
+  const high = range?.high ?? DEFAULT_TIR_HIGH_MGDL;
+  if (mgDl < low) return 'Low';
+  if (mgDl <= high) return 'In range';
   if (mgDl <= 250) return 'High';
   return 'Very high';
 }
@@ -33,10 +41,15 @@ export function getGlycemiaStatusLabel(reading: GlycemiaReading): GlycemiaStatus
 /**
  * Get status color hex for a glycemia reading.
  */
-export function getGlycemiaStatusColor(reading: GlycemiaReading): string {
+export function getGlycemiaStatusColor(
+  reading: GlycemiaReading,
+  range?: { low?: number; high?: number }
+): string {
   const mgDl = toMgDl(reading.value, reading.unit);
-  if (mgDl < 70) return '#E57373';
-  if (mgDl <= 180) return '#81C784';
+  const low = range?.low ?? DEFAULT_TIR_LOW_MGDL;
+  const high = range?.high ?? DEFAULT_TIR_HIGH_MGDL;
+  if (mgDl < low) return '#E57373';
+  if (mgDl <= high) return '#81C784';
   if (mgDl <= 250) return '#FFB74D';
   return '#E57373';
 }

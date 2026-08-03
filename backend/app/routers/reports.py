@@ -11,6 +11,8 @@ from app.core.deps import household_device_ids, require_user
 from app.models import (
     ActivityDay,
     CareVisit,
+    CaffeineLog,
+    DayCheckIn,
     GlucoseSample,
     Injury,
     InjuryPainLog,
@@ -23,13 +25,13 @@ from app.models import (
 from app.routers.meals import serialize_meal
 from app.services.daily_report_mail import send_daily_report_email
 from app.services.day_debriefs import (
+    archive_daily_debrief,
     get_day_debrief,
     list_day_debriefs,
     serialize_day_debrief,
-    upsert_day_debrief,
 )
 from app.services.email_smtp import smtp_configured
-from app.services.gemini_insights import generate_daily_ai_insights
+from app.i18n import household_locale
 from app.services.report_pdf import build_daily_pdf
 from app.services.report_share import (
     build_qr_png,
@@ -63,9 +65,15 @@ def _pick_activity(rows: list[ActivityDay]) -> ActivityDay | None:
 
 
 def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
-    from app.services.body_profile import compute_targets_for_day, latest_weight, serialize_weight
+    from app.services.body_profile import (
+        compute_targets_for_day,
+        household_glucose_targets,
+        latest_weight,
+        serialize_weight,
+    )
 
     targets = compute_targets_for_day(db, date)
+    glucose_targets = household_glucose_targets(db)
     weight_row = latest_weight(db, on_or_before=date)
     weight = serialize_weight(weight_row) if weight_row else None
 
@@ -78,10 +86,13 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             care_visits=[],
             sport_matches=[],
             stress_logs=[],
+            day_check_in=None,
+            caffeine_logs=[],
             pump_events=[],
             injuries=[],
             calorie_targets=targets,
             weight=weight,
+            glucose_targets=glucose_targets,
         )
 
     start = datetime.strptime(date, "%Y-%m-%d")
@@ -123,6 +134,18 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         db.query(StressLog)
         .filter(StressLog.device_id.in_(device_ids), StressLog.date == date)
         .order_by(StressLog.created_at.asc())
+        .all()
+    )
+    day_check_in = (
+        db.query(DayCheckIn)
+        .filter(DayCheckIn.device_id.in_(device_ids), DayCheckIn.date == date)
+        .order_by(DayCheckIn.updated_at.desc())
+        .first()
+    )
+    caffeine_logs = (
+        db.query(CaffeineLog)
+        .filter(CaffeineLog.device_id.in_(device_ids), CaffeineLog.date == date)
+        .order_by(CaffeineLog.created_at.asc())
         .all()
     )
     pump_events = (
@@ -183,10 +206,13 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         care_visits=care_visits,
         sport_matches=sport_matches,
         stress_logs=stress_logs,
+        day_check_in=day_check_in,
+        caffeine_logs=caffeine_logs,
         pump_events=pump_events,
         injuries=injury_dicts,
         calorie_targets=targets,
         weight=weight,
+        glucose_targets=glucose_targets,
     )
 
 
@@ -208,11 +234,13 @@ def daily_report_pdf(
 ) -> Response:
     """Downloadable PDF with Gemini AI insights for the selected day."""
     day = date or to_date_key(datetime.now())
+    locale = household_locale(db)
     daily = _load_daily(db, household_device_ids(db), day)
-    ai = generate_daily_ai_insights(daily)
-    upsert_day_debrief(db, daily, ai)
+    ai, _ = archive_daily_debrief(db, daily, display_locale=locale)
     share = get_or_create_share(db, date=day, user_id=user.id)
-    pdf = build_daily_pdf(daily=daily, ai=ai, share_url=share_page_url(share.token))
+    pdf = build_daily_pdf(
+        daily=daily, ai=ai, share_url=share_page_url(share.token), locale=locale
+    )
     filename = f"health-companion-{day}.pdf"
     return Response(
         content=pdf,
@@ -248,10 +276,12 @@ def shared_report_pdf(token: str, db: Session = Depends(get_db)) -> Response:
     share = get_valid_share(db, token)
     if not share:
         raise HTTPException(status_code=404, detail="Share link not found or expired")
+    locale = household_locale(db)
     daily = _load_daily(db, household_device_ids(db), share.date)
-    ai = generate_daily_ai_insights(daily)
-    upsert_day_debrief(db, daily, ai)
-    pdf = build_daily_pdf(daily=daily, ai=ai, share_url=share_page_url(share.token))
+    ai, _ = archive_daily_debrief(db, daily, display_locale=locale)
+    pdf = build_daily_pdf(
+        daily=daily, ai=ai, share_url=share_page_url(share.token), locale=locale
+    )
     filename = f"health-companion-{share.date}.pdf"
     return Response(
         content=pdf,
@@ -363,12 +393,15 @@ def dashboard(
     today_care = daily.get("careVisits") or []
     today_matches = daily.get("sportMatches") or []
     today_stress = daily.get("stressLogs") or []
+    today_check_in = daily.get("dayCheckIn")
+    today_caffeine = daily.get("caffeineLogs") or []
     today_injuries = daily.get("injuries") or []
     today_pump = daily.get("pumpEvents") or []
     today_insulin = round(
         sum(float(p.get("units") or 0) for p in today_pump if p.get("kind") == "insulin_delivered"),
         2,
     )
+    today_caffeine_mg = sum(int(c.get("caffeineMg") or 0) for c in today_caffeine)
 
     return {
         "deviceIds": ids,
@@ -391,12 +424,16 @@ def dashboard(
         "todayCareVisits": today_care,
         "todaySportMatches": today_matches,
         "todayStressLogs": today_stress,
+        "todayDayCheckIn": today_check_in,
+        "todayCaffeineLogs": today_caffeine,
+        "todayCaffeineMg": today_caffeine_mg,
         "todayInjuries": today_injuries,
         "todayPumpEvents": today_pump,
         "todayInsulinDeliveredU": today_insulin,
         "todayPumpEventCount": len(today_pump),
         "glucoseAvgMgDl": glucose.get("avgMgDl"),
         "timeInRangePct": glucose.get("timeInRangePct"),
+        "glucoseTargets": daily.get("glucoseTargets"),
         "todayHypoEventCount": glucose.get("hypoEventCount") or 0,
         "todayHypoEvents": glucose.get("hypoEvents") or [],
         "recentMeals": [serialize_meal(m).model_dump() for m in recent],

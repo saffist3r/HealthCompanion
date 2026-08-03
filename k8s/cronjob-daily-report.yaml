@@ -88,6 +88,11 @@ spec:
                       name: healthcompanion-secrets
                       key: REPORT_EMAIL_FROM_NAME
                       optional: true
+                - name: PUBLIC_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: healthcompanion-config
+                      key: PUBLIC_URL
                 - name: UPLOAD_DIR
                   valueFrom:
                     configMapKeyRef:

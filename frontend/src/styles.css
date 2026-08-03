@@ -1139,6 +1139,78 @@ input {
   font-weight: 700;
 }
 
+.settings-tabs {
+  margin: 0 0 18px;
+}
+
+.settings-tabs .segmented {
+  flex-wrap: wrap;
+}
+
+.suggest-block {
+  margin-top: 16px;
+}
+
+.suggest-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggest-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tir-preview {
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid var(--border);
+}
+
+.tir-preview-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.tir-preview-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #5eead4, #14b8a6);
+}
+
+.tir-preview-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tir-preview-labels strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .compose-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

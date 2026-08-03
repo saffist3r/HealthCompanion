@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getApiBase } from '../api';
+import { useLocale } from '../i18n';
 
 type ShareMeta = {
   token: string;
@@ -12,6 +13,7 @@ type ShareMeta = {
 };
 
 export default function ShareReportPage() {
+  const { t } = useLocale();
   const { token = '' } = useParams();
   const [meta, setMeta] = useState<ShareMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function ShareReportPage() {
 
   useEffect(() => {
     if (!token) {
-      setError('Missing share token');
+      setError(t('share.missing'));
       setLoading(false);
       return;
     }
@@ -43,30 +45,30 @@ export default function ShareReportPage() {
   return (
     <div className="share-page">
       <div className="share-card">
-        <p className="share-brand">Health Companion</p>
-        <h1>Daily report</h1>
-        {loading ? <p className="muted">Loading share…</p> : null}
+        <p className="share-brand">{t('brand.name')}</p>
+        <h1>{t('share.title')}</h1>
+        {loading ? <p className="muted">{t('share.loading')}</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {meta && !loading ? (
           <>
-            <p className="muted">Report for {meta.date}</p>
+            <p className="muted">{t('share.reportFor', { date: String(meta.date) })}</p>
             <div className="share-actions">
               <a className="btn" href={pdfUrl} target="_blank" rel="noreferrer">
-                Open PDF
+                {t('share.openPdf')}
               </a>
               <a className="btn secondary" href={pdfUrl} download={`health-companion-${meta.date}.pdf`}>
-                Download
+                {t('share.download')}
               </a>
             </div>
             <iframe title={`Daily report ${meta.date}`} className="share-pdf" src={pdfUrl} />
             <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
-              Anyone with this link can view the report until it expires.
+              {t('share.hint')}
             </p>
           </>
         ) : null}
         <p style={{ marginTop: 24 }}>
           <Link to="/login" className="muted">
-            Sign in to Health Companion
+            {t('share.signIn')}
           </Link>
         </p>
       </div>

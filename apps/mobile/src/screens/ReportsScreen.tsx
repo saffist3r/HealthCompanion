@@ -9,7 +9,6 @@ import {
   Alert,
   useColorScheme,
   ActivityIndicator,
-  Share,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { DailyReport, WeeklyReport } from '@health-companion/shared';
@@ -43,19 +42,6 @@ export default function ReportsScreen() {
       load();
     }, [load])
   );
-
-  const shareAgentPrompt = async () => {
-    const text = daily?.agentPrompt;
-    if (!text) {
-      Alert.alert('Agent prompt', 'No briefing available for this day.');
-      return;
-    }
-    try {
-      await Share.share({ message: text, title: `Day briefing · ${daily?.date || ''}` });
-    } catch (e) {
-      Alert.alert('Share failed', String(e));
-    }
-  };
 
   return (
     <ScrollView
@@ -98,17 +84,6 @@ export default function ReportsScreen() {
           <Text style={t.line}>
             Steps: {daily.activity ? daily.activity.steps.toLocaleString() : '—'}
           </Text>
-          {daily.agentPrompt ? (
-            <View style={t.promptBox}>
-              <Text style={t.promptTitle}>AI agent briefing</Text>
-              <Text style={t.promptBody} numberOfLines={8}>
-                {daily.agentPrompt}
-              </Text>
-              <TouchableOpacity style={t.shareBtn} onPress={shareAgentPrompt}>
-                <Text style={t.shareBtnText}>Share / copy prompt</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
           {daily.insights.map((i, idx) => (
             <Text key={idx} style={t.insight}>
               • {i}
@@ -187,22 +162,4 @@ const styles = (isDark: boolean) =>
       backgroundColor: isDark ? '#3d1f1f' : '#fef2f2',
     },
     warnTitle: { fontWeight: '700', color: isDark ? '#fca5a5' : '#b91c1c', marginBottom: 4 },
-    promptBox: {
-      marginTop: 8,
-      marginBottom: 4,
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
-      gap: 8,
-    },
-    promptTitle: { fontWeight: '700', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 14 },
-    promptBody: { color: isDark ? '#94a3b8' : '#475569', fontSize: 12, lineHeight: 17 },
-    shareBtn: {
-      alignSelf: 'flex-start',
-      backgroundColor: '#0d9488',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-    },
-    shareBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   });

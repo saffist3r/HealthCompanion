@@ -22,7 +22,8 @@ import {
   type GlycemiaChartEvent,
 } from '../api';
 import MealDetailModal from '../components/MealDetailModal';
-import { ChartTooltipBox, PageHeader, Panel, Segmented, StatCard, TirRing } from '../components/ui';
+import { ChartTooltipBox, PageHeader, Panel, Segmented, StatCard, TirRing } from '../components/ui'
+import { useLocale } from '../i18n';
 
 type GlycemiaRange = 12 | 24 | 48;
 
@@ -54,6 +55,7 @@ function nearestMgDl(
 }
 
 export default function DashboardPage() {
+  const { t } = useLocale();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div>
-        <PageHeader eyebrow="Overview" title="Today" lede="Loading…" />
+        <PageHeader eyebrow={t('dashboard.eyebrow')} title={t('dashboard.title')} lede={t('common.loading')} />
         <div className="stat-grid loading-grid">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="stat-card">
@@ -157,7 +159,7 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div>
-        <PageHeader eyebrow="Overview" title="Dashboard" />
+        <PageHeader eyebrow={t('dashboard.eyebrow')} title={t('dashboard.title')} />
         <div className="panel">
           <p className="error">{error}</p>
           <button className="btn" type="button" onClick={load} style={{ marginTop: 12 }}>
@@ -169,13 +171,17 @@ export default function DashboardPage() {
   }
 
   const tir = data.timeInRangePct;
+  const gt = data.glucoseTargets || data.dailyReport?.glucoseTargets || {};
+  const tirLow = Number(gt.tirLowMgDl ?? 70);
+  const tirHigh = Number(gt.tirHighMgDl ?? 180);
+  const tirGoal = Number(gt.tirGoalPct ?? 70);
   const energyScore = data.todayEnergyScore ?? data.sports?.todayEnergyScore ?? null;
   const fromSamsung = data.todayActivitySource === 'samsung_health';
   const activitySource =
     data.todayActivitySource === 'samsung_health'
       ? 'Samsung Health'
       : data.todayActivitySource === 'watch'
-        ? 'Watch'
+        ? t('dashboard.watch')
         : data.todayActivitySource === 'health_connect'
           ? 'Health Connect'
           : null;
@@ -205,15 +211,16 @@ export default function DashboardPage() {
   const matches = data.todaySportMatches || [];
   const care = data.todayCareVisits || [];
   const injuries = data.todayInjuries || [];
+  const checkIn = data.todayDayCheckIn || null;
   const workouts = data.todayWorkouts || [];
   const pumpEvents = data.todayPumpEvents || [];
 
   return (
     <div>
       <PageHeader
-        eyebrow="Overview"
-        title="Today"
-        lede="Glucose, meals, and activity — use + to log."
+        eyebrow={t('dashboard.eyebrow')}
+        title={t('dashboard.title')}
+        lede={t('dashboard.lede')}
         actions={
           <button className="btn secondary" type="button" onClick={load}>
             Refresh
@@ -223,29 +230,29 @@ export default function DashboardPage() {
 
       <div className="stat-grid dash-primary-grid">
         <StatCard
-          label="Avg glucose"
+          label={t('dashboard.avgGlucose')}
           value={data.glucoseAvgMgDl != null ? data.glucoseAvgMgDl : '—'}
           unit={data.glucoseAvgMgDl != null ? 'mg/dL' : undefined}
           accent="amber"
-          foot="From CapAPS sync"
+          foot={t('dashboard.fromCapaps')}
         />
         <StatCard
-          label="Time in range"
+          label={t('dashboard.tir')}
           value={tir != null ? `${Math.round(tir)}%` : '—'}
-          accent={tir != null && tir < 50 ? 'rose' : 'green'}
+          accent={tir != null && tir < tirGoal * 0.7 ? 'rose' : 'green'}
           badge={
             tir == null
               ? undefined
-              : tir >= 70
-                ? { text: 'On track', tone: 'good' }
-                : tir >= 50
-                  ? { text: 'Watch', tone: 'warn' }
-                  : { text: 'Low TIR', tone: 'warn' }
+              : tir >= tirGoal
+                ? { text: t('dashboard.onTrack'), tone: 'good' }
+                : tir >= tirGoal * 0.7
+                  ? { text: t('dashboard.watch'), tone: 'warn' }
+                  : { text: t('dashboard.lowTir'), tone: 'warn' }
           }
-          foot="Target 70–180 mg/dL"
+          foot={t('dashboard.targetRange', { low: tirLow, high: tirHigh })}
         />
         <StatCard
-          label="Calories"
+          label={t('dashboard.calories')}
           value={intakeKcal}
           unit="kcal"
           accent="teal"
@@ -263,54 +270,54 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          label="Weight"
+          label={t('dashboard.weight')}
           value={data.weight?.weightKg ?? calTargets?.weightKg ?? '—'}
           unit={data.weight?.weightKg != null || calTargets?.weightKg != null ? 'kg' : undefined}
           accent="blue"
           foot={
             calTargets?.bmi != null
               ? `BMI ${calTargets.bmi} · deficit −${calTargets.deficitKcal}`
-              : 'Log weight in Settings'
+              : t('dashboard.logWeightHint')
           }
         />
         <StatCard
-          label="Steps"
+          label={t('dashboard.steps')}
           value={Number(data.todaySteps || 0).toLocaleString()}
           accent="green"
-          foot={activitySource || 'Sync from phone Activity'}
+          foot={activitySource || t('dashboard.syncActivity')}
           footIcon={activityFootIcon}
         />
         <StatCard
-          label="Energy"
+          label={t('dashboard.energy')}
           value={energyScore != null ? Math.round(energyScore) : '—'}
           accent="amber"
-          foot={energyScore != null ? 'Samsung Health readiness' : 'Sync Activity on phone'}
+          foot={energyScore != null ? t('dashboard.energyHelp') : t('dashboard.syncActivityHint')}
           footIcon={energyScore != null || fromSamsung ? '/icons/icon-samsung.png' : undefined}
         />        <StatCard
-          label="Hypos"
+          label={t('dashboard.hypos')}
           value={data.todayHypoEventCount ?? 0}
           accent={(data.todayHypoEventCount || 0) > 0 ? 'rose' : 'green'}
           foot={
             (data.todayHypoEventCount || 0) > 0
-              ? 'Episodes below 70 mg/dL'
-              : 'No hypo episodes today'
+              ? t('dashboard.hyposHelp', { low: tirLow })
+              : t('dashboard.noHypos')
           }
         />
         <StatCard
-          label="Insulin"
+          label={t('dashboard.insulin')}
           value={data.todayInsulinDeliveredU ?? 0}
           unit="U"
           accent="blue"
           foot={
             (data.todayPumpEventCount || 0) > 0
               ? `${data.todayPumpEventCount} pump event${data.todayPumpEventCount === 1 ? '' : 's'} today`
-              : 'From CapAPS notifications'
+              : t('dashboard.fromNotifications')
           }
         />
       </div>
 
       <Panel
-        title="Glycemia"
+        title={t('dashboard.glycemia')}
         subtitle={`Continuous CGM · last ${glycemiaRange} hours`}
         action={
           <div className="glycemia-actions">
@@ -318,7 +325,7 @@ export default function DashboardPage() {
               type="button"
               className={`btn secondary compact ${showEvents ? 'on' : ''}`}
               onClick={() => setShowEvents((v) => !v)}
-              title="Show meals, insulin, and pump alerts on the chart"
+              title={t('dashboard.chartHint')}
             >
               Events {showEvents ? 'on' : 'off'}
             </button>
@@ -336,7 +343,7 @@ export default function DashboardPage() {
       >
         <div className="chart-wrap tall">
           {glycemiaLoading ? (
-            <p className="muted">Loading chart…</p>
+            <p className="muted">{t('dashboard.loadingChart')}</p>
           ) : glycemiaChartData.length < 2 ? (
             <p className="muted">Not enough glucose samples in this window yet. Sync CapAPS from the phone.</p>
           ) : (
@@ -392,7 +399,7 @@ export default function DashboardPage() {
                         </div>
                         {nearEvents.map((e) => (
                           <div key={e.id} style={{ color: eventColor(e.type), marginTop: 4 }}>
-                            {e.type === 'meal' ? 'Meal' : e.type === 'insulin' ? 'Insulin' : 'Pump'}:{' '}
+                            {e.type === 'meal' ? 'Meal' : e.type === 'insulin' ? t('dashboard.insulin') : 'Pump'}:{' '}
                             {e.label}
                             {e.detail ? ` · ${e.detail}` : ''}
                           </div>
@@ -401,7 +408,13 @@ export default function DashboardPage() {
                     );
                   }}
                 />
-                <ReferenceArea y1={70} y2={180} fill="#10b981" fillOpacity={0.08} ifOverflow="extendDomain" />
+                <ReferenceArea
+                  y1={tirLow}
+                  y2={tirHigh}
+                  fill="#10b981"
+                  fillOpacity={0.08}
+                  ifOverflow="extendDomain"
+                />
                 {showEvents
                   ? eventMarkers.map((e) => (
                       <ReferenceLine
@@ -447,8 +460,8 @@ export default function DashboardPage() {
       </Panel>
       <div className="grid-2">
         <Panel
-          title="This week"
-          subtitle="Glucose quality, carbs, or steps"
+          title={t('dashboard.thisWeek')}
+          subtitle={t('dashboard.weekHelp')}
           action={
             <Segmented
               value={chartMode}
@@ -456,7 +469,7 @@ export default function DashboardPage() {
               options={[
                 { id: 'glucose', label: 'Glucose' },
                 { id: 'carbs', label: 'Carbs' },
-                { id: 'steps', label: 'Steps' },
+                { id: 'steps', label: t('dashboard.steps') },
               ]}
             />
           }
@@ -500,15 +513,18 @@ export default function DashboardPage() {
                   <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltipBox />} />
-                  <Bar dataKey="steps" name="Steps" fill="#0ea5e9" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="steps" name={t('dashboard.steps')} fill="#0ea5e9" radius={[8, 8, 0, 0]} maxBarSize={32} />
                 </ComposedChart>
               )}
             </ResponsiveContainer>
           </div>
         </Panel>
 
-        <Panel title="Glucose band" subtitle="70–180 mg/dL">
-          <TirRing value={tir} />
+        <Panel
+          title={t('dashboard.glucoseBand')}
+          subtitle={t('dashboard.glucoseBandSub', { low: tirLow, high: tirHigh, goal: tirGoal })}
+        >
+          <TirRing value={tir} goalPct={tirGoal} />
           <p className="muted" style={{ textAlign: 'center', marginTop: 8 }}>
             Avg {data.glucoseAvgMgDl != null ? `${data.glucoseAvgMgDl} mg/dL` : '—'}
           </p>
@@ -516,9 +532,9 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid-2">
-        <Panel title="Insights" subtitle="Today’s report">
+        <Panel title={t('dashboard.insights')} subtitle={t('dashboard.todayReport')}>
           {warnings.length === 0 && insights.length === 0 ? (
-            <p className="muted">No notes yet for today.</p>
+            <p className="muted">{t('dashboard.noNotes')}</p>
           ) : (
             <>
               <ul className="insight-list">
@@ -537,8 +553,8 @@ export default function DashboardPage() {
         </Panel>
 
         <Panel
-          title="Today’s log"
-          subtitle="Meals, sport, care, injuries"
+          title={t('dashboard.todayLog')}
+          subtitle={t('dashboard.todayLogHelp')}
           action={
             <Link className="dash-link" to="/injuries">
               Injuries
@@ -549,10 +565,28 @@ export default function DashboardPage() {
           workouts.length === 0 &&
           matches.length === 0 &&
           care.length === 0 &&
-          injuries.length === 0 ? (
-            <p className="muted">Nothing logged yet. Use + to add an entry.</p>
+          injuries.length === 0 &&
+          !checkIn ? (
+            <p className="muted">{t('dashboard.nothingLogged')}</p>
           ) : (
             <div className="meal-list">
+              {checkIn ? (
+                <div className="meal-row">
+                  <div>
+                    <strong>
+                      Mood {checkIn.moodLabel || checkIn.mood} · focus{' '}
+                      {checkIn.focusLabel || checkIn.focus || '—'}
+                    </strong>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Woke {checkIn.wakeQualityLabel || checkIn.wakeQuality}
+                      {checkIn.overwhelm === 'high' ? ' · high overwhelm' : ''}
+                      {checkIn.medicationTaken ? ' · meds' : ''}
+                      {checkIn.notes ? ` · ${checkIn.notes}` : ''}
+                    </div>
+                  </div>
+                  <span className="stat-badge">{t('dashboard.checkIn')}</span>
+                </div>
+              ) : null}
               {meals.slice(0, 4).map((m: any) => (
                 <button
                   key={m.id}
@@ -584,10 +618,10 @@ export default function DashboardPage() {
               {workouts.map((w: any, i: number) => (
                 <div key={`wo-${i}`} className="meal-row">
                   <div>
-                    <strong>{w.name || 'Workout'}</strong>
+                    <strong>{w.name || t('dashboard.workout')}</strong>
                     <div className="muted" style={{ fontSize: 12 }}>{w.durationMin || 0} min</div>
                   </div>
-                  <span className="stat-badge good">Workout</span>
+                  <span className="stat-badge good">{t('dashboard.workout')}</span>
                 </div>
               ))}
               {matches.map((m: any) => (
@@ -627,21 +661,24 @@ export default function DashboardPage() {
                     <strong>{c.kindLabel || c.kind}</strong>
                     {c.label ? <div className="muted" style={{ fontSize: 12 }}>{c.label}</div> : null}
                   </div>
-                  <span className="stat-badge">Care</span>
+                  <span className="stat-badge">{t('dashboard.care')}</span>
                 </div>
               ))}
               {injuries.map((inj: any) => (
                 <div key={inj.id} className="meal-row">
-                  <div>
-                    <strong>{inj.title || inj.bodyAreaLabel || inj.injuryTypeLabel || 'Injury'}</strong>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {inj.todayPain
-                        ? `Pain ${inj.todayPain.painScore}/10`
-                        : inj.statusLabel || inj.status}
-                      {inj.exerciseNotes ? ` · ${String(inj.exerciseNotes).slice(0, 40)}` : ''}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <img src="/icons/icon-injury.png" alt="" width={36} height={36} style={{ borderRadius: 9 }} />
+                    <div>
+                      <strong>{inj.title || inj.bodyAreaLabel || inj.injuryTypeLabel || t('dashboard.injury')}</strong>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {inj.todayPain
+                          ? `Pain ${inj.todayPain.painScore}/10`
+                          : inj.statusLabel || inj.status}
+                        {inj.exerciseNotes ? ` · ${String(inj.exerciseNotes).slice(0, 40)}` : ''}
+                      </div>
                     </div>
                   </div>
-                  <span className="stat-badge">Injury</span>
+                  <span className="stat-badge">{t('dashboard.injury')}</span>
                 </div>
               ))}
             </div>
@@ -650,11 +687,11 @@ export default function DashboardPage() {
       </div>
 
       <Panel
-        title="Pump log events"
+        title={t('dashboard.pumpEvents')}
         subtitle="Insulin deliveries & CapAPS alerts from the phone"
       >
         {pumpEvents.length === 0 ? (
-          <p className="muted">No pump notifications synced yet today.</p>
+          <p className="muted">{t('dashboard.noPumpYet')}</p>
         ) : (
           <div className="meal-list">
                     {[...pumpEvents].reverse().slice(0, 12).map((e: any) => (

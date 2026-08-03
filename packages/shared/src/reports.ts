@@ -19,7 +19,7 @@ export interface GlucoseDaySummary {
   avgMgDl: number | null;
   minMgDl: number | null;
   maxMgDl: number | null;
-  timeInRangePct: number | null; // 70–180 mg/dL
+  timeInRangePct: number | null; // personal TIR band (default 70–180 mg/dL)
   lowCount: number;
   highCount: number;
   hypoEventCount?: number;
@@ -111,6 +111,37 @@ export interface DailyReport {
     score?: number | null;
     notes?: string | null;
   }>;
+  dayCheckIn?: {
+    id: string;
+    date: string;
+    mood: string;
+    moodLabel?: string;
+    wakeQuality: string;
+    wakeQualityLabel?: string;
+    focus?: string;
+    focusLabel?: string;
+    restlessness?: string;
+    restlessnessLabel?: string;
+    overwhelm?: string;
+    overwhelmLabel?: string;
+    taskInitiation?: string;
+    taskInitiationLabel?: string;
+    impulsivity?: string;
+    impulsivityLabel?: string;
+    medicationTaken?: boolean;
+    hyperfocus?: boolean;
+    sleepHours?: number | null;
+    notes?: string | null;
+  } | null;
+  caffeineLogs?: Array<{
+    id: string;
+    date: string;
+    time?: string | null;
+    drink: string;
+    drinkLabel?: string;
+    caffeineMg: number;
+    notes?: string | null;
+  }>;
   pumpEvents?: Array<{
     id: string;
     kind: string;
@@ -144,10 +175,19 @@ export interface WeeklyReport {
     padelLosses?: number;
     stressLogCount?: number;
     stressHighCount?: number;
+    dayCheckInCount?: number;
+    moodLowCount?: number;
+    wakeRoughCount?: number;
+    focusLowCount?: number;
+    overwhelmHighCount?: number;
+    caffeineDrinkCount?: number;
+    caffeineMgTotal?: number;
   };
   careVisits?: CareVisitSummary[];
   sportMatches?: SportMatchSummary[];
   stressLogs?: DailyReport['stressLogs'];
+  dayCheckIns?: NonNullable<DailyReport['dayCheckIn']>[];
+  caffeineLogs?: DailyReport['caffeineLogs'];
   insights: string[];
 }
 
@@ -163,8 +203,11 @@ export function toDateKey(ts: number, timeZone = 'local'): string {
 export function summarizeGlucoseDay(
   date: string,
   readings: GlucosePoint[],
-  toMgDl: (value: number, unit: 'mg/dL' | 'mmol/L') => number
+  toMgDl: (value: number, unit: 'mg/dL' | 'mmol/L') => number,
+  range?: { low?: number; high?: number }
 ): GlucoseDaySummary {
+  const low = range?.low ?? 70;
+  const high = range?.high ?? 180;
   if (readings.length === 0) {
     return {
       date,
@@ -179,7 +222,7 @@ export function summarizeGlucoseDay(
   }
   const mg = readings.map((r) => toMgDl(r.value, r.unit));
   const sum = mg.reduce((a, b) => a + b, 0);
-  const inRange = mg.filter((v) => v >= 70 && v <= 180).length;
+  const inRange = mg.filter((v) => v >= low && v <= high).length;
   return {
     date,
     readingCount: mg.length,
@@ -187,7 +230,7 @@ export function summarizeGlucoseDay(
     minMgDl: Math.round(Math.min(...mg) * 10) / 10,
     maxMgDl: Math.round(Math.max(...mg) * 10) / 10,
     timeInRangePct: Math.round((inRange / mg.length) * 1000) / 10,
-    lowCount: mg.filter((v) => v < 70).length,
-    highCount: mg.filter((v) => v > 180).length,
+    lowCount: mg.filter((v) => v < low).length,
+    highCount: mg.filter((v) => v > high).length,
   };
 }

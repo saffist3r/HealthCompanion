@@ -151,12 +151,55 @@ class StressLogIn(BaseModel):
     notes: str | None = None
 
 
+MoodLevel = Literal["terrible", "low", "ok", "good", "great"]
+WakeQuality = Literal["rough", "groggy", "ok", "fresh", "energized"]
+FocusLevel = Literal["terrible", "low", "ok", "good", "great"]
+AdhdIntensity = Literal["low", "ok", "high"]
+TaskInitiation = Literal["stuck", "slow", "ok", "easy"]
+CaffeineDrink = Literal[
+    "espresso",
+    "double_espresso",
+    "coffee",
+    "iced_coffee",
+    "green_tea",
+    "black_tea",
+]
+
+
+class DayCheckInIn(BaseModel):
+    date: str
+    mood: MoodLevel = "ok"
+    wakeQuality: WakeQuality = "ok"
+    focus: FocusLevel = "ok"
+    restlessness: AdhdIntensity = "ok"
+    overwhelm: AdhdIntensity = "ok"
+    taskInitiation: TaskInitiation = "ok"
+    impulsivity: AdhdIntensity = "ok"
+    medicationTaken: bool = False
+    hyperfocus: bool = False
+    sleepHours: float | None = Field(default=None, ge=0, le=24)
+    notes: str | None = None
+
+
+class CaffeineLogIn(BaseModel):
+    date: str
+    time: str | None = None
+    drink: CaffeineDrink = "coffee"
+    caffeineMg: int | None = Field(default=None, ge=0, le=500)
+    notes: str | None = None
+
+
 class BodyProfileIn(BaseModel):
     heightCm: float = Field(gt=50, lt=250)
     sex: Literal["male", "female"] = "male"
     ageYears: int = Field(ge=14, le=100)
     activity: Literal["sedentary", "light", "moderate", "active", "very_active"] = "light"
     deficitKcal: float = Field(default=500, ge=0, le=1500)
+    locale: Literal["en", "fr"] | None = None
+    tirLowMgDl: float | None = Field(default=None, ge=40, le=120)
+    tirHighMgDl: float | None = Field(default=None, ge=100, le=300)
+    tirGoalPct: float | None = Field(default=None, ge=40, le=100)
+    dailyCarbTargetG: float | None = Field(default=None, ge=50, le=400)
 
 
 class WeightIn(BaseModel):

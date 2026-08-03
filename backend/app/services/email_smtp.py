@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 import smtplib
 import ssl
+import uuid
 from email.message import EmailMessage
+from email.utils import formataddr, formatdate, make_msgid
 from typing import Sequence
 
 from app.core.config import get_settings
@@ -43,11 +45,18 @@ def send_email(
 
     from_addr = (settings.report_email_from or settings.smtp_user).strip()
     from_name = (settings.report_email_from_name or "Health Companion").strip()
+    domain = from_addr.split("@")[-1] if "@" in from_addr else "localhost"
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = f"{from_name} <{from_addr}>"
+    msg["From"] = formataddr((from_name, from_addr))
     msg["To"] = ", ".join(to_list)
+    msg["Date"] = formatdate(localtime=False)
+    msg["Message-ID"] = make_msgid(domain=domain)
+    msg["MIME-Version"] = "1.0"
+    # Help filters classify transactional mail from your domain
+    msg["X-Mailer"] = "HealthCompanion"
+    msg["X-Entity-Ref-ID"] = str(uuid.uuid4())
     msg.set_content(text_body)
     if html_body:
         msg.add_alternative(html_body, subtype="html")
@@ -68,10 +77,19 @@ def send_email(
 
     if use_ssl:
         with smtplib.SMTP_SSL(settings.smtp_host, port, context=context, timeout=60) as smtp:
+            smtp.ehlo()
             smtp.login(settings.smtp_user, settings.smtp_password)
-            smtp.send_message(msg)
+            refused = smtp.send_message(msg)
+            if refused:
+                raise RuntimeError(f"SMTP refused recipients: {refused}")
+            logger.info("SMTP accepted message id=%s", msg["Message-ID"])
     else:
         with smtplib.SMTP(settings.smtp_host, port, timeout=60) as smtp:
+            smtp.ehlo()
             smtp.starttls(context=context)
+            smtp.ehlo()
             smtp.login(settings.smtp_user, settings.smtp_password)
-            smtp.send_message(msg)
+            refused = smtp.send_message(msg)
+            if refused:
+                raise RuntimeError(f"SMTP refused recipients: {refused}")
+            logger.info("SMTP accepted message id=%s", msg["Message-ID"])

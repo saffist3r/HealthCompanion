@@ -8,6 +8,11 @@ from google import genai
 from google.genai import types
 
 from app.core.config import get_settings
+from app.i18n.report_strings import (
+    ai_language_instruction,
+    fallback_strings,
+    normalize_locale,
+)
 
 SYSTEM = """You are a health companion coach for someone living with diabetes.
 Given one day's structured health data (nutrition, glucose, activity from Samsung Health,
@@ -29,11 +34,17 @@ Rules:
 """
 
 
-def generate_daily_ai_insights(daily_report: dict[str, Any]) -> dict[str, Any]:
+def generate_daily_ai_insights(
+    daily_report: dict[str, Any],
+    *,
+    locale: str | None = "en",
+) -> dict[str, Any]:
     """Ask Gemini for narrative insights from a daily report dict."""
+    loc = normalize_locale(locale)
     settings = get_settings()
+    fb = fallback_strings(loc)
     if not settings.gemini_configured:
-        return _fallback_insights(daily_report, reason="AI is not configured on the server.")
+        return _fallback_insights(daily_report, reason=fb["ai_missing"], locale=loc)
 
     payload = compact_report(daily_report)
     try:
@@ -46,6 +57,8 @@ def generate_daily_ai_insights(daily_report: dict[str, Any]) -> dict[str, Any]:
                     parts=[
                         types.Part.from_text(
                             text=SYSTEM
+                            + "\n\n"
+                            + ai_language_instruction(loc)
                             + "\n\nDay data (JSON):\n"
                             + json.dumps(payload, ensure_ascii=False)
                         )
@@ -59,10 +72,13 @@ def generate_daily_ai_insights(daily_report: dict[str, Any]) -> dict[str, Any]:
         )
         raw = (response.text or "{}").strip()
         parsed = _parse_json(raw)
-        return _normalize(parsed, daily_report)
+        return _normalize(parsed, daily_report, locale=loc)
     except Exception as exc:  # noqa: BLE001
-        return _fallback_insights(daily_report, reason=f"AI insights unavailable ({exc}).")
-
+        return _fallback_insights(
+            daily_report,
+            reason=fb["ai_unavailable"].format(exc=exc),
+            locale=loc,
+        )
 
 def compact_report(daily: dict[str, Any]) -> dict[str, Any]:
     """Compact day facts suitable for Gemini and for archived day_debriefs.facts_json."""
@@ -93,6 +109,8 @@ def compact_report(daily: dict[str, Any]) -> dict[str, Any]:
         "careVisits": daily.get("careVisits") or [],
         "sportMatches": daily.get("sportMatches") or [],
         "injuries": daily.get("injuries") or [],
+        "dayCheckIn": daily.get("dayCheckIn"),
+        "caffeineLogs": daily.get("caffeineLogs") or [],
         "weight": daily.get("weight"),
         "calorieTargets": daily.get("calorieTargets"),
         "calorieBalance": daily.get("calorieBalance"),
@@ -105,14 +123,17 @@ def _compact_report(daily: dict[str, Any]) -> dict[str, Any]:
     return compact_report(daily)
 
 
-def _normalize(parsed: dict[str, Any], daily: dict[str, Any]) -> dict[str, Any]:
+def _normalize(parsed: dict[str, Any], daily: dict[str, Any], *, locale: str = "en") -> dict[str, Any]:
+    fb = fallback_strings(locale)
     highlights = [str(x).strip() for x in (parsed.get("highlights") or []) if str(x).strip()]
     watchouts = [str(x).strip() for x in (parsed.get("watchouts") or []) if str(x).strip()]
     tips = [str(x).strip() for x in (parsed.get("tomorrowTips") or []) if str(x).strip()]
-    headline = str(parsed.get("headline") or "").strip() or f"Day overview · {daily.get('date')}"
+    headline = str(parsed.get("headline") or "").strip() or fb["headline"].format(
+        date=daily.get("date")
+    )
     summary = str(parsed.get("summary") or "").strip()
     if not summary:
-        summary = " ".join(daily.get("insights") or []) or "No detailed summary available."
+        summary = " ".join(daily.get("insights") or []) or fb["no_summary"]
     if not highlights:
         highlights = list(daily.get("insights") or [])[:5]
     return {
@@ -122,26 +143,28 @@ def _normalize(parsed: dict[str, Any], daily: dict[str, Any]) -> dict[str, Any]:
         "watchouts": watchouts[:6],
         "tomorrowTips": tips[:6],
         "source": "gemini",
+        "locale": normalize_locale(locale),
     }
 
 
-def _fallback_insights(daily: dict[str, Any], *, reason: str) -> dict[str, Any]:
+def _fallback_insights(
+    daily: dict[str, Any], *, reason: str, locale: str = "en"
+) -> dict[str, Any]:
+    fb = fallback_strings(locale)
     insights = list(daily.get("insights") or [])
     warnings = daily.get("warnings") or []
     return {
-        "headline": f"Day overview · {daily.get('date')}",
-        "summary": " ".join(insights[:3]) if insights else "Limited data logged for this day.",
+        "headline": fb["headline"].format(date=daily.get("date")),
+        "summary": " ".join(insights[:3]) if insights else fb["summary_empty"],
         "highlights": insights[:6],
         "watchouts": [
             f"{w.get('title')}: {w.get('message')}" if isinstance(w, dict) else str(w)
             for w in warnings
         ][:4],
-        "tomorrowTips": [
-            "Log meals with the phone camera for better carb context.",
-            "Open Activity and sync Samsung Health so steps appear in reports.",
-        ],
+        "tomorrowTips": [fb["tip1"], fb["tip2"]],
         "source": "fallback",
         "note": reason,
+        "locale": normalize_locale(locale),
     }
 
 

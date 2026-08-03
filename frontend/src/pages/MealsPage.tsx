@@ -10,9 +10,11 @@ import {
 } from 'recharts';
 import { fetchMeals, getApiBase } from '../api';
 import MealDetailModal from '../components/MealDetailModal';
-import { ChartTooltipBox, PageHeader, Panel, StatCard } from '../components/ui';
+import { ChartTooltipBox, PageHeader, Panel, StatCard } from '../components/ui'
+import { useLocale } from '../i18n';
 
 export default function MealsPage() {
+  const { t } = useLocale();
   const [meals, setMeals] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,28 +61,28 @@ export default function MealsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Food log"
-        title="Meals"
-        lede="Photo meals from the phone, or tap + to log a meal, visit, sport, or stress for any date."
+        eyebrow={t('meals.eyebrow')}
+        title={t('meals.title')}
+        lede={t('meals.lede')}
       />
 
       {error ? <p className="error">{error}</p> : null}
 
       <div className="stat-grid">
-        <StatCard label="Meals" value={meals.length} accent="teal" />
-        <StatCard label="Calories" value={Math.round(totals.calories)} unit="kcal" accent="amber" />
-        <StatCard label="Total carbs" value={Math.round(totals.carbs)} unit="g" accent="teal" />
-        <StatCard label="Protein" value={Math.round(totals.protein)} unit="g" accent="blue" />
+        <StatCard label={t('meals.title')} value={meals.length} accent="teal" />
+        <StatCard label={t('meals.calories')} value={Math.round(totals.calories)} unit="kcal" accent="amber" />
+        <StatCard label={t('meals.totalCarbs')} value={Math.round(totals.carbs)} unit="g" accent="teal" />
+        <StatCard label={t('meals.protein')} value={Math.round(totals.protein)} unit="g" accent="blue" />
         <StatCard
-          label="Warnings"
+          label={t('meals.warnings')}
           value={totals.warns}
           accent={totals.warns ? 'rose' : 'green'}
-          badge={totals.warns ? { text: 'Review', tone: 'warn' } : { text: 'Clear', tone: 'good' }}
+          badge={totals.warns ? { text: t('meals.review'), tone: 'warn' } : { text: t('meals.clear'), tone: 'good' }}
         />
       </div>
 
       {byType.length > 0 ? (
-        <Panel title="Carbs by meal type" subtitle="Across the loaded food log">
+        <Panel title={t('meals.carbsByType')} subtitle={t('meals.acrossLog')}>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byType} layout="vertical" margin={{ left: 24 }}>
@@ -95,14 +97,14 @@ export default function MealsPage() {
                   tickLine={false}
                 />
                 <Tooltip content={<ChartTooltipBox unit="g" />} />
-                <Bar dataKey="carbs" name="Carbs" fill="#0d9488" radius={[0, 8, 8, 0]} barSize={18} />
+                <Bar dataKey="carbs" name={t('meals.carbs')} fill="#0d9488" radius={[0, 8, 8, 0]} barSize={18} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Panel>
       ) : null}
 
-      {loading ? <p className="muted">Loading meals…</p> : null}
+      {loading ? <p className="muted">{t('meals.loading')}</p> : null}
 
       <div className="meal-list">
         {meals.map((m) => (

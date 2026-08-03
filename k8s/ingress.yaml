@@ -1,15 +1,18 @@
 # Public URL: https://healthcompanion.saffist3r.xyz
 # API routes are at the root (/meals, /reports, …); SPA is /.
+# Split into two Ingress objects so Traefik assigns a higher router priority
+# to API paths than the SPA catch-all (avoids intermittent 405 from nginx).
 # TLS: create secret healthcompanion-tls (see k8s/README.md).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: healthcompanion-ingress
+  name: healthcompanion-api-ingress
   namespace: healthcompanion
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.priority: "100"
 spec:
   ingressClassName: traefik
   tls:
@@ -104,6 +107,27 @@ spec:
                 name: backend
                 port:
                   number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: healthcompanion-ingress
+  namespace: healthcompanion
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.priority: "1"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - healthcompanion.saffist3r.xyz
+      secretName: healthcompanion-tls
+  rules:
+    - host: healthcompanion.saffist3r.xyz
+      http:
+        paths:
           - path: /
             pathType: Prefix
             backend:

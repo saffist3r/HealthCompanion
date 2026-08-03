@@ -10,18 +10,44 @@ import {
 } from '../injuries';
 import {
   createCareVisit,
+  createCaffeineLog,
   createInjury,
   createManualMeal,
   createSportMatch,
+  createStressLog,
+  fetchDayCheckIn,
   fetchInjuries,
   logInjuryPain,
   logWeight,
-} from '../api';
+  upsertDayCheckIn,
+} from '../api'
+import { useLocale } from '../i18n';
 
-type EntryKind = 'meal' | 'care' | 'sport' | 'weight' | 'injury' | null;
+type EntryKind =
+  | 'meal'
+  | 'care'
+  | 'sport'
+  | 'weight'
+  | 'injury'
+  | 'checkin'
+  | 'caffeine'
+  | 'stress'
+  | null;
 type InjuryMode = 'choose' | 'new' | 'pain';
 type SportKind = 'padel' | 'gym' | 'running' | 'cycling' | 'swimming' | 'walking' | 'other';
 type SportIntensity = 'easy' | 'moderate' | 'hard' | 'max';
+type MoodLevel = 'terrible' | 'low' | 'ok' | 'good' | 'great';
+type WakeQuality = 'rough' | 'groggy' | 'ok' | 'fresh' | 'energized';
+type FocusLevel = MoodLevel;
+type AdhdIntensity = 'low' | 'ok' | 'high';
+type TaskInitiation = 'stuck' | 'slow' | 'ok' | 'easy';
+type CaffeineDrink =
+  | 'espresso'
+  | 'double_espresso'
+  | 'coffee'
+  | 'iced_coffee'
+  | 'green_tea'
+  | 'black_tea';
 
 const SPORT_KIND_OPTIONS: Array<{ kind: SportKind; label: string }> = [
   { kind: 'padel', label: 'Padel' },
@@ -38,6 +64,46 @@ const SPORT_INTENSITY_OPTIONS: Array<{ value: SportIntensity; label: string }> =
   { value: 'moderate', label: 'Moderate' },
   { value: 'hard', label: 'Hard' },
   { value: 'max', label: 'Max' },
+];
+
+const MOOD_OPTIONS: Array<{ value: MoodLevel; label: string }> = [
+  { value: 'terrible', label: 'Terrible' },
+  { value: 'low', label: 'Low' },
+  { value: 'ok', label: 'OK' },
+  { value: 'good', label: 'Good' },
+  { value: 'great', label: 'Great' },
+];
+
+const WAKE_QUALITY_OPTIONS: Array<{ value: WakeQuality; label: string }> = [
+  { value: 'rough', label: 'Rough' },
+  { value: 'groggy', label: 'Groggy' },
+  { value: 'ok', label: 'OK' },
+  { value: 'fresh', label: 'Fresh' },
+  { value: 'energized', label: 'Energized' },
+];
+
+const FOCUS_OPTIONS = MOOD_OPTIONS;
+
+const ADHD_INTENSITY_OPTIONS: Array<{ value: AdhdIntensity; label: string }> = [
+  { value: 'low', label: 'Low' },
+  { value: 'ok', label: 'OK' },
+  { value: 'high', label: 'High' },
+];
+
+const TASK_INITIATION_OPTIONS: Array<{ value: TaskInitiation; label: string }> = [
+  { value: 'stuck', label: 'Stuck' },
+  { value: 'slow', label: 'Slow' },
+  { value: 'ok', label: 'OK' },
+  { value: 'easy', label: 'Easy' },
+];
+
+const CAFFEINE_DRINK_OPTIONS: Array<{ value: CaffeineDrink; label: string; mg: number }> = [
+  { value: 'espresso', label: 'Espresso', mg: 63 },
+  { value: 'double_espresso', label: 'Double espresso', mg: 125 },
+  { value: 'coffee', label: 'Coffee', mg: 95 },
+  { value: 'iced_coffee', label: 'Iced coffee', mg: 150 },
+  { value: 'green_tea', label: 'Green tea', mg: 28 },
+  { value: 'black_tea', label: 'Black tea', mg: 47 },
 ];
 
 function isCompetitiveSport(sport?: string | null) {
@@ -58,12 +124,15 @@ function shiftDate(iso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-const TYPES: Array<{ id: Exclude<EntryKind, null>; label: string; icon: string; blurb: string }> = [
-  { id: 'meal', label: 'Meal', icon: '/icons/icon-meals.png', blurb: 'Manual macros & notes' },
-  { id: 'weight', label: 'Weight', icon: '/icons/icon-glucose.png', blurb: 'Log kg for calorie targets' },
-  { id: 'injury', label: 'Injury', icon: '/icons/icon-stress.png', blurb: 'New case or daily pain 0–10' },
-  { id: 'care', label: 'Care visit', icon: '/icons/icon-kine.png', blurb: 'Kiné, Ostéo, Podologue…' },
-  { id: 'sport', label: 'Sport', icon: '/icons/icon-padel.png', blurb: 'Padel, gym, run, swim…' },
+const TYPES: Array<{ id: Exclude<EntryKind, null>; labelKey: string; blurbKey: string; icon: string }> = [
+  { id: 'meal', labelKey: 'compose.meal', blurbKey: 'compose.mealBlurb', icon: '/icons/icon-meals.png' },
+  { id: 'checkin', labelKey: 'compose.checkin', blurbKey: 'compose.checkinBlurb', icon: '/icons/icon-checkin.png' },
+  { id: 'caffeine', labelKey: 'compose.caffeine', blurbKey: 'compose.caffeineBlurb', icon: '/icons/icon-caffeine.png' },
+  { id: 'stress', labelKey: 'compose.stress', blurbKey: 'compose.stressBlurb', icon: '/icons/icon-stress.png' },
+  { id: 'weight', labelKey: 'compose.weight', blurbKey: 'compose.weightBlurb', icon: '/icons/icon-weight.png' },
+  { id: 'injury', labelKey: 'compose.injury', blurbKey: 'compose.injuryBlurb', icon: '/icons/icon-injury.png' },
+  { id: 'care', labelKey: 'compose.care', blurbKey: 'compose.careBlurb', icon: '/icons/icon-kine.png' },
+  { id: 'sport', labelKey: 'compose.sport', blurbKey: 'compose.sportBlurb', icon: '/icons/icon-padel.png' },
 ];
 
 type Props = {
@@ -73,6 +142,7 @@ type Props = {
 };
 
 export default function ComposeModal({ open, onClose, onSaved }: Props) {
+  const { t } = useLocale();
   const today = useMemo(() => todayKey(), [open]);
   const [kind, setKind] = useState<EntryKind>(null);
   const [date, setDate] = useState(today);
@@ -114,6 +184,22 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
   const [painScore, setPainScore] = useState(3);
   const [painActivity, setPainActivity] = useState<InjuryActivityKind | ''>('sport');
   const [painNotes, setPainNotes] = useState('');
+  const [mood, setMood] = useState<MoodLevel>('ok');
+  const [wakeQuality, setWakeQuality] = useState<WakeQuality>('ok');
+  const [checkInNotes, setCheckInNotes] = useState('');
+  const [focus, setFocus] = useState<FocusLevel>('ok');
+  const [restlessness, setRestlessness] = useState<AdhdIntensity>('ok');
+  const [overwhelm, setOverwhelm] = useState<AdhdIntensity>('ok');
+  const [taskInitiation, setTaskInitiation] = useState<TaskInitiation>('ok');
+  const [impulsivity, setImpulsivity] = useState<AdhdIntensity>('ok');
+  const [medicationTaken, setMedicationTaken] = useState(false);
+  const [hyperfocus, setHyperfocus] = useState(false);
+  const [sleepHours, setSleepHours] = useState('');
+  const [caffeineDrink, setCaffeineDrink] = useState<CaffeineDrink>('coffee');
+  const [caffeineTime, setCaffeineTime] = useState('');
+  const [caffeineNotes, setCaffeineNotes] = useState('');
+  const [stressScore, setStressScore] = useState(55);
+  const [stressNotes, setStressNotes] = useState('');
 
   useEffect(() => {
     if (!open || kind !== 'injury') return;
@@ -124,6 +210,38 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
       })
       .catch(() => setOpenInjuries([]));
   }, [open, kind, injuryMode]);
+
+  useEffect(() => {
+    if (!open || kind !== 'checkin') return;
+    fetchDayCheckIn(date)
+      .then((row) => {
+        if (!row) return;
+        if (MOOD_OPTIONS.some((o) => o.value === row.mood)) setMood(row.mood as MoodLevel);
+        if (WAKE_QUALITY_OPTIONS.some((o) => o.value === row.wakeQuality)) {
+          setWakeQuality(row.wakeQuality as WakeQuality);
+        }
+        if (row.focus && FOCUS_OPTIONS.some((o) => o.value === row.focus)) {
+          setFocus(row.focus as FocusLevel);
+        }
+        if (row.restlessness && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.restlessness)) {
+          setRestlessness(row.restlessness as AdhdIntensity);
+        }
+        if (row.overwhelm && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.overwhelm)) {
+          setOverwhelm(row.overwhelm as AdhdIntensity);
+        }
+        if (row.taskInitiation && TASK_INITIATION_OPTIONS.some((o) => o.value === row.taskInitiation)) {
+          setTaskInitiation(row.taskInitiation as TaskInitiation);
+        }
+        if (row.impulsivity && ADHD_INTENSITY_OPTIONS.some((o) => o.value === row.impulsivity)) {
+          setImpulsivity(row.impulsivity as AdhdIntensity);
+        }
+        setMedicationTaken(!!row.medicationTaken);
+        setHyperfocus(!!row.hyperfocus);
+        setSleepHours(row.sleepHours != null ? String(row.sleepHours) : '');
+        setCheckInNotes(row.notes || '');
+      })
+      .catch(() => undefined);
+  }, [open, kind, date]);
 
   if (!open) return null;
 
@@ -185,6 +303,22 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
     setPainScore(3);
     setPainActivity('sport');
     setPainNotes('');
+    setMood('ok');
+    setWakeQuality('ok');
+    setCheckInNotes('');
+    setFocus('ok');
+    setRestlessness('ok');
+    setOverwhelm('ok');
+    setTaskInitiation('ok');
+    setImpulsivity('ok');
+    setMedicationTaken(false);
+    setHyperfocus(false);
+    setSleepHours('');
+    setCaffeineDrink('coffee');
+    setCaffeineTime('');
+    setCaffeineNotes('');
+    setStressScore(55);
+    setStressNotes('');
   };
 
   const close = () => {
@@ -221,13 +355,13 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
       } else if (kind === 'sport') {
         const mins = Number(durationMin);
         if (!Number.isFinite(mins) || mins <= 0) {
-          setError('Duration (minutes) is required');
+          setError(t('compose.errDuration'));
           setBusy(false);
           return;
         }
         const sportName = sportKind === 'other' ? customSport.trim() : sportKind;
         if (!sportName) {
-          setError('Enter a sport name');
+          setError(t('compose.errSport'));
           setBusy(false);
           return;
         }
@@ -244,11 +378,46 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
       } else if (kind === 'weight') {
         const kg = Number(weightKg);
         if (!Number.isFinite(kg) || kg < 20) {
-          setError('Enter a valid weight in kg');
+          setError(t('compose.errWeight'));
           setBusy(false);
           return;
         }
         await logWeight({ date, weightKg: kg });
+      } else if (kind === 'checkin') {
+        const sleep = sleepHours.trim() ? Number(sleepHours) : undefined;
+        if (sleep != null && (!Number.isFinite(sleep) || sleep < 0 || sleep > 24)) {
+          setError(t('compose.errSleep'));
+          setBusy(false);
+          return;
+        }
+        await upsertDayCheckIn({
+          date,
+          mood,
+          wakeQuality,
+          focus,
+          restlessness,
+          overwhelm,
+          taskInitiation,
+          impulsivity,
+          medicationTaken,
+          hyperfocus,
+          sleepHours: sleep,
+          notes: checkInNotes.trim() || undefined,
+        });
+      } else if (kind === 'caffeine') {
+        await createCaffeineLog({
+          date,
+          time: caffeineTime.trim() || undefined,
+          drink: caffeineDrink,
+          notes: caffeineNotes.trim() || undefined,
+        });
+      } else if (kind === 'stress') {
+        await createStressLog({
+          date,
+          level: stressScore >= 70 ? 'calm' : stressScore >= 40 ? 'ok' : 'high',
+          score: Math.round(stressScore),
+          notes: stressNotes.trim() || undefined,
+        });
       } else if (kind === 'injury' && injuryMode === 'new') {
         await createInjury({
           title: injuryTitle.trim() || undefined,
@@ -262,13 +431,13 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
         });
       } else if (kind === 'injury' && injuryMode === 'pain') {
         if (!painInjuryId) {
-          setError('Pick an injury to log pain against');
+          setError(t('compose.errInjury'));
           setBusy(false);
           return;
         }
         const scoreNum = Number(painScore);
         if (!Number.isFinite(scoreNum) || scoreNum < 0 || scoreNum > 10) {
-          setError('Pain score must be 0–10');
+          setError(t('compose.errPain'));
           setBusy(false);
           return;
         }
@@ -293,61 +462,61 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
 
   return (
     <div className="modal-root" role="dialog" aria-modal="true">
-      <button type="button" className="modal-backdrop" aria-label="Close" onClick={close} />
+      <button type="button" className="modal-backdrop" aria-label={t('common.close')} onClick={close} />
       <div className="modal-sheet">
         <div className="modal-head">
-          <h2>{kind ? 'Add entry' : 'What do you want to log?'}</h2>
+          <h2>{kind ? t('compose.addEntry') : t('compose.title')}</h2>
           <button type="button" className="btn ghost" onClick={close}>
-            Close
+            {t('common.close')}
           </button>
         </div>
 
         <div className="compose-date">
-          <span className="muted">Date</span>
+          <span className="muted">{t('common.date')}</span>
           <button
             type="button"
             className={`chip ${date === today ? 'on' : ''}`}
             onClick={() => setDate(today)}
           >
-            Today
+            {t('common.today')}
           </button>
           <button
             type="button"
             className={`chip ${date === shiftDate(today, -1) ? 'on' : ''}`}
             onClick={() => setDate(shiftDate(today, -1))}
           >
-            Yesterday
+            {t('common.yesterday')}
           </button>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
 
         {!kind ? (
           <div className="compose-grid">
-            {TYPES.map((t) => (
+            {TYPES.map((opt) => (
               <button
-                key={t.id}
+                key={opt.id}
                 type="button"
                 className="compose-type"
                 onClick={() => {
-                  setKind(t.id);
-                  if (t.id === 'injury') setInjuryMode('choose');
+                  setKind(opt.id);
+                  if (opt.id === 'injury') setInjuryMode('choose');
                 }}
               >
-                <img src={t.icon} alt="" width={44} height={44} />
-                <strong>{t.label}</strong>
-                <span className="muted">{t.blurb}</span>
+                <img src={opt.icon} alt="" width={44} height={44} />
+                <strong>{t(opt.labelKey as any)}</strong>
+                <span className="muted">{t(opt.blurbKey as any)}</span>
               </button>
             ))}
           </div>
         ) : kind === 'injury' && injuryMode === 'choose' ? (
           <div>
             <button type="button" className="btn ghost" onClick={() => setKind(null)}>
-              ← Back
+              {t('compose.back')}
             </button>
             <div className="compose-grid" style={{ marginTop: 12 }}>
               <button type="button" className="compose-type" onClick={() => setInjuryMode('new')}>
-                <strong>New injury</strong>
-                <span className="muted">Type, body area, treatment exercises</span>
+                <strong>{t('compose.newInjury')}</strong>
+                <span className="muted">{t('compose.newInjuryBlurb')}</span>
               </button>
               <button
                 type="button"
@@ -357,8 +526,8 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   if (openInjuries[0]) setPainInjuryId(openInjuries[0].id);
                 }}
               >
-                <strong>Log pain</strong>
-                <span className="muted">Daily score 0–10 for an open case</span>
+                <strong>{t('compose.logPain')}</strong>
+                <span className="muted">{t('compose.logPainBlurb')}</span>
               </button>
             </div>
           </div>
@@ -372,25 +541,25 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                 else setKind(null);
               }}
             >
-              ← Back
+              {t('compose.back')}
             </button>
 
             {kind === 'meal' ? (
               <>
                 <label>
-                  Meal type
+                  {t('compose.mealType')}
                   <select value={mealType} onChange={(e) => setMealType(e.target.value)}>
-                    <option value="breakfast">Breakfast</option>
-                    <option value="lunch">Lunch</option>
-                    <option value="dinner">Dinner</option>
-                    <option value="snack">Snack</option>
-                    <option value="resucrage">Resucrage</option>
-                    <option value="other">Other</option>
+                    <option value="breakfast">{t('mealType.breakfast')}</option>
+                    <option value="lunch">{t('mealType.lunch')}</option>
+                    <option value="dinner">{t('mealType.dinner')}</option>
+                    <option value="snack">{t('mealType.snack')}</option>
+                    <option value="resucrage">{t('mealType.resucrage')}</option>
+                    <option value="other">{t('mealType.other')}</option>
                   </select>
                 </label>
                 <div className="form-row-3">
                   <label>
-                    Carbs (g)
+                    {t('compose.carbs')}
                     <input
                       value={carbs}
                       onChange={(e) => setMacro('carbs', e.target.value)}
@@ -398,7 +567,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                     />
                   </label>
                   <label>
-                    Protein (g)
+                    {t('compose.protein')}
                     <input
                       value={protein}
                       onChange={(e) => setMacro('protein', e.target.value)}
@@ -406,7 +575,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                     />
                   </label>
                   <label>
-                    Fat (g)
+                    {t('compose.fat')}
                     <input
                       value={fat}
                       onChange={(e) => setMacro('fat', e.target.value)}
@@ -415,7 +584,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   </label>
                 </div>
                 <label>
-                  Calories (kcal)
+                  {t('compose.calories')}
                   <input
                     value={calories}
                     onChange={(e) => {
@@ -430,7 +599,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   Auto-fills from macros (4/4/9). Edit to override.
                 </p>
                 <label>
-                  Notes
+                  {t('common.notes')}
                   <input value={mealNotes} onChange={(e) => setMealNotes(e.target.value)} />
                 </label>
               </>
@@ -439,12 +608,12 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             {kind === 'care' ? (
               <>
                 <label>
-                  Kind
+                  {t('compose.kind')}
                   <select value={careKind} onChange={(e) => setCareKind(e.target.value)}>
-                    <option value="kine">Kiné</option>
-                    <option value="osteo">Ostéo</option>
-                    <option value="podologue">Podologue</option>
-                    <option value="other">Other</option>
+                    <option value="kine">{t('care.kine')}</option>
+                    <option value="osteo">{t('care.osteo')}</option>
+                    <option value="podologue">{t('care.podologue')}</option>
+                    <option value="other">{t('mealType.other')}</option>
                   </select>
                 </label>
                 <label>
@@ -452,7 +621,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   <input value={careLabel} onChange={(e) => setCareLabel(e.target.value)} />
                 </label>
                 <label>
-                  Notes
+                  {t('common.notes')}
                   <input value={careNotes} onChange={(e) => setCareNotes(e.target.value)} />
                 </label>
               </>
@@ -461,7 +630,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             {kind === 'sport' ? (
               <>
                 <label>
-                  Sport
+                  {t('compose.sport')}
                   <select
                     value={sportKind}
                     onChange={(e) => {
@@ -472,14 +641,14 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   >
                     {SPORT_KIND_OPTIONS.map((opt) => (
                       <option key={opt.kind} value={opt.kind}>
-                        {opt.label}
+                        {t(`sport.${opt.kind}` as any)}
                       </option>
                     ))}
                   </select>
                 </label>
                 {sportKind === 'other' ? (
                   <label>
-                    Sport name *
+                    {t('compose.sportName')}
                     <input
                       value={customSport}
                       onChange={(e) => setCustomSport(e.target.value)}
@@ -491,20 +660,20 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                 {competitive ? (
                   <>
                     <label>
-                      Result
+                      {t('compose.result')}
                       <select
                         value={result}
                         onChange={(e) =>
                           setResult(e.target.value as 'win' | 'loss' | 'draw' | 'completed')
                         }
                       >
-                        <option value="win">Won</option>
-                        <option value="loss">Lost</option>
-                        <option value="draw">Draw</option>
+                        <option value="win">{t('compose.won')}</option>
+                        <option value="loss">{t('compose.lost')}</option>
+                        <option value="draw">{t('compose.draw')}</option>
                       </select>
                     </label>
                     <label>
-                      Score
+                      {t('compose.score')}
                       <input
                         value={score}
                         onChange={(e) => setScore(e.target.value)}
@@ -514,21 +683,21 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   </>
                 ) : (
                   <label>
-                    Intensity
+                    {t('compose.intensity')}
                     <select
                       value={intensity}
                       onChange={(e) => setIntensity(e.target.value as SportIntensity)}
                     >
                       {SPORT_INTENSITY_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {t(`intensity.${opt.value}` as any)}
                         </option>
                       ))}
                     </select>
                   </label>
                 )}
                 <label>
-                  Duration (minutes) *
+                  {t('compose.duration')}
                   <input
                     type="number"
                     min={1}
@@ -539,7 +708,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   />
                 </label>
                 <label>
-                  When (optional)
+                  {t('compose.when')}
                   <input
                     type="time"
                     value={sportTime}
@@ -547,7 +716,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   />
                 </label>
                 <label>
-                  {competitive ? 'Notes' : 'Focus / notes'}
+                  {competitive ? t('common.notes') : 'Focus / notes'}
                   <input
                     value={sportNotes}
                     onChange={(e) => setSportNotes(e.target.value)}
@@ -560,7 +729,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             {kind === 'weight' ? (
               <>
                 <label>
-                  Weight (kg) *
+                  {t('compose.weightKg')}
                   <input
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
@@ -575,37 +744,280 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
               </>
             ) : null}
 
+            {kind === 'checkin' ? (
+              <>
+                <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
+                  One check-in per day. Saving again updates mood, wake, and ADHD ratings.
+                </p>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.mood')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {MOOD_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${mood === opt.value ? 'on' : ''}`}
+                        onClick={() => setMood(opt.value)}
+                      >
+                        {t(`mood.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.wake')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {WAKE_QUALITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${wakeQuality === opt.value ? 'on' : ''}`}
+                        onClick={() => setWakeQuality(opt.value)}
+                      >
+                        {t(`wake.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.focus')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {FOCUS_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${focus === opt.value ? 'on' : ''}`}
+                        onClick={() => setFocus(opt.value)}
+                      >
+                        {t(`mood.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.restlessness')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${restlessness === opt.value ? 'on' : ''}`}
+                        onClick={() => setRestlessness(opt.value)}
+                      >
+                        {t(`adhd.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.overwhelm')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${overwhelm === opt.value ? 'on' : ''}`}
+                        onClick={() => setOverwhelm(opt.value)}
+                      >
+                        {t(`adhd.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.taskInitiation')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {TASK_INITIATION_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${taskInitiation === opt.value ? 'on' : ''}`}
+                        onClick={() => setTaskInitiation(opt.value)}
+                      >
+                        {t(`task.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {t('compose.impulsivity')}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {ADHD_INTENSITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`chip ${impulsivity === opt.value ? 'on' : ''}`}
+                        onClick={() => setImpulsivity(opt.value)}
+                      >
+                        {t(`adhd.${opt.value}` as any)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    className={`chip ${medicationTaken ? 'on' : ''}`}
+                    onClick={() => setMedicationTaken((v) => !v)}
+                  >
+                    {t('compose.meds')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip ${hyperfocus ? 'on' : ''}`}
+                    onClick={() => setHyperfocus((v) => !v)}
+                  >
+                    {t('compose.hyperfocus')}
+                  </button>
+                </div>
+                <label>
+                  {t('compose.sleepHours')}
+                  <input
+                    value={sleepHours}
+                    onChange={(e) => setSleepHours(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="7.5"
+                  />
+                </label>
+                <label>
+                  {t('common.notes')}
+                  <input
+                    value={checkInNotes}
+                    onChange={(e) => setCheckInNotes(e.target.value)}
+                    placeholder="Slept poorly, restless…"
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {kind === 'caffeine' ? (
+              <>
+                <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
+                  Default{' '}
+                  {CAFFEINE_DRINK_OPTIONS.find((d) => d.value === caffeineDrink)?.mg ?? 95} mg for{' '}
+                  {t(`caffeine.${caffeineDrink}` as any)}.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {CAFFEINE_DRINK_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`chip ${caffeineDrink === opt.value ? 'on' : ''}`}
+                      onClick={() => setCaffeineDrink(opt.value)}
+                    >
+                      {t(`caffeine.${opt.value}` as any)}
+                    </button>
+                  ))}
+                </div>
+                <label>
+                  {t('compose.timeOptional')}
+                  <input
+                    value={caffeineTime}
+                    onChange={(e) => setCaffeineTime(e.target.value)}
+                    placeholder="09:30"
+                  />
+                </label>
+                <label>
+                  {t('common.notes')}
+                  <input
+                    value={caffeineNotes}
+                    onChange={(e) => setCaffeineNotes(e.target.value)}
+                    placeholder="After lunch, before padel…"
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {kind === 'stress' ? (
+              <>
+                <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
+                  Slide to rate stress. Level maps automatically · Samsung Energy syncs from Activity.
+                </p>
+                <div className="pain-slider">
+                  <div className="pain-slider-head">
+                    <span>
+                      Stress ·{' '}
+                      {stressScore >= 70 ? t('compose.calm') : stressScore >= 40 ? t('mood.ok') : 'High'}
+                    </span>
+                    <strong
+                      className={
+                        stressScore < 40 ? 'pain-hi' : stressScore < 70 ? 'pain-mid' : 'pain-lo'
+                      }
+                    >
+                      {stressScore}
+                      <span className="muted"> / 100</span>
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={stressScore}
+                    onChange={(e) => setStressScore(Number(e.target.value))}
+                    aria-label="Stress score"
+                  />
+                  <div className="pain-slider-ends">
+                    <span className="muted">{t('compose.highStress')}</span>
+                    <span className="muted">{t('compose.calm')}</span>
+                  </div>
+                </div>
+                <label>
+                  {t('common.notes')}
+                  <input
+                    value={stressNotes}
+                    onChange={(e) => setStressNotes(e.target.value)}
+                    placeholder="Work deadline, noisy day…"
+                  />
+                </label>
+              </>
+            ) : null}
+
             {kind === 'injury' && injuryMode === 'new' ? (
               <>
                 <label>
-                  Type
+                  {t('compose.type')}
                   <select
                     value={injuryType}
                     onChange={(e) => setInjuryType(e.target.value as InjuryType)}
                   >
                     {INJURY_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(`mood.${opt.value}` as any)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Body area
+                  {t('compose.bodyArea')}
                   <select
                     value={bodyArea}
                     onChange={(e) => setBodyArea(e.target.value as InjuryBodyArea)}
                   >
                     {INJURY_BODY_AREA_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(`wake.${opt.value}` as any)}
                       </option>
                     ))}
                   </select>
                 </label>
                 {bodyArea === 'other' ? (
                   <label>
-                    Area detail
+                    {t('compose.areaDetail')}
                     <input
                       value={bodyAreaOther}
                       onChange={(e) => setBodyAreaOther(e.target.value)}
@@ -614,7 +1026,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   </label>
                 ) : null}
                 <label>
-                  Label (optional)
+                  {t('compose.labelOptional')}
                   <input
                     value={injuryTitle}
                     onChange={(e) => setInjuryTitle(e.target.value)}
@@ -623,7 +1035,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                 </label>
                 <div>
                   <span className="muted" style={{ fontSize: 13 }}>
-                    Related to
+                    {t('compose.relatedTo')}
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                     {INJURY_ACTIVITY_OPTIONS.map((opt) => (
@@ -633,13 +1045,13 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                         className={`chip ${activityTags.includes(opt.value) ? 'on' : ''}`}
                         onClick={() => toggleTag(opt.value)}
                       >
-                        {opt.label}
+                        {t(`activityKind.${opt.value}` as any)}
                       </button>
                     ))}
                   </div>
                 </div>
                 <label>
-                  Treatment exercises
+                  {t('compose.treatment')}
                   <textarea
                     value={injuryExercises}
                     onChange={(e) => setInjuryExercises(e.target.value)}
@@ -648,7 +1060,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                   />
                 </label>
                 <label>
-                  Notes
+                  {t('common.notes')}
                   <input value={injuryNotes} onChange={(e) => setInjuryNotes(e.target.value)} />
                 </label>
               </>
@@ -657,11 +1069,11 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             {kind === 'injury' && injuryMode === 'pain' ? (
               <>
                 {openInjuries.length === 0 ? (
-                  <p className="muted">No open injuries. Create a case first.</p>
+                  <p className="muted">{t('compose.noOpenInjuries')}</p>
                 ) : (
                   <>
                     <label>
-                      Injury
+                      {t('compose.injury')}
                       <select
                         value={painInjuryId}
                         onChange={(e) => setPainInjuryId(e.target.value)}
@@ -676,7 +1088,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                     </label>
                     <div className="pain-slider">
                       <div className="pain-slider-head">
-                        <span>Pain</span>
+                        <span>{t('compose.pain')}</span>
                         <strong
                           className={
                             painScore >= 7
@@ -700,8 +1112,8 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                         aria-label="Pain score"
                       />
                       <div className="pain-slider-ends">
-                        <span className="muted">None</span>
-                        <span className="muted">Worst</span>
+                        <span className="muted">{t('common.none')}</span>
+                        <span className="muted">{t('compose.worst')}</span>
                       </div>
                     </div>
                     <label>
@@ -712,16 +1124,16 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                           setPainActivity(e.target.value as InjuryActivityKind | '')
                         }
                       >
-                        <option value="">None</option>
+                        <option value="">{t('common.none')}</option>
                         {INJURY_ACTIVITY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                            {t(`mood.${opt.value}` as any)}
                           </option>
                         ))}
                       </select>
                     </label>
                     <label>
-                      Notes
+                      {t('common.notes')}
                       <input
                         value={painNotes}
                         onChange={(e) => setPainNotes(e.target.value)}
@@ -737,7 +1149,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             {!(kind === 'injury' && injuryMode === 'pain' && openInjuries.length === 0) ? (
               <div className="form-actions">
                 <button type="submit" className="btn primary" disabled={busy}>
-                  {busy ? 'Saving…' : 'Save'}
+                  {busy ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             ) : null}

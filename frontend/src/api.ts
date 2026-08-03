@@ -219,6 +219,7 @@ export type DayDebriefSummary = {
   date: string;
   headline: string;
   source: string;
+  locale?: 'en' | 'fr' | string;
   createdAt?: number | null;
   updatedAt?: number | null;
 };
@@ -359,6 +360,102 @@ export async function createStressLog(payload: {
   return data.stressLog;
 }
 
+export async function fetchDayCheckIn(date: string) {
+  const { data } = await api.get('/health-data/day-checkins', { params: { date } });
+  return (data.dayCheckIn || null) as {
+    id: string;
+    date: string;
+    mood: string;
+    moodLabel?: string;
+    wakeQuality: string;
+    wakeQualityLabel?: string;
+    focus?: string;
+    focusLabel?: string;
+    restlessness?: string;
+    restlessnessLabel?: string;
+    overwhelm?: string;
+    overwhelmLabel?: string;
+    taskInitiation?: string;
+    taskInitiationLabel?: string;
+    impulsivity?: string;
+    impulsivityLabel?: string;
+    medicationTaken?: boolean;
+    hyperfocus?: boolean;
+    sleepHours?: number | null;
+    notes?: string | null;
+  } | null;
+}
+
+export async function fetchDayCheckIns(limit = 30) {
+  const { data } = await api.get('/health-data/day-checkins', { params: { limit } });
+  return (data.dayCheckIns || []) as Array<{
+    id: string;
+    date: string;
+    mood: string;
+    moodLabel?: string;
+    wakeQuality: string;
+    wakeQualityLabel?: string;
+    focus?: string;
+    focusLabel?: string;
+    restlessness?: string;
+    restlessnessLabel?: string;
+    overwhelm?: string;
+    overwhelmLabel?: string;
+    taskInitiation?: string;
+    taskInitiationLabel?: string;
+    impulsivity?: string;
+    impulsivityLabel?: string;
+    medicationTaken?: boolean;
+    hyperfocus?: boolean;
+    sleepHours?: number | null;
+    notes?: string | null;
+  }>;
+}
+
+export async function upsertDayCheckIn(payload: {
+  date: string;
+  mood: 'terrible' | 'low' | 'ok' | 'good' | 'great';
+  wakeQuality: 'rough' | 'groggy' | 'ok' | 'fresh' | 'energized';
+  focus?: 'terrible' | 'low' | 'ok' | 'good' | 'great';
+  restlessness?: 'low' | 'ok' | 'high';
+  overwhelm?: 'low' | 'ok' | 'high';
+  taskInitiation?: 'stuck' | 'slow' | 'ok' | 'easy';
+  impulsivity?: 'low' | 'ok' | 'high';
+  medicationTaken?: boolean;
+  hyperfocus?: boolean;
+  sleepHours?: number;
+  notes?: string;
+}) {
+  const { data } = await api.post('/health-data/day-checkins', payload);
+  return data.dayCheckIn;
+}
+
+export async function fetchCaffeineLogs(date?: string) {
+  const { data } = await api.get('/health-data/caffeine-logs', { params: date ? { date } : {} });
+  return (data.caffeineLogs || []) as any[];
+}
+
+export async function createCaffeineLog(payload: {
+  date: string;
+  time?: string;
+  drink:
+    | 'espresso'
+    | 'double_espresso'
+    | 'coffee'
+    | 'iced_coffee'
+    | 'green_tea'
+    | 'black_tea';
+  caffeineMg?: number;
+  notes?: string;
+}) {
+  const { data } = await api.post('/health-data/caffeine-logs', payload);
+  return data.caffeineLog;
+}
+
+export async function deleteCaffeineLog(id: string) {
+  await api.delete(`/health-data/caffeine-logs/${id}`);
+}
+
 export async function createManualMeal(payload: {
   date: string;
   mealType?: string;
@@ -401,6 +498,11 @@ export async function fetchBodyProfile() {
       ageYears: number;
       activity: string;
       deficitKcal: number;
+      locale?: 'en' | 'fr';
+      tirLowMgDl?: number;
+      tirHighMgDl?: number;
+      tirGoalPct?: number;
+      dailyCarbTargetG?: number;
     };
     latestWeight: { date: string; weightKg: number; notes?: string } | null;
     targets: {
@@ -412,6 +514,7 @@ export async function fetchBodyProfile() {
       weightKg: number;
       heightCm: number;
       formula: string;
+      activityFactor?: number;
     } | null;
   };
 }
@@ -422,6 +525,11 @@ export async function updateBodyProfile(payload: {
   ageYears: number;
   activity: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   deficitKcal: number;
+  locale?: 'en' | 'fr';
+  tirLowMgDl?: number;
+  tirHighMgDl?: number;
+  tirGoalPct?: number;
+  dailyCarbTargetG?: number;
 }) {
   const { data } = await api.put('/health-data/body-profile', payload);
   return data;

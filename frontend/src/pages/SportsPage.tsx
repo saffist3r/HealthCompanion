@@ -12,9 +12,21 @@ import {
   YAxis,
 } from 'recharts';
 import { fetchActivity, fetchCareVisits, fetchSportMatches, fetchWeekly } from '../api';
-import { ChartTooltipBox, PageHeader, Panel, StatCard } from '../components/ui';
+import { ChartTooltipBox, PageHeader, Panel, StatCard } from '../components/ui'
+import { useLocale } from '../i18n';
+
+const SPORT_ICON_KEYS = new Set(['padel', 'gym', 'running', 'cycling', 'swimming', 'walking']);
+
+function sportIconSrc(sport?: string | null, result?: string | null): string {
+  const key = (sport || '').toLowerCase();
+  if (key === 'gym' || result === 'completed') return '/icons/icon-gym.png';
+  if (SPORT_ICON_KEYS.has(key)) return `/icons/icon-${key}.png`;
+  if (result === 'win' || result === 'loss' || result === 'draw') return `/icons/icon-${result}.png`;
+  return '/icons/icon-padel.png';
+}
 
 export default function SportsPage() {
+  const { t } = useLocale();
   const [days, setDays] = useState<any[]>([]);
   const [weekly, setWeekly] = useState<any>(null);
   const [care, setCare] = useState<any[]>([]);
@@ -89,29 +101,29 @@ export default function SportsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Movement"
-        title="Sports & activity"
-        lede="Steps and Energy Score from Samsung Health; padel & gym via +."
+        eyebrow={t('sports.eyebrow')}
+        title={t('sports.title')}
+        lede={t('sports.lede')}
       />
 
       {error ? <p className="error">{error}</p> : null}
-      {loading ? <p className="muted">Loading activity…</p> : null}
+      {loading ? <p className="muted">{t('sports.loading')}</p> : null}
 
       <div className="stat-grid">
         <StatCard
-          label="Steps today"
+          label={t('sports.stepsToday')}
           value={(today?.steps ?? 0).toLocaleString()}
           accent="green"
           badge={
             (today?.steps ?? 0) >= 8000
-              ? { text: 'Goal zone', tone: 'good' }
+              ? { text: t('sports.goalZone'), tone: 'good' }
               : (today?.steps ?? 0) > 0
-                ? { text: 'In progress' }
+                ? { text: t('sports.inProgress') }
                 : undefined
           }
         />
         <StatCard
-          label="Workout min today"
+          label={t('sports.workoutMinToday')}
           value={(today?.workouts || []).reduce(
             (s: number, w: any) => s + (Number(w.durationMin) || 0),
             0
@@ -121,59 +133,59 @@ export default function SportsPage() {
           foot={`${(today?.workouts || []).length} session(s)`}
         />
         <StatCard
-          label="Active kcal today"
+          label={t('sports.activeKcalToday')}
           value={today?.caloriesBurned != null ? Math.round(today.caloriesBurned) : '—'}
           accent="amber"
         />
         <StatCard
-          label="Week steps"
+          label={t('sports.weekSteps')}
           value={(totals.totalSteps ?? 0).toLocaleString()}
           accent="green"
         />
         <StatCard
-          label="Week workouts"
+          label={t('sports.weekWorkouts')}
           value={totals.workoutCount ?? 0}
           accent="blue"
           foot={`${totals.workoutMinutes ?? 0} min total`}
         />
         <StatCard
-          label="Padel this week"
+          label={t('sports.padelWeek')}
           value={`${totals.padelWins ?? 0}W–${totals.padelLosses ?? 0}L`}
           accent="green"
           foot={`${totals.sportMatchCount ?? matches.length} session(s)`}
         />
         <StatCard
-          label="Gym this week"
+          label={t('sports.gymWeek')}
           value={totals.gymSessionCount ?? 0}
           accent="blue"
           foot={`${totals.gymMinutes ?? 0} min`}
         />
         <StatCard
-          label="Hypos this week"
+          label={t('sports.hyposWeek')}
           value={totals.hypoEventCount ?? 0}
           accent={(totals.hypoEventCount || 0) > 0 ? 'rose' : 'green'}
           foot="Episodes <70 mg/dL"
         />
         <StatCard
-          label="Care visits"
+          label={t('sports.careVisits')}
           value={totals.careVisitCount ?? care.length}
           accent="teal"
         />
         <StatCard
-          label="Energy score today"
+          label={t('sports.energyToday')}
           value={today?.energyScore != null ? Math.round(today.energyScore) : '—'}
           accent="amber"
           foot="Samsung Health"
           footIcon={today?.energyScore != null ? '/icons/icon-samsung.png' : undefined}
         />        <StatCard
-          label="Week active kcal"
+          label={t('sports.weekActiveKcal')}
           value={totals.activeCalories ?? 0}
           accent="amber"
         />
       </div>
 
       <div className="grid-2">
-        <Panel title="Steps & workout minutes" subtitle="Last synced activity days">
+        <Panel title={t('sports.stepsWorkout')} subtitle={t('sports.stepsWorkout')}>
           {chartData.length === 0 ? (
             <div className="empty-state">
               <div className="big">🏃</div>
@@ -221,7 +233,7 @@ export default function SportsPage() {
           )}
         </Panel>
 
-        <Panel title="Active calories" subtitle="Burned kcal by day">
+        <Panel title={t('sports.activeCalories')} subtitle={t('sports.activeCalories')}>
           {chartData.length === 0 ? (
             <p className="muted">Sync activity from the phone to populate this chart.</p>
           ) : (
@@ -240,7 +252,7 @@ export default function SportsPage() {
         </Panel>
       </div>
 
-      <Panel title="Recent workouts" subtitle="Exercise sessions from Health Connect">
+      <Panel title={t('sports.recentWorkouts')} subtitle={t('sports.recentWorkouts')}>
         {allWorkouts.length === 0 ? (
           <div className="empty-state">
             <div className="big">🏅</div>
@@ -272,7 +284,7 @@ export default function SportsPage() {
       </Panel>
 
       <div className="grid-2">
-        <Panel title="Care visits" subtitle="Logged on the phone">
+        <Panel title={t('sports.careVisits')} subtitle={t('sports.careVisits')}>
           {care.length === 0 ? (
             <p className="muted">No care visits yet. Log Kiné / Ostéo / Podologue from Activity.</p>
           ) : (
@@ -301,22 +313,16 @@ export default function SportsPage() {
             </div>
           )}
         </Panel>
-        <Panel title="Sport sessions" subtitle="Padel, gym, run, swim…">
+        <Panel title={t('sports.sessions')} subtitle={t('compose.sportBlurb')}>
           {matches.length === 0 ? (
-            <p className="muted">No sessions yet. Tap + to log a sport.</p>
+            <p className="muted">{t('sports.noSessions')}</p>
           ) : (
             <div className="meal-list">
               {matches.slice(0, 15).map((m) => (
                 <div key={m.id} className="meal-row">
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <img
-                      src={`/icons/icon-${
-                        (m.sport || '').toLowerCase() === 'gym'
-                          ? 'gym'
-                          : m.result === 'win' || m.result === 'loss' || m.result === 'draw'
-                            ? m.result
-                            : 'padel'
-                      }.png`}
+                      src={sportIconSrc(m.sport, m.result)}
                       alt=""
                       width={40}
                       height={40}
@@ -358,7 +364,7 @@ export default function SportsPage() {
       </div>
 
       <Panel
-        title="Energy score"
+        title={t('sports.energyScore')}
         subtitle="Daily readiness from Samsung Health. Continuous Stress isn’t exposed to third-party apps."
         action={
           <img

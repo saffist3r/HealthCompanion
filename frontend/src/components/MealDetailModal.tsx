@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { deleteMeal, getApiBase, updateMeal } from '../api';
+import { useLocale } from '../i18n';
 
 const MEAL_TYPES = [
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'snack', label: 'Snack' },
-  { value: 'resucrage', label: 'Resucrage' },
-  { value: 'other', label: 'Other' },
+  { value: 'breakfast' },
+  { value: 'lunch' },
+  { value: 'dinner' },
+  { value: 'snack' },
+  { value: 'resucrage' },
+  { value: 'other' },
 ] as const;
 
 type MealDetail = {
@@ -32,10 +33,9 @@ type MealDetail = {
   source?: string;
 };
 
-function mealTypeLabel(type?: string) {
-  if (!type) return 'Meal';
-  if (type === 'resucrage') return 'Resucrage';
-  return type.charAt(0).toUpperCase() + type.slice(1);
+function mealTypeKey(type?: string) {
+  const key = (type || 'other').toLowerCase();
+  return `mealType.${key}`;
 }
 
 function itemLabel(item: { name?: string; portion?: string; estimatedCarbsG?: number } | string) {
@@ -69,6 +69,7 @@ export default function MealDetailModal({
   onClose: () => void;
   onSaved?: (meal: MealDetail) => void;
 }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +149,7 @@ export default function MealDetailModal({
 
   const remove = async () => {
     if (!meal.id) return;
-    if (!window.confirm('Delete this meal?')) return;
+    if (!window.confirm(t('mealDetail.deleteConfirm'))) return;
     setBusy(true);
     setError(null);
     try {
@@ -163,13 +164,13 @@ export default function MealDetailModal({
   };
 
   return (
-    <div className="modal-root" role="dialog" aria-modal="true" aria-label="Meal details">
-      <button type="button" className="modal-backdrop" aria-label="Close" onClick={onClose} />
+    <div className="modal-root" role="dialog" aria-modal="true" aria-label={t('mealDetail.details')}>
+      <button type="button" className="modal-backdrop" aria-label={t('mealDetail.close')} onClick={onClose} />
       <div className="modal-sheet meal-detail-sheet">
         <div className="modal-head">
           <div>
             <h2 className="capitalize" style={{ margin: 0 }}>
-              {editing ? 'Edit meal' : mealTypeLabel(meal.mealType)}
+              {editing ? t('mealDetail.edit') : t(mealTypeKey(meal.mealType) as any)}
             </h2>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
               {when}
@@ -179,78 +180,78 @@ export default function MealDetailModal({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {!editing ? (
               <button type="button" className="btn secondary" onClick={() => setEditing(true)}>
-                Edit
+                {t('mealDetail.editBtn')}
               </button>
             ) : null}
             <button type="button" className="btn ghost" onClick={onClose}>
-              Close
+              {t('mealDetail.close')}
             </button>
           </div>
         </div>
 
         {photo ? (
           <div className="meal-detail-photo-wrap">
-            <img src={photo} alt={mealTypeLabel(meal.mealType)} className="meal-detail-photo" />
+            <img src={photo} alt={t(mealTypeKey(meal.mealType) as any)} className="meal-detail-photo" />
           </div>
         ) : (
           <div className="meal-detail-photo-wrap empty">
             <img src="/icons/icon-meals.png" alt="" width={72} height={72} style={{ borderRadius: 16 }} />
-            <p className="muted">No photo for this meal</p>
+            <p className="muted">{t('mealDetail.noPhoto')}</p>
           </div>
         )}
 
         {editing ? (
           <form className="form" onSubmit={save}>
             <label>
-              Category
+              {t('mealDetail.category')}
               <select value={mealType} onChange={(e) => setMealType(e.target.value)}>
-                {MEAL_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {MEAL_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {t(`mealType.${opt.value}` as any)}
                   </option>
                 ))}
               </select>
             </label>
             <div className="form-row-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <label>
-                Date
+                {t('mealDetail.date')}
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
               </label>
               <label>
-                Time
+                {t('mealDetail.time')}
                 <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
               </label>
             </div>
             <div className="form-row-3">
               <label>
-                Carbs (g)
+                {t('mealDetail.carbs')}
                 <input value={carbs} onChange={(e) => setCarbs(e.target.value)} inputMode="decimal" />
               </label>
               <label>
-                Protein (g)
+                {t('mealDetail.protein')}
                 <input value={protein} onChange={(e) => setProtein(e.target.value)} inputMode="decimal" />
               </label>
               <label>
-                Fat (g)
+                {t('mealDetail.fat')}
                 <input value={fat} onChange={(e) => setFat(e.target.value)} inputMode="decimal" />
               </label>
             </div>
             <label>
-              Calories (kcal)
+              {t('mealDetail.calories')}
               <input value={calories} onChange={(e) => setCalories(e.target.value)} inputMode="numeric" />
             </label>
             <label>
-              Summary
+              {t('mealDetail.summary')}
               <input value={summary} onChange={(e) => setSummary(e.target.value)} />
             </label>
             <label>
-              Notes
+              {t('mealDetail.notes')}
               <input value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
             {error ? <p className="error">{error}</p> : null}
             <div className="form-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button type="submit" className="btn primary" disabled={busy}>
-                {busy ? 'Saving…' : 'Save changes'}
+                {busy ? t('common.saving') : t('mealDetail.save')}
               </button>
               <button
                 type="button"
@@ -261,10 +262,10 @@ export default function MealDetailModal({
                   setError(null);
                 }}
               >
-                Cancel
+                {t('mealDetail.cancel')}
               </button>
               <button type="button" className="btn ghost" disabled={busy} onClick={remove} style={{ marginLeft: 'auto', color: '#be123c' }}>
-                Delete
+                {t('mealDetail.delete')}
               </button>
             </div>
           </form>
@@ -279,28 +280,28 @@ export default function MealDetailModal({
 
             {meal.aiSummary ? (
               <section className="meal-detail-section">
-                <h3>Summary</h3>
+                <h3>{t('mealDetail.summary')}</h3>
                 <p className="meal-detail-text">{meal.aiSummary}</p>
               </section>
             ) : null}
 
             {meal.notes ? (
               <section className="meal-detail-section">
-                <h3>Notes</h3>
+                <h3>{t('mealDetail.notes')}</h3>
                 <p className="meal-detail-text">{meal.notes}</p>
               </section>
             ) : null}
 
             {meal.carbEstimateNote ? (
               <section className="meal-detail-section">
-                <h3>Carb estimate</h3>
+                <h3>{t('mealDetail.carbEstimate')}</h3>
                 <p className="meal-detail-text muted">{meal.carbEstimateNote}</p>
               </section>
             ) : null}
 
             {items.length > 0 ? (
               <section className="meal-detail-section">
-                <h3>Items</h3>
+                <h3>{t('mealDetail.items')}</h3>
                 <ul className="meal-detail-items">
                   {items.map((it, i) => (
                     <li key={i}>{itemLabel(it)}</li>
@@ -311,7 +312,7 @@ export default function MealDetailModal({
 
             {(meal.suggestions || []).length > 0 ? (
               <section className="meal-detail-section">
-                <h3>Suggestions</h3>
+                <h3>{t('mealDetail.suggestions')}</h3>
                 <ul className="meal-detail-items">
                   {meal.suggestions!.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -322,7 +323,7 @@ export default function MealDetailModal({
 
             {(meal.warnings || []).map((w, i) => (
               <div key={i} className={`warn warn-${w.severity || 'caution'}`}>
-                <strong>{w.title || 'Warning'}</strong>
+                <strong>{w.title || t('mealDetail.warning')}</strong>
                 <p>{w.message}</p>
               </div>
             ))}

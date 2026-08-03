@@ -12,6 +12,8 @@ from app.core.deps import ensure_device, household_device_ids, require_device_id
 from app.models import (
     ActivityDay,
     CareVisit,
+    CaffeineLog,
+    DayCheckIn,
     Injury,
     InjuryPainLog,
     SportMatch,
@@ -23,6 +25,8 @@ from app.schemas import (
     ActivityIn,
     BodyProfileIn,
     CareVisitIn,
+    CaffeineLogIn,
+    DayCheckInIn,
     InjuryIn,
     InjuryPainLogIn,
     InjuryUpdate,
@@ -52,6 +56,27 @@ router = APIRouter(prefix="/health-data", tags=["health-data"])
 CARE_KINDS = {"kine", "osteo", "podologue", "other"}
 SPORT_RESULTS = {"win", "loss", "draw", "completed"}
 STRESS_LEVELS = {"calm", "ok", "high"}
+MOOD_LEVELS = {"terrible", "low", "ok", "good", "great"}
+WAKE_QUALITIES = {"rough", "groggy", "ok", "fresh", "energized"}
+FOCUS_LEVELS = {"terrible", "low", "ok", "good", "great"}
+ADHD_INTENSITIES = {"low", "ok", "high"}
+TASK_INITIATIONS = {"stuck", "slow", "ok", "easy"}
+CAFFEINE_DRINKS = {
+    "espresso",
+    "double_espresso",
+    "coffee",
+    "iced_coffee",
+    "green_tea",
+    "black_tea",
+}
+CAFFEINE_MG_DEFAULTS = {
+    "espresso": 63,
+    "double_espresso": 125,
+    "coffee": 95,
+    "iced_coffee": 150,
+    "green_tea": 28,
+    "black_tea": 47,
+}
 CARE_LABELS = {
     "kine": "Kiné",
     "osteo": "Ostéo",
@@ -62,6 +87,44 @@ STRESS_LABELS = {
     "calm": "Calm",
     "ok": "OK",
     "high": "High",
+}
+MOOD_LABELS = {
+    "terrible": "Terrible",
+    "low": "Low",
+    "ok": "OK",
+    "good": "Good",
+    "great": "Great",
+}
+WAKE_LABELS = {
+    "rough": "Rough",
+    "groggy": "Groggy",
+    "ok": "OK",
+    "fresh": "Fresh",
+    "energized": "Energized",
+}
+FOCUS_LABELS = MOOD_LABELS
+ADHD_INTENSITY_LABELS = {
+    "low": "Low",
+    "ok": "OK",
+    "high": "High",
+}
+TASK_INITIATION_LABELS = {
+    "stuck": "Stuck",
+    "slow": "Slow",
+    "ok": "OK",
+    "easy": "Easy",
+}
+CAFFEINE_DRINK_LABELS = {
+    "espresso": "Espresso",
+    "double_espresso": "Double espresso",
+    "coffee": "Coffee",
+    "iced_coffee": "Iced coffee",
+    "green_tea": "Green tea",
+    "black_tea": "Black tea",
+}
+STRESS_SOURCE_LABELS = {
+    "manual": "Manual",
+    "samsung_energy": "Samsung Energy Score",
 }
 
 
@@ -113,6 +176,7 @@ def serialize_sport_match(row: SportMatch) -> dict:
 
 
 def serialize_stress_log(row: StressLog) -> dict:
+    source = getattr(row, "source", None) or "manual"
     return {
         "id": row.id,
         "date": row.date,
@@ -120,9 +184,98 @@ def serialize_stress_log(row: StressLog) -> dict:
         "level": row.level,
         "levelLabel": STRESS_LABELS.get(row.level, row.level),
         "score": row.score,
+        "source": source,
+        "sourceLabel": STRESS_SOURCE_LABELS.get(source, source),
         "notes": row.notes,
         "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
     }
+
+
+def serialize_day_check_in(row: DayCheckIn) -> dict:
+    focus = getattr(row, "focus", None) or "ok"
+    restlessness = getattr(row, "restlessness", None) or "ok"
+    overwhelm = getattr(row, "overwhelm", None) or "ok"
+    task_initiation = getattr(row, "task_initiation", None) or "ok"
+    impulsivity = getattr(row, "impulsivity", None) or "ok"
+    return {
+        "id": row.id,
+        "date": row.date,
+        "mood": row.mood,
+        "moodLabel": MOOD_LABELS.get(row.mood, row.mood),
+        "wakeQuality": row.wake_quality,
+        "wakeQualityLabel": WAKE_LABELS.get(row.wake_quality, row.wake_quality),
+        "focus": focus,
+        "focusLabel": FOCUS_LABELS.get(focus, focus),
+        "restlessness": restlessness,
+        "restlessnessLabel": ADHD_INTENSITY_LABELS.get(restlessness, restlessness),
+        "overwhelm": overwhelm,
+        "overwhelmLabel": ADHD_INTENSITY_LABELS.get(overwhelm, overwhelm),
+        "taskInitiation": task_initiation,
+        "taskInitiationLabel": TASK_INITIATION_LABELS.get(task_initiation, task_initiation),
+        "impulsivity": impulsivity,
+        "impulsivityLabel": ADHD_INTENSITY_LABELS.get(impulsivity, impulsivity),
+        "medicationTaken": bool(getattr(row, "medication_taken", False)),
+        "hyperfocus": bool(getattr(row, "hyperfocus", False)),
+        "sleepHours": getattr(row, "sleep_hours", None),
+        "notes": row.notes,
+        "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
+        "updatedAt": int(row.updated_at.timestamp() * 1000) if row.updated_at else None,
+    }
+
+
+def serialize_caffeine_log(row: CaffeineLog) -> dict:
+    return {
+        "id": row.id,
+        "date": row.date,
+        "time": row.time,
+        "drink": row.drink,
+        "drinkLabel": CAFFEINE_DRINK_LABELS.get(row.drink, row.drink),
+        "caffeineMg": row.caffeine_mg,
+        "notes": row.notes,
+        "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
+    }
+
+
+def _energy_to_stress_level(score: int) -> str:
+    if score >= 70:
+        return "calm"
+    if score >= 40:
+        return "ok"
+    return "high"
+
+
+def _upsert_samsung_energy_stress(
+    db: Session, *, device_id: str, date: str, energy_score: float
+) -> None:
+    """Map Samsung Energy Score into stress_logs (continuous stress isn't available to 3P apps)."""
+    score = int(round(energy_score))
+    score = max(0, min(100, score))
+    level = _energy_to_stress_level(score)
+    row = (
+        db.query(StressLog)
+        .filter(
+            StressLog.device_id == device_id,
+            StressLog.date == date,
+            StressLog.source == "samsung_energy",
+        )
+        .first()
+    )
+    if row:
+        row.level = level
+        row.score = score
+        row.notes = "Samsung Health Energy Score"
+    else:
+        db.add(
+            StressLog(
+                id=str(uuid.uuid4()),
+                device_id=device_id,
+                date=date,
+                level=level,
+                score=score,
+                source="samsung_energy",
+                notes="Samsung Health Energy Score",
+            )
+        )
 
 
 def _require_date(date: str) -> None:
@@ -154,6 +307,9 @@ def upsert_activity(
     row.calories_burned = body.caloriesBurned
     if body.energyScore is not None:
         row.energy_score = body.energyScore
+        _upsert_samsung_energy_stress(
+            db, device_id=device_id, date=body.date, energy_score=body.energyScore
+        )
     row.workouts_json = json.dumps(body.workouts or [])
     row.synced_at = datetime.now().astimezone()
     row.source = body.source
@@ -351,6 +507,7 @@ def create_stress_log(
         time=body.time,
         level=body.level,
         score=body.score,
+        source="manual",
         notes=(body.notes or "").strip() or None,
     )
     db.add(row)
@@ -397,6 +554,180 @@ def delete_stress_log(
     return {"ok": True}
 
 
+@router.post("/day-checkins")
+def upsert_day_check_in(
+    body: DayCheckInIn,
+    user: User = Depends(require_user),
+    device_id: str = Depends(require_device_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    ensure_device(db, device_id, owner_user_id=user.id)
+    _require_date(body.date)
+    if body.mood not in MOOD_LEVELS:
+        raise HTTPException(status_code=400, detail="invalid mood")
+    if body.wakeQuality not in WAKE_QUALITIES:
+        raise HTTPException(status_code=400, detail="invalid wakeQuality")
+    if body.focus not in FOCUS_LEVELS:
+        raise HTTPException(status_code=400, detail="invalid focus")
+    if body.restlessness not in ADHD_INTENSITIES:
+        raise HTTPException(status_code=400, detail="invalid restlessness")
+    if body.overwhelm not in ADHD_INTENSITIES:
+        raise HTTPException(status_code=400, detail="invalid overwhelm")
+    if body.taskInitiation not in TASK_INITIATIONS:
+        raise HTTPException(status_code=400, detail="invalid taskInitiation")
+    if body.impulsivity not in ADHD_INTENSITIES:
+        raise HTTPException(status_code=400, detail="invalid impulsivity")
+
+    row = (
+        db.query(DayCheckIn)
+        .filter(DayCheckIn.device_id == device_id, DayCheckIn.date == body.date)
+        .first()
+    )
+    notes = (body.notes or "").strip() or None
+    if row:
+        row.mood = body.mood
+        row.wake_quality = body.wakeQuality
+        row.focus = body.focus
+        row.restlessness = body.restlessness
+        row.overwhelm = body.overwhelm
+        row.task_initiation = body.taskInitiation
+        row.impulsivity = body.impulsivity
+        row.medication_taken = body.medicationTaken
+        row.hyperfocus = body.hyperfocus
+        row.sleep_hours = body.sleepHours
+        row.notes = notes
+    else:
+        row = DayCheckIn(
+            id=str(uuid.uuid4()),
+            device_id=device_id,
+            date=body.date,
+            mood=body.mood,
+            wake_quality=body.wakeQuality,
+            focus=body.focus,
+            restlessness=body.restlessness,
+            overwhelm=body.overwhelm,
+            task_initiation=body.taskInitiation,
+            impulsivity=body.impulsivity,
+            medication_taken=body.medicationTaken,
+            hyperfocus=body.hyperfocus,
+            sleep_hours=body.sleepHours,
+            notes=notes,
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"ok": True, "dayCheckIn": serialize_day_check_in(row)}
+
+
+@router.get("/day-checkins")
+def list_day_check_ins(
+    date: str | None = Query(None),
+    limit: int = Query(50, le=200),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    ids = household_device_ids(db)
+    if not ids:
+        return {"dayCheckIns": [], "dayCheckIn": None}
+    q = db.query(DayCheckIn).filter(DayCheckIn.device_id.in_(ids))
+    if date:
+        q = q.filter(DayCheckIn.date == date)
+    rows = q.order_by(DayCheckIn.date.desc(), DayCheckIn.updated_at.desc()).limit(limit).all()
+    serialized = [serialize_day_check_in(r) for r in rows]
+    return {
+        "dayCheckIns": serialized,
+        "dayCheckIn": serialized[0] if date and serialized else None,
+    }
+
+
+@router.delete("/day-checkins/{check_in_id}")
+def delete_day_check_in(
+    check_in_id: str,
+    user: User = Depends(require_user),
+    device_id: str = Depends(require_device_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    ensure_device(db, device_id, owner_user_id=user.id)
+    ids = household_device_ids(db)
+    row = (
+        db.query(DayCheckIn)
+        .filter(DayCheckIn.id == check_in_id, DayCheckIn.device_id.in_(ids))
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="day check-in not found")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/caffeine-logs")
+def create_caffeine_log(
+    body: CaffeineLogIn,
+    user: User = Depends(require_user),
+    device_id: str = Depends(require_device_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    ensure_device(db, device_id, owner_user_id=user.id)
+    _require_date(body.date)
+    if body.drink not in CAFFEINE_DRINKS:
+        raise HTTPException(status_code=400, detail="invalid drink")
+    mg = body.caffeineMg
+    if mg is None:
+        mg = CAFFEINE_MG_DEFAULTS.get(body.drink, 95)
+    row = CaffeineLog(
+        id=str(uuid.uuid4()),
+        device_id=device_id,
+        date=body.date,
+        time=body.time,
+        drink=body.drink,
+        caffeine_mg=int(mg),
+        notes=(body.notes or "").strip() or None,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"ok": True, "caffeineLog": serialize_caffeine_log(row)}
+
+
+@router.get("/caffeine-logs")
+def list_caffeine_logs(
+    date: str | None = Query(None),
+    limit: int = Query(50, le=200),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    ids = household_device_ids(db)
+    if not ids:
+        return {"caffeineLogs": []}
+    q = db.query(CaffeineLog).filter(CaffeineLog.device_id.in_(ids))
+    if date:
+        q = q.filter(CaffeineLog.date == date)
+    rows = q.order_by(CaffeineLog.date.desc(), CaffeineLog.created_at.desc()).limit(limit).all()
+    return {"caffeineLogs": [serialize_caffeine_log(r) for r in rows]}
+
+
+@router.delete("/caffeine-logs/{log_id}")
+def delete_caffeine_log(
+    log_id: str,
+    user: User = Depends(require_user),
+    device_id: str = Depends(require_device_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    ensure_device(db, device_id, owner_user_id=user.id)
+    ids = household_device_ids(db)
+    row = (
+        db.query(CaffeineLog)
+        .filter(CaffeineLog.id == log_id, CaffeineLog.device_id.in_(ids))
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="caffeine log not found")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/body-profile")
 def get_body_profile(
     _: User = Depends(require_user),
@@ -424,6 +755,19 @@ def update_body_profile(
     profile.age_years = body.ageYears
     profile.activity = body.activity
     profile.deficit_kcal = body.deficitKcal
+    if body.locale is not None:
+        profile.locale = body.locale if body.locale in ("en", "fr") else "en"
+    if body.tirLowMgDl is not None:
+        profile.tir_low_mgdl = float(body.tirLowMgDl)
+    if body.tirHighMgDl is not None:
+        profile.tir_high_mgdl = float(body.tirHighMgDl)
+    if body.tirGoalPct is not None:
+        profile.tir_goal_pct = float(body.tirGoalPct)
+    if body.dailyCarbTargetG is not None:
+        profile.daily_carb_target_g = float(body.dailyCarbTargetG)
+    # Keep a valid range
+    if float(profile.tir_high_mgdl or 180) <= float(profile.tir_low_mgdl or 70):
+        profile.tir_high_mgdl = float(profile.tir_low_mgdl or 70) + 40
     db.commit()
     db.refresh(profile)
     targets = compute_targets_for_day(db, to_date_key(datetime.now()))

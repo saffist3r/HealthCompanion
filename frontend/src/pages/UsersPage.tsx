@@ -7,9 +7,11 @@ import {
   type AuthUser,
   updateUser,
 } from '../api';
-import { PageHeader, Panel } from '../components/ui';
+import { PageHeader, Panel } from '../components/ui'
+import { useLocale } from '../i18n';
 
 export default function UsersPage() {
+  const { t } = useLocale();
   const me = getStoredUser();
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [error, setError] = useState('');
@@ -35,8 +37,8 @@ export default function UsersPage() {
   if (me?.role !== 'admin') {
     return (
       <div>
-        <PageHeader title="Users" lede="Only the household admin can manage accounts." />
-        <Panel title="Access denied">Ask your admin to invite you or grant admin rights.</Panel>
+        <PageHeader title={t('users.title')} lede={t('users.lede')} />
+        <Panel title={t('users.accessDenied')}>Ask your admin to invite you or grant admin rights.</Panel>
       </div>
     );
   }
@@ -80,21 +82,21 @@ export default function UsersPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Admin"
-        title="Users"
-        lede="Add your wife, doctor, or caregivers. Everyone who signs in shares the household dashboard."
+        eyebrow={t('users.eyebrow')}
+        title={t('users.title')}
+        lede={t('users.lede')}
       />
 
       {error ? <div className="banner error">{error}</div> : null}
 
-      <Panel title="Add user" subtitle="They will sign in with this email and password">
+      <Panel title={t('users.addUser')} subtitle={t('users.addUser')}>
         <form className="form" onSubmit={onCreate}>
           <label>
             Display name
             <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Wife / Doctor" />
           </label>
           <label>
-            Email
+            {t('users.email')}
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <label>
@@ -108,27 +110,27 @@ export default function UsersPage() {
             />
           </label>
           <label>
-            Role
+            {t('users.role')}
             <select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
+              <option value="member">{t('common.member')}</option>
+              <option value="admin">{t('common.admin')}</option>
             </select>
           </label>
           <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? 'Creating…' : 'Create user'}
+            {busy ? 'Creating…' : t('users.createUser')}
           </button>
         </form>
       </Panel>
 
-      <Panel title="Household accounts" subtitle={`${users.length} user(s)`}>
+      <Panel title={t('users.household')} subtitle={`${users.length} user(s)`}>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
+                <th>{t('users.name')}</th>
+                <th>{t('users.email')}</th>
+                <th>{t('users.role')}</th>
+                <th>{t('users.status')}</th>
                 <th />
               </tr>
             </thead>
@@ -138,12 +140,12 @@ export default function UsersPage() {
                   <td>{u.displayName}</td>
                   <td>{u.email}</td>
                   <td>{u.role}</td>
-                  <td>{u.active === false ? 'Disabled' : 'Active'}</td>
+                  <td>{u.active === false ? t('users.disabled') : t('users.active')}</td>
                   <td className="row-actions">
                     {u.id !== me?.id ? (
                       <>
                         <button className="btn ghost" type="button" onClick={() => toggleActive(u)}>
-                          {u.active === false ? 'Enable' : 'Disable'}
+                          {u.active === false ? t('users.enable') : t('users.disable')}
                         </button>
                         <button className="btn ghost danger" type="button" onClick={() => onRemove(u)}>
                           Remove

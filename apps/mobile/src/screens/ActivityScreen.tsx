@@ -218,7 +218,7 @@ export default function ActivityScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={t.title}>Activity</Text>
-      <Text style={t.hint}>Use + to log meals, weight, injuries, care visits, or sport. Energy score comes from Samsung Health.</Text>
+      <Text style={t.hint}>Use + to log meals, check-ins, weight, injuries, care visits, or sport. Energy score comes from Samsung Health.</Text>
 
       {Platform.OS !== 'android' ? (
         <Text style={t.empty}>Activity sync is Android-only.</Text>
