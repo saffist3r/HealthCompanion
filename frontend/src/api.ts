@@ -216,6 +216,24 @@ export async function fetchDaily(date?: string) {
   return data;
 }
 
+export type DailyVoiceBriefing = {
+  date: string;
+  transcript: string;
+  mimeType: string;
+  audioBase64: string;
+  source: string;
+};
+
+/** Tunisian Darija Gemini voice briefing for Saff (script + TTS WAV). */
+export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoiceBriefing> {
+  const { data } = await api.post(
+    '/reports/daily/voice',
+    null,
+    { params: date ? { date } : {}, timeout: 120_000 }
+  );
+  return data as DailyVoiceBriefing;
+}
+
 export async function fetchWeekly() {
   const { data } = await api.get('/reports/weekly');
   return data;

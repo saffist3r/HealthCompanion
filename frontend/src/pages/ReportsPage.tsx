@@ -19,6 +19,7 @@ import {
   createDailyShare,
   fetchDebriefs,
   fetchDebrief,
+  fetchDailyVoiceBriefing,
   type DailyShare,
   type DayDebriefSummary,
   type DayDebriefDetail,
@@ -44,6 +45,10 @@ export default function ReportsPage() {
   const [openDebrief, setOpenDebrief] = useState<DayDebriefDetail | null>(null);
   const [debriefBusy, setDebriefBusy] = useState(false);
   const [directorsCopied, setDirectorsCopied] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -150,6 +155,38 @@ export default function ReportsPage() {
     }
   };
 
+  const playVoiceBriefing = async () => {
+    setVoiceBusy(true);
+    setVoiceError(null);
+    try {
+      const res = await fetchDailyVoiceBriefing(reportDate);
+      setVoiceTranscript(res.transcript);
+      const binary = atob(res.audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: res.mimeType || 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      setVoiceAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      const audio = new Audio(url);
+      void audio.play().catch(() => {
+        /* user can tap native controls */
+      });
+    } catch (e: any) {
+      setVoiceError(String(e?.response?.data?.detail || e.message || e));
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (voiceAudioUrl) URL.revokeObjectURL(voiceAudioUrl);
+    };
+  }, [voiceAudioUrl]);
+
   const openArchiveDebrief = async (date: string) => {
     if (openDebriefDate === date) {
       setOpenDebriefDate(null);
@@ -220,6 +257,15 @@ export default function ReportsPage() {
               {shareBusy ? t('common.loading') : t('reports.share')}
             </button>
             <button
+              className="btn secondary"
+              type="button"
+              disabled={voiceBusy || loading || mode !== 'daily'}
+              onClick={playVoiceBriefing}
+              title="Tunisian Darija voice briefing for Saff"
+            >
+              {voiceBusy ? 'Saff is warming up…' : 'Saff — voice (TN)'}
+            </button>
+            <button
               className="btn"
               type="button"
               disabled={emailBusy || loading || mode !== 'daily'}
@@ -232,8 +278,22 @@ export default function ReportsPage() {
       />
 
       {error ? <p className="error">{error}</p> : null}
+      {voiceError ? <p className="error">{voiceError}</p> : null}
       {emailNote ? <p className="muted">{emailNote}</p> : null}
       {loading ? <p className="muted">Loading report…</p> : null}
+
+      {mode === 'daily' && (voiceTranscript || voiceAudioUrl) ? (
+        <Panel title="Saff — voice briefing (TN)" subtitle="Lifestyle chatter — not medical advice.">
+          {voiceAudioUrl ? (
+            <audio controls src={voiceAudioUrl} style={{ width: '100%', marginBottom: 12 }} />
+          ) : null}
+          {voiceTranscript ? (
+            <p dir="auto" style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+              {voiceTranscript}
+            </p>
+          ) : null}
+        </Panel>
+      ) : null}
 
       {share ? (
         <div className="modal-root" role="dialog" aria-modal="true" aria-label={t('reports.shareTitle')}>

@@ -6,7 +6,7 @@ A Wear OS watch face plus Android phone companion and optional self-hosted web/A
 
 **Latest tagged release:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [Releases](RELEASES.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
-> **Current deploy (`1.5.45`):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini), Samsung Health / Health Connect activity, injury + pain tracking, pump notification sync, JWT auth, customizable TIR, FR/EN web i18n, diabetic engagement (meal stories, streaks, overnight blurbs, director’s cut). Deploy notes in [`k8s/`](k8s/README.md).
+> **Current deploy (`1.5.46`):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini), Tunisian Darija voice daily briefing for Saff, Samsung Health / Health Connect activity, injury + pain tracking, pump notification sync, JWT auth, customizable TIR, FR/EN web i18n, diabetic engagement. Deploy notes in [`k8s/`](k8s/README.md).
 
 Glycemia values sync from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
 

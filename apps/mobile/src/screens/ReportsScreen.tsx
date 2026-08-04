@@ -11,8 +11,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import type { DailyReport, WeeklyReport } from '@health-companion/shared';
-import { fetchDailyReport, fetchWeeklyReport } from '../api/client';
+import { fetchDailyReport, fetchDailyVoiceBriefing, fetchWeeklyReport } from '../api/client';
 
 export default function ReportsScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -20,6 +22,9 @@ export default function ReportsScreen() {
   const [daily, setDaily] = useState<DailyReport | null>(null);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const player = useAudioPlayer(null);
   const t = styles(isDark);
 
   const load = useCallback(async () => {
@@ -42,6 +47,27 @@ export default function ReportsScreen() {
       load();
     }, [load])
   );
+
+  const playVoice = async () => {
+    if (!daily?.date) return;
+    setVoiceBusy(true);
+    try {
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const res = await fetchDailyVoiceBriefing(daily.date);
+      setVoiceTranscript(res.transcript);
+      // Write WAV to cache — data: URIs are unreliable on native audio players.
+      const file = new File(Paths.cache, `saff-voice-${daily.date}.wav`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(res.audioBase64, { encoding: 'base64' });
+      player.replace({ uri: file.uri });
+      player.play();
+    } catch (e) {
+      Alert.alert('Saff voice', String(e));
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -72,6 +98,25 @@ export default function ReportsScreen() {
       {mode === 'daily' && daily ? (
         <View style={t.card}>
           <Text style={t.cardTitle}>{daily.date}</Text>
+          <TouchableOpacity
+            style={[t.voiceBtn, voiceBusy && t.voiceBtnBusy]}
+            onPress={playVoice}
+            disabled={voiceBusy}
+          >
+            {voiceBusy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={t.voiceBtnText}>Saff — voice briefing (TN)</Text>
+            )}
+          </TouchableOpacity>
+          {voiceTranscript ? (
+            <Text style={t.transcript} selectable>
+              {voiceTranscript}
+            </Text>
+          ) : null}
+          {voiceTranscript ? (
+            <Text style={t.disclaimer}>Lifestyle chatter for Saff — not medical advice.</Text>
+          ) : null}
           <Text style={t.line}>
             Meals: {daily.nutrition.mealCount} · {Math.round(daily.nutrition.macros.caloriesKcal || 0)}{' '}
             kcal · Carbs {daily.nutrition.macros.carbsG}g · Protein {daily.nutrition.macros.proteinG}g
@@ -153,6 +198,24 @@ const styles = (isDark: boolean) =>
       gap: 8,
     },
     cardTitle: { fontSize: 18, fontWeight: '700', color: isDark ? '#fff' : '#111', marginBottom: 4 },
+    voiceBtn: {
+      backgroundColor: '#0d9488',
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    voiceBtnBusy: { opacity: 0.7 },
+    voiceBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    transcript: {
+      color: isDark ? '#e6edf3' : '#1f2937',
+      fontSize: 14,
+      lineHeight: 22,
+      marginTop: 4,
+      writingDirection: 'auto',
+    },
+    disclaimer: { color: isDark ? '#8b949e' : '#6b7280', fontSize: 12, marginBottom: 4 },
     line: { color: isDark ? '#c9d1d9' : '#444', fontSize: 14, lineHeight: 20 },
     insight: { color: isDark ? '#9aa4b2' : '#556', fontSize: 13, marginTop: 4 },
     warn: {

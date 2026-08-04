@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://healthcompanion:healthcompanion@localhost:5432/healthcompanion"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
+    gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
+    gemini_tts_voice: str = "Puck"
     upload_dir: str = "uploads"
     max_upload_mb: int = 8
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"

@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.46] - 2026-08-04
+
+### Added
+
+- **Saff voice briefing (TN)** — Gemini writes a joking Tunisian Darija daily monologue, speaks it with Gemini TTS (Puck), playable from web + mobile Reports
+
 ## [1.5.45] - 2026-08-04
 
 ### Added

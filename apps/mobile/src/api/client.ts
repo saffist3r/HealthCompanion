@@ -341,6 +341,24 @@ export async function fetchDailyReport(date?: string): Promise<DailyReport> {
   return ensureOk(res);
 }
 
+export type DailyVoiceBriefing = {
+  date: string;
+  transcript: string;
+  mimeType: string;
+  audioBase64: string;
+  source: string;
+};
+
+/** Tunisian Darija Gemini voice briefing for Saff. */
+export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoiceBriefing> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : '';
+  const res = await fetch(`${await base()}/reports/daily/voice${q}`, {
+    method: 'POST',
+    headers: await headers(),
+  });
+  return ensureOk(res);
+}
+
 export async function fetchDashboard(): Promise<any> {
   const res = await fetch(`${await base()}/reports/dashboard`, { headers: await headers() });
   return ensureOk(res);
