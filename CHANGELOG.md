@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.54] - 2026-08-04
+
+### Fixed
+
+- Reports voice/video **504**: route `/reports/*` to the API directly and raise nginx proxy timeouts to 300s for Gemini TTS
+
 ## [1.5.53] - 2026-08-04
 
 ### Fixed

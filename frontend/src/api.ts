@@ -229,7 +229,7 @@ export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoice
   const { data } = await api.post(
     '/reports/daily/voice',
     null,
-    { params: date ? { date } : {}, timeout: 120_000 }
+    { params: date ? { date } : {}, timeout: 300_000 }
   );
   return data as DailyVoiceBriefing;
 }
@@ -245,12 +245,12 @@ export type DailyVoiceVideo = {
   source: string;
 };
 
-/** Reb3i stock-still talking clip + Darija TTS (Ken Burns; usually under ~1 min). */
+/** Reb3i stock-still talking clip + Darija TTS (Ken Burns; can take a few minutes). */
 export async function fetchDailyVoiceVideo(date?: string): Promise<DailyVoiceVideo> {
   const { data } = await api.post(
     '/reports/daily/voice-video',
     null,
-    { params: date ? { date } : {}, timeout: 180_000 }
+    { params: date ? { date } : {}, timeout: 300_000 }
   );
   return data as DailyVoiceVideo;
 }
