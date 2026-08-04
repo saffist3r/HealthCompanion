@@ -8,8 +8,9 @@ import json
 import logging
 import re
 import threading
+import time
 import wave
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from google import genai
 from google.genai import types
@@ -18,6 +19,74 @@ from app.core.config import get_settings
 from app.services.gemini_insights import compact_report
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+# Prefer configured model first; fall back when a preview TTS endpoint is overloaded.
+_TTS_MODEL_FALLBACKS = (
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.5-flash-tts",
+    "gemini-3.1-flash-tts-preview",
+    "gemini-2.5-flash-lite-preview-tts",
+)
+
+
+def _is_transient_gemini_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__} {exc}".lower()
+    markers = (
+        "503",
+        "429",
+        "unavailable",
+        "high demand",
+        "resource_exhausted",
+        "resource exhausted",
+        "temporarily",
+        "try again",
+        "deadline exceeded",
+        "overloaded",
+    )
+    return any(m in text for m in markers)
+
+
+def _with_gemini_retries(
+    label: str,
+    fn: Callable[[], T],
+    *,
+    attempts: int = 5,
+    base_delay_s: float = 2.0,
+) -> T:
+    """Retry transient Gemini overload / quota spikes before failing."""
+    last: BaseException | None = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if not _is_transient_gemini_error(exc) or i >= attempts - 1:
+                raise
+            delay = base_delay_s * (2**i)
+            logger.warning(
+                "%s transient Gemini error (attempt %s/%s): %s — retry in %.1fs",
+                label,
+                i + 1,
+                attempts,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+    assert last is not None
+    raise last
+
+
+def _tts_model_candidates(primary: str) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in (primary, *_TTS_MODEL_FALLBACKS):
+        name = (m or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
 
 SCRIPT_SYSTEM = """You write a spoken daily health briefing. The SPEAKER is Reb3i (ربعي). The LISTENER is Saff (صف).
 
@@ -134,44 +203,37 @@ def generate_tunisian_daily_script(daily_report: dict[str, Any]) -> dict[str, An
 
     payload = compact_report(daily_report)
     client = genai.Client(api_key=settings.gemini_api_key)
-    response = client.models.generate_content(
-        model=settings.gemini_model,
-        contents=[
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_text(
-                        text=SCRIPT_SYSTEM
-                        + "\n\nDay data (JSON):\n"
-                        + json.dumps(payload, ensure_ascii=False)
-                    )
-                ],
-            )
-        ],
-        config=types.GenerateContentConfig(
-            temperature=0.85,
-            response_mime_type="application/json",
-        ),
-    )
+
+    def _call() -> Any:
+        return client.models.generate_content(
+            model=settings.gemini_model,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(
+                            text=SCRIPT_SYSTEM
+                            + "\n\nDay data (JSON):\n"
+                            + json.dumps(payload, ensure_ascii=False)
+                        )
+                    ],
+                )
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.85,
+                response_mime_type="application/json",
+            ),
+        )
+
+    response = _with_gemini_retries("voice-script", _call)
     transcript = _sanitize_transcript(_parse_transcript(response.text or ""))
     if not transcript:
         raise RuntimeError("Gemini returned an empty voice transcript")
     return {"transcript": transcript, "source": "gemini"}
 
 
-def synthesize_speech(transcript: str) -> bytes:
-    """Speak transcript with Gemini TTS; return WAV bytes."""
-    settings = get_settings()
-    if not settings.gemini_configured:
-        raise RuntimeError("GEMINI_API_KEY is not configured on the server")
-
-    voice = (settings.gemini_tts_voice or "Puck").strip() or "Puck"
-    model = (settings.gemini_tts_model or "gemini-2.5-flash-preview-tts").strip()
-    prompt = f"{TTS_STYLE}\n\nScript to read aloud exactly:\n{transcript}"
-
-    client = genai.Client(api_key=settings.gemini_api_key)
-
-    # Prefer generate_content AUDIO modality (google-genai SDK).
+def _tts_once(client: Any, *, model: str, prompt: str, voice: str) -> bytes:
+    """One TTS attempt for a specific model; raises on failure."""
     try:
         response = client.models.generate_content(
             model=model,
@@ -194,14 +256,15 @@ def synthesize_speech(transcript: str) -> bytes:
             pcm = base64.b64decode(raw)
         else:
             pcm = bytes(raw)
-        # If already a RIFF/WAV container, return as-is.
         if pcm[:4] == b"RIFF":
             return pcm
         return _pcm_to_wav(pcm)
     except Exception as gen_exc:  # noqa: BLE001
-        logger.warning("generate_content TTS failed (%s); trying interactions API", gen_exc)
+        # Only try Interactions when the model itself responded but shape differed.
+        if _is_transient_gemini_error(gen_exc):
+            raise
+        logger.warning("generate_content TTS (%s) failed (%s); trying interactions", model, gen_exc)
 
-    # Fallback: Interactions API shape from Gemini TTS docs.
     interaction = client.interactions.create(
         model=model,
         input=prompt,
@@ -211,11 +274,41 @@ def synthesize_speech(transcript: str) -> bytes:
     audio = getattr(interaction, "output_audio", None)
     data_b64 = getattr(audio, "data", None) if audio is not None else None
     if not data_b64:
-        raise RuntimeError(f"TTS failed via generate_content ({gen_exc}) and interactions had no audio")
+        raise RuntimeError(f"TTS model {model} returned no audio ({gen_exc})")
     pcm = base64.b64decode(data_b64)
     if pcm[:4] == b"RIFF":
         return pcm
     return _pcm_to_wav(pcm)
+
+
+def synthesize_speech(transcript: str) -> bytes:
+    """Speak transcript with Gemini TTS; return WAV bytes."""
+    settings = get_settings()
+    if not settings.gemini_configured:
+        raise RuntimeError("GEMINI_API_KEY is not configured on the server")
+
+    voice = (settings.gemini_tts_voice or "Puck").strip() or "Puck"
+    primary = (settings.gemini_tts_model or "gemini-2.5-flash-preview-tts").strip()
+    prompt = f"{TTS_STYLE}\n\nScript to read aloud exactly:\n{transcript}"
+    client = genai.Client(api_key=settings.gemini_api_key)
+
+    errors: list[str] = []
+    for model in _tts_model_candidates(primary):
+        try:
+            wav = _with_gemini_retries(
+                f"tts:{model}",
+                lambda m=model: _tts_once(client, model=m, prompt=prompt, voice=voice),
+                attempts=4,
+                base_delay_s=2.5,
+            )
+            if model != primary:
+                logger.info("TTS succeeded with fallback model %s (primary was %s)", model, primary)
+            return wav
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{model}: {exc}")
+            logger.warning("TTS model %s failed after retries: %s", model, exc)
+            continue
+    raise RuntimeError("All Gemini TTS models failed: " + " | ".join(errors[:4]))
 
 
 def generate_daily_voice_briefing(daily_report: dict[str, Any]) -> dict[str, Any]:

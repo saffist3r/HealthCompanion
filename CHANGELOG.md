@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.55] - 2026-08-04
+
+### Fixed
+
+- Gemini TTS **503 high demand**: retries with backoff + fallback TTS models (verified locally before deploy)
+
 ## [1.5.54] - 2026-08-04
 
 ### Fixed
