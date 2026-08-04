@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.56] - 2026-08-04
+
+### Changed
+
+- Reb3i tone: chill mate (not over-friendly); TTS locked to male **Charon** voice with no gender flip mid-clip
+
 ## [1.5.55] - 2026-08-04
 
 ### Fixed

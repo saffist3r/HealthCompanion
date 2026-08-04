@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
     gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
-    gemini_tts_voice: str = "Puck"
+    gemini_tts_voice: str = "Charon"
     gemini_veo_model: str = "veo-3.1-fast-generate-preview"
     upload_dir: str = "uploads"
     max_upload_mb: int = 8
