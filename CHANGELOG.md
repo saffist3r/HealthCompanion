@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.43] - 2026-08-04
+
+### Fixed
+
+- Mobile crash on launch from wrong `expo-notifications` major (pinned to Expo SDK 54 compatible `~0.32`)
+
 ## [1.5.42] - 2026-08-04
 
 ### Added

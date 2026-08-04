@@ -43,6 +43,7 @@
       "./plugins/withHealthCompanionWear",
       "./plugins/withSamsungHealth",
       "./plugins/withHealthConnectSetup",
+      "./plugins/withAllowBackupReplace",
       "react-native-health-connect",
       [
         "expo-notifications",
