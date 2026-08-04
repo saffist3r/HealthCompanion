@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.50] - 2026-08-04
+
+### Changed
+
+- Reb3i voice: much friendlier best-mate energy with frequent jokes (3–5+ punchlines per briefing)
+
 ## [1.5.49] - 2026-08-04
 
 ### Fixed
