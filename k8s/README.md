@@ -67,7 +67,7 @@ Bump `VERSION` before each release.
 | TLS | `healthcompanion-tls` |
 | Images | `$REGISTRY/healthcompanion-{backend,frontend}:<VERSION>` |
 
-API paths (`/meals`, `/reports`, `/glucose`, `/health-data`, `/uploads`, `/health`, `/docs`) go to the backend; `/` goes to the SPA.
+API paths (`/auth`, `/glucose`, `/pump`, `/health-data`, `/uploads`, `/health`, `/docs`) go to the backend. SPA pages that share prefixes (`/reports`, `/meals`, `/users`) go to the frontend; nginx serves the app for browser HTML and proxies API calls to the backend. `/` catch-all goes to the SPA.
 
 ## Mobile
 

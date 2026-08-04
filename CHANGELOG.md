@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.52] - 2026-08-04
+
+### Fixed
+
+- Hard refresh / deep link to `/reports` (and `/meals`, `/users`) serving FastAPI JSON 404 — SPA pages now go through frontend nginx with Accept-aware routing
+
 ## [1.5.51] - 2026-08-04
 
 ### Changed

@@ -2,6 +2,10 @@
 # API routes are at the root (/meals, /reports, …); SPA is /.
 # Split into two Ingress objects so Traefik assigns a higher router priority
 # to API paths than the SPA catch-all (avoids intermittent 405 from nginx).
+#
+# SPA pages that share a prefix with the API (/reports, /meals, /users) are NOT
+# listed here — they go to the frontend, and nginx serves index.html for browser
+# GETs while proxying /reports/*, /meals, /users API calls to the backend.
 # TLS: create secret healthcompanion-tls (see k8s/README.md).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -30,27 +34,7 @@ spec:
                 name: backend
                 port:
                   number: 8000
-          - path: /users
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /meals
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /reports
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
+          # /meals, /reports, /users → frontend nginx (SPA + API proxy)
           - path: /glucose
             pathType: Prefix
             backend:
