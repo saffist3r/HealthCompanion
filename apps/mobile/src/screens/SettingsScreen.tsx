@@ -10,10 +10,16 @@ import {
   ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { apiHealth } from '../api/client';
+import { apiHealth, fetchBodyProfile, markDeviceCare, type DeviceCarePayload } from '../api/client';
 import { DEFAULT_API_BASE_URL, getApiBaseUrl, setApiBaseUrl } from '../api/config';
 import { getDeviceId } from '../api/deviceId';
 import { useAuth } from '../auth/AuthContext';
+import {
+  getPreBolusMinutes,
+  setPreBolusMinutes,
+  PRE_BOLUS_OPTIONS_MIN,
+  type PreBolusMinutes,
+} from '../preBolus';
 
 export default function SettingsScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -21,14 +27,35 @@ export default function SettingsScreen() {
   const [url, setUrl] = useState(DEFAULT_API_BASE_URL);
   const [deviceId, setDeviceId] = useState('');
   const [status, setStatus] = useState<string>('—');
+  const [deviceCare, setDeviceCare] = useState<DeviceCarePayload | null>(null);
+  const [careBusy, setCareBusy] = useState(false);
+  const [preBolusMin, setPreBolusMin] = useState<PreBolusMinutes>(15);
   const t = styles(isDark);
+
+  const loadDeviceCare = useCallback(async () => {
+    try {
+      const body = await fetchBodyProfile();
+      setDeviceCare({
+        cannulaChangedAt: body.profile.cannulaChangedAt,
+        sensorStartedAt: body.profile.sensorStartedAt,
+        cannulaDay: body.profile.cannulaDay,
+        sensorDay: body.profile.sensorDay,
+        siteChangeSuggested: body.profile.siteChangeSuggested,
+        sensorAging: body.profile.sensorAging,
+      });
+    } catch {
+      /* optional section */
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       getApiBaseUrl().then(setUrl);
       getDeviceId().then(setDeviceId);
+      getPreBolusMinutes().then(setPreBolusMin);
+      loadDeviceCare();
       refresh();
-    }, [refresh])
+    }, [refresh, loadDeviceCare])
   );
 
   const save = async () => {
@@ -50,6 +77,37 @@ export default function SettingsScreen() {
     } catch (e) {
       setStatus(String(e));
     }
+  };
+
+  const markCannula = async () => {
+    setCareBusy(true);
+    try {
+      await markDeviceCare({ markCannulaChanged: true });
+      await loadDeviceCare();
+      Alert.alert('Marked', 'Cannula site change logged. Fresh real estate unlocked.');
+    } catch (e) {
+      Alert.alert('Update failed', String(e));
+    } finally {
+      setCareBusy(false);
+    }
+  };
+
+  const markSensor = async () => {
+    setCareBusy(true);
+    try {
+      await markDeviceCare({ markSensorStarted: true });
+      await loadDeviceCare();
+      Alert.alert('Marked', 'New sensor arc started. Day zero energy.');
+    } catch (e) {
+      Alert.alert('Update failed', String(e));
+    } finally {
+      setCareBusy(false);
+    }
+  };
+
+  const pickPreBolus = async (min: PreBolusMinutes) => {
+    await setPreBolusMinutes(min);
+    setPreBolusMin(min);
   };
 
   return (
@@ -97,6 +155,50 @@ export default function SettingsScreen() {
         >
           <Text style={t.btnTextDark}>Sign out</Text>
         </TouchableOpacity>
+      </View>
+
+      <Text style={t.section}>Device care</Text>
+      <View style={t.card}>
+        <Text style={t.value}>
+          Cannula: day {deviceCare?.cannulaDay ?? '—'}
+          {deviceCare?.siteChangeSuggested ? ' · site change suggested' : ''}
+        </Text>
+        <Text style={[t.value, { marginTop: 8 }]}>
+          Sensor: day {deviceCare?.sensorDay ?? '—'}
+          {deviceCare?.sensorAging ? ' · aging sensor vibes' : ''}
+        </Text>
+        <View style={t.careRow}>
+          <TouchableOpacity
+            style={[t.btnSecondary, t.careBtn]}
+            onPress={markCannula}
+            disabled={careBusy}
+          >
+            <Text style={t.btnTextDark}>Mark cannula changed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[t.btnSecondary, t.careBtn]}
+            onPress={markSensor}
+            disabled={careBusy}
+          >
+            <Text style={t.btnTextDark}>Mark sensor started</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Text style={t.section}>Pre-bolus timer</Text>
+      <View style={t.card}>
+        <Text style={t.hint}>Default minutes before the &quot;eat now&quot; ping on meal capture.</Text>
+        <View style={t.chipRow}>
+          {PRE_BOLUS_OPTIONS_MIN.map((min) => (
+            <TouchableOpacity
+              key={min}
+              style={[t.chip, preBolusMin === min && t.chipOn]}
+              onPress={() => pickPreBolus(min)}
+            >
+              <Text style={[t.chipText, preBolusMin === min && t.chipTextOn]}>{min} min</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <Text style={t.disclaimer}>
@@ -155,4 +257,16 @@ const styles = (isDark: boolean) =>
     },
     value: { color: isDark ? '#e6edf3' : '#222', marginTop: 4 },
     disclaimer: { fontSize: 12, color: isDark ? '#6e7681' : '#888', lineHeight: 18 },
+    careRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    careBtn: { flex: 1, marginBottom: 0 },
+    chipRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: isDark ? '#21262d' : '#e5e7eb',
+    },
+    chipOn: { backgroundColor: '#0d9488' },
+    chipText: { fontWeight: '600', color: isDark ? '#c9d1d9' : '#333' },
+    chipTextOn: { color: '#fff' },
   });

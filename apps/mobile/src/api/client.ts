@@ -139,6 +139,44 @@ export async function deleteMeal(mealId: string): Promise<void> {
   if (!res.ok) throw new Error(await readError(res));
 }
 
+export type MealGlucoseStory = {
+  ready?: boolean;
+  blurb?: string;
+  reason?: string;
+  baselineMgDl?: number;
+  peakMgDl?: number;
+  deltaMgDl?: number;
+  timeToPeakMin?: number;
+  returnToRangeMin?: number | null;
+  stillAboveRange?: boolean;
+};
+
+export type SimilarMeal = {
+  id: string;
+  eatenAt: number;
+  date?: string;
+  mealType?: string;
+  carbsG?: number;
+  score?: number;
+  wouldAgain?: number | null;
+  aiSummary?: string | null;
+  glucoseStory?: MealGlucoseStory | null;
+};
+
+export type MealDetail = MealEntry & {
+  wouldAgain?: number | null;
+  wouldAgainNote?: string | null;
+  relatedHypoStartedAt?: number | null;
+  glucoseStory?: MealGlucoseStory | null;
+  similarMeals?: SimilarMeal[];
+};
+
+export async function fetchMeal(mealId: string): Promise<MealDetail> {
+  const res = await fetch(`${await base()}/meals/${mealId}`, { headers: await headers() });
+  const data = await ensureOk(res);
+  return data.meal as MealDetail;
+}
+
 export async function updateMeal(
   mealId: string,
   payload: {
@@ -147,6 +185,8 @@ export async function updateMeal(
     aiSummary?: string | null;
     carbEstimateNote?: string | null;
     eatenAt?: string;
+    wouldAgain?: number | null;
+    wouldAgainNote?: string | null;
     macros?: {
       carbsG: number;
       proteinG: number;
@@ -159,6 +199,62 @@ export async function updateMeal(
 ): Promise<MealEntry> {
   const res = await fetch(`${await base()}/meals/${mealId}`, {
     method: 'PATCH',
+    headers: await headers(),
+    body: JSON.stringify(payload),
+  });
+  return ensureOk(res);
+}
+
+export type DeviceCarePayload = {
+  cannulaChangedAt?: number | null;
+  sensorStartedAt?: number | null;
+  cannulaDay?: number | null;
+  sensorDay?: number | null;
+  siteChangeSuggested?: boolean;
+  sensorAging?: boolean;
+};
+
+export type BodyProfileResponse = {
+  profile: {
+    heightCm: number;
+    sex: string;
+    ageYears: number;
+    activity: string;
+    deficitKcal: number;
+    locale?: 'en' | 'fr';
+    tirLowMgDl?: number;
+    tirHighMgDl?: number;
+    tirGoalPct?: number;
+    dailyCarbTargetG?: number;
+    updatedAt?: number | null;
+  } & DeviceCarePayload;
+  latestWeight: { date: string; weightKg: number; notes?: string } | null;
+  targets: {
+    bmrKcal: number;
+    maintenanceKcal: number;
+    targetKcal: number;
+    deficitKcal: number;
+    bmi: number;
+    weightKg: number;
+    heightCm: number;
+    formula: string;
+    activityFactor?: number;
+  } | null;
+};
+
+export async function fetchBodyProfile(): Promise<BodyProfileResponse> {
+  const res = await fetch(`${await base()}/health-data/body-profile`, { headers: await headers() });
+  return ensureOk(res);
+}
+
+export async function markDeviceCare(payload: {
+  markCannulaChanged?: boolean;
+  markSensorStarted?: boolean;
+  cannulaChangedAt?: number;
+  sensorStartedAt?: number;
+}): Promise<{ ok: boolean; profile: BodyProfileResponse['profile'] }> {
+  const res = await fetch(`${await base()}/health-data/body-profile/device-care`, {
+    method: 'POST',
     headers: await headers(),
     body: JSON.stringify(payload),
   });

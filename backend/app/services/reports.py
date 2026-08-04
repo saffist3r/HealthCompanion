@@ -455,12 +455,21 @@ def build_daily_report(
 
     meal_rows = [_serialize_meal_row(m) for m in meals]
 
+    overnight = _overnight_from_samples(date, glucose)
+    for h in glucose_summary.get("hypoEvents") or []:
+        h["kind"] = "hypo"
+    for h in glucose_summary.get("hyperEvents") or []:
+        h["kind"] = "hyper"
+    if overnight.get("blurb"):
+        insights.insert(0, overnight["blurb"])
+
     report: dict[str, Any] = {
         "date": date,
         "generatedAt": int(datetime.now().timestamp() * 1000),
         "nutrition": {"date": date, "mealCount": len(meals), "macros": macros},
         "meals": meal_rows,
         "glucose": glucose_summary,
+        "overnight": overnight,
         "activity": activity_summary,
         "careVisits": care,
         "sportMatches": matches,
@@ -483,6 +492,45 @@ def build_daily_report(
     }
     report["agentPrompt"] = build_day_activity_prompt(report)
     return report
+
+
+def _overnight_from_samples(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
+    day = datetime.strptime(date, "%Y-%m-%d")
+    start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = day.replace(hour=6, minute=0, second=0, microsecond=0)
+    vals: list[float] = []
+    for s in samples:
+        if not s.timestamp:
+            continue
+        ts = s.timestamp.replace(tzinfo=None) if s.timestamp.tzinfo else s.timestamp
+        if start <= ts <= end:
+            vals.append(to_mg_dl(s.value, s.unit))
+    if len(vals) < 3:
+        return {
+            "ready": False,
+            "blurb": "Overnight plot TBD — not enough CGM tea yet.",
+            "readingCount": len(vals),
+        }
+    mn, mx = min(vals), max(vals)
+    dawn_rise = round(vals[-1] - mn, 1)
+    if dawn_rise >= 30 and vals[-1] > 140:
+        blurb = (
+            f"Dawn vibes: dipped to {mn:.0f}, woke near {vals[-1]:.0f} (+{dawn_rise:.0f}). "
+            "Classic overnight plot twist."
+        )
+    elif mx - mn < 25:
+        blurb = f"Overnight was oddly civil: {mn:.0f}–{mx:.0f}. Sleep on that win."
+    else:
+        blurb = f"Night range {mn:.0f}–{mx:.0f}. Not a thriller, not a rom-com."
+    return {
+        "ready": True,
+        "minMgDl": round(mn * 10) / 10,
+        "maxMgDl": round(mx * 10) / 10,
+        "endMgDl": round(vals[-1] * 10) / 10,
+        "dawnRiseMgDl": dawn_rise,
+        "readingCount": len(vals),
+        "blurb": blurb,
+    }
 
 
 def build_day_activity_prompt(daily: dict[str, Any]) -> str:
@@ -856,7 +904,7 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
         avg_tir = sum(tir_values) / len(tir_values)
         insights.append(f"Average time in range: {round(avg_tir * 10) / 10}%.")
 
-    return {
+    weekly = {
         "weekStart": week_start,
         "weekEnd": week_end,
         "generatedAt": int(datetime.now().timestamp() * 1000),
@@ -879,6 +927,7 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
             "hypoEventCount": hypo_events_total,
             "stressLogCount": total_stress,
             "stressHighCount": stress_high,
+            "stressHigh": stress_high,
             "dayCheckInCount": total_checkins,
             "moodLowCount": mood_low,
             "wakeRoughCount": wake_rough,
@@ -886,7 +935,10 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
             "overwhelmHighCount": overwhelm_high,
             "caffeineDrinkCount": total_caffeine_drinks,
             "caffeineMgTotal": total_caffeine_mg,
+            "caffeineMg": total_caffeine_mg,
         },
+        "glucose": {"avgTimeInRangePct": _avg(tir_values)},
+        "nutrition": {"mealCount": meal_count},
         "workouts": list(reversed(recent_workouts))[-20:],
         "careVisits": list(reversed(recent_care))[-20:],
         "sportMatches": list(reversed(recent_matches))[-20:],
@@ -896,6 +948,12 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
         "hypoEvents": list(reversed(recent_hypos))[-30:],
         "insights": insights,
     }
+    from app.services.diabetes_insights import directors_cut_text, weekly_plot_twists
+
+    twists = weekly_plot_twists(weekly, days)
+    weekly["plotTwists"] = twists
+    weekly["directorsCut"] = directors_cut_text(weekly, twists)
+    return weekly
 
 
 def monday_of(date_key: str) -> str:
@@ -980,6 +1038,8 @@ def _glucose_summary(
             "highCount": 0,
             "hypoEventCount": 0,
             "hypoEvents": [],
+            "hyperEventCount": 0,
+            "hyperEvents": [],
             "tirLowMgDl": tir_low,
             "tirHighMgDl": tir_high,
         }
@@ -994,6 +1054,9 @@ def _glucose_summary(
     mg = [p["mgDl"] for p in points]
     in_range = [v for v in mg if tir_low <= v <= tir_high]
     hypo_events = _hypo_events(points, threshold=tir_low)
+    from app.services.diabetes_insights import _hyper_events
+
+    hyper_events = _hyper_events(points, threshold=tir_high)
     return {
         "date": date,
         "readingCount": len(mg),
@@ -1005,6 +1068,8 @@ def _glucose_summary(
         "highCount": len([v for v in mg if v > tir_high]),
         "hypoEventCount": len(hypo_events),
         "hypoEvents": hypo_events,
+        "hyperEventCount": len(hyper_events),
+        "hyperEvents": hyper_events,
         "tirLowMgDl": tir_low,
         "tirHighMgDl": tir_high,
     }

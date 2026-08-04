@@ -62,6 +62,8 @@ class MealUpdate(BaseModel):
     macros: Macros | None = None
     eatenAt: datetime | None = None
     glucoseMgDl: float | None = None
+    wouldAgain: int | None = Field(default=None, ge=-1, le=1)
+    wouldAgainNote: str | None = None
 
 
 class MealOut(BaseModel):
@@ -80,6 +82,11 @@ class MealOut(BaseModel):
     suggestions: list[Any] = Field(default_factory=list)
     source: str
     date: str
+    wouldAgain: int | None = None
+    wouldAgainNote: str | None = None
+    relatedHypoStartedAt: int | None = None
+    glucoseStory: dict[str, Any] | None = None
+    similarMeals: list[Any] = Field(default_factory=list)
 
 
 class GlucoseReadingIn(BaseModel):
@@ -200,6 +207,17 @@ class BodyProfileIn(BaseModel):
     tirHighMgDl: float | None = Field(default=None, ge=100, le=300)
     tirGoalPct: float | None = Field(default=None, ge=40, le=100)
     dailyCarbTargetG: float | None = Field(default=None, ge=50, le=400)
+    cannulaChangedAt: int | None = None  # epoch ms; set to mark site change
+    sensorStartedAt: int | None = None
+    markCannulaChanged: bool | None = None
+    markSensorStarted: bool | None = None
+
+
+class DeviceCareIn(BaseModel):
+    markCannulaChanged: bool | None = None
+    markSensorStarted: bool | None = None
+    cannulaChangedAt: int | None = None
+    sensorStartedAt: int | None = None
 
 
 class WeightIn(BaseModel):

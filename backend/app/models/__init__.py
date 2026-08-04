@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, BigInteger, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -80,6 +80,10 @@ class Meal(Base):
     warnings_json: Mapped[str] = mapped_column(Text, default="[]")
     suggestions_json: Mapped[str] = mapped_column(Text, default="[]")
     source: Mapped[str] = mapped_column(String(32), default="ai_photo")
+    # -1 dislike / 0 meh / 1 would again — nullable until rated
+    would_again: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    would_again_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_hypo_started_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     device = relationship("Device", back_populates="meals")
 
@@ -279,6 +283,8 @@ class BodyProfile(Base):
     tir_high_mgdl: Mapped[float] = mapped_column(Float, default=180.0)
     tir_goal_pct: Mapped[float] = mapped_column(Float, default=70.0)
     daily_carb_target_g: Mapped[float] = mapped_column(Float, default=180.0)
+    cannula_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sensor_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

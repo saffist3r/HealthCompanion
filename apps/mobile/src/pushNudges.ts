@@ -21,7 +21,9 @@ export type NudgeKind =
   | 'glucoseOor'
   | 'glucoseRate'
   | 'glucoseMissed'
-  | 'pumpAlert';
+  | 'pumpAlert'
+  | 'siteChange'
+  | 'preBolus';
 
 export type NudgeScreen =
   | 'MorningLog'
@@ -57,6 +59,8 @@ export const NUDGE_META: Array<{
   { kind: 'glucoseRate', title: 'Rocket / freefall', blurb: 'Fast rise or drop', channel: 'glucose' },
   { kind: 'glucoseMissed', title: 'Silent CGM', blurb: 'No reading for ~3 hours', channel: 'glucose' },
   { kind: 'pumpAlert', title: 'Pump drama', blurb: 'Reservoir / battery / occlusion vibes', channel: 'glucose' },
+  { kind: 'siteChange', title: 'Site change nudge', blurb: 'When cannula day count gets spicy', channel: 'glucose' },
+  { kind: 'preBolus', title: 'Pre-bolus timer', blurb: 'Eat-now ping after insulin head start', channel: 'meals' },
 ];
 
 const PREFS_KEY = 'hc.nudgePrefs.v1';
@@ -66,6 +70,7 @@ const LAST_OOR_NOTIFY_KEY = 'hc.nudge.lastOorNotify';
 const LAST_RATE_NOTIFY_KEY = 'hc.nudge.lastRateNotify';
 const LAST_MISSED_NOTIFY_KEY = 'hc.nudge.lastMissedNotify';
 const LAST_PUMP_NOTIFY_KEY = 'hc.nudge.lastPumpNotify';
+const LAST_SITE_CHANGE_KEY = 'hc.nudge.lastSiteChange';
 const ID_PREFIX = 'hc-nudge:';
 
 export const MORNING_REMINDER_HOUR = 10;
@@ -162,6 +167,16 @@ const COPY: Record<NudgeKind, Funny[]> = {
     { title: 'Device drama incoming', body: 'Pump/sensor alert parsed. Not medical advice — just your phone being helpful-chaotic.' },
     { title: 'Beep lore', body: 'Something pump-shaped needs a glance. Better now than at 3am.' },
   ],
+  siteChange: [
+    { title: 'Site change o’clock?', body: 'Cannula day count is getting dramatic. Rotate real estate before insulin gets moody.' },
+    { title: 'Fresh real estate wanted', body: 'Your pump site has been on the job a while. Mark a change in Settings when you swap.' },
+    { title: 'Adhesive fatigue arc', body: 'Day count says “maybe new site.” Not medical advice — just your app being nosy-helpful.' },
+  ],
+  preBolus: [
+    { title: 'Pre-bolus timer done', body: 'Insulin has a head start. Food may enter the chat now.' },
+    { title: 'Eat window open', body: 'Timer’s up — carbs and insulin can meet on neutral ground.' },
+    { title: 'Bolus head start complete', body: 'If you haven’t eaten yet, the clock says “now-ish.” If you have, ignore the drama.' },
+  ],
 };
 
 const SCREEN_FOR: Record<NudgeKind, NudgeScreen> = {
@@ -182,6 +197,8 @@ const SCREEN_FOR: Record<NudgeKind, NudgeScreen> = {
   glucoseRate: 'Glucose',
   glucoseMissed: 'Glucose',
   pumpAlert: 'Glucose',
+  siteChange: 'Today',
+  preBolus: 'Meals',
 };
 
 Notifications.setNotificationHandler({
@@ -584,6 +601,27 @@ export async function onPumpEvent(event: PumpLogEvent): Promise<void> {
   await ensureChannels();
   await fireNow('pumpAlert', 'glucose');
   await AsyncStorage.setItem(LAST_PUMP_NOTIFY_KEY, String(now));
+}
+
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Fire site-change nudge at most once per day when backend suggests rotation. */
+export async function maybeNudgeSiteChange(deviceCare: {
+  siteChangeSuggested?: boolean;
+  cannulaDay?: number | null;
+}): Promise<void> {
+  if (!deviceCare?.siteChangeSuggested) return;
+  const prefs = await getNudgePrefs();
+  if (!prefs.siteChange) return;
+  const key = todayKey();
+  const last = await AsyncStorage.getItem(LAST_SITE_CHANGE_KEY);
+  if (last === key) return;
+  await ensureChannels();
+  await fireNow('siteChange', 'glucose');
+  await AsyncStorage.setItem(LAST_SITE_CHANGE_KEY, key);
 }
 
 // silence unused in some trees

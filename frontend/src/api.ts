@@ -178,6 +178,11 @@ export async function fetchMeals() {
   return data.meals as any[];
 }
 
+export async function fetchMeal(mealId: string) {
+  const { data } = await api.get(`/meals/${mealId}`);
+  return data.meal as any;
+}
+
 export async function updateMeal(
   mealId: string,
   payload: {
@@ -186,6 +191,8 @@ export async function updateMeal(
     aiSummary?: string | null;
     carbEstimateNote?: string | null;
     eatenAt?: string;
+    wouldAgain?: number | null;
+    wouldAgainNote?: string | null;
     macros?: {
       carbsG: number;
       proteinG: number;
@@ -503,6 +510,12 @@ export async function fetchBodyProfile() {
       tirHighMgDl?: number;
       tirGoalPct?: number;
       dailyCarbTargetG?: number;
+      cannulaChangedAt?: number | null;
+      sensorStartedAt?: number | null;
+      cannulaDay?: number | null;
+      sensorDay?: number | null;
+      siteChangeSuggested?: boolean;
+      sensorAging?: boolean;
     };
     latestWeight: { date: string; weightKg: number; notes?: string } | null;
     targets: {
@@ -533,6 +546,14 @@ export async function updateBodyProfile(payload: {
 }) {
   const { data } = await api.put('/health-data/body-profile', payload);
   return data;
+}
+
+export async function markDeviceCare(payload: {
+  markCannulaChanged?: boolean;
+  markSensorStarted?: boolean;
+}) {
+  const { data } = await api.post('/health-data/body-profile/device-care', payload);
+  return data as { ok: boolean; profile: NonNullable<Awaited<ReturnType<typeof fetchBodyProfile>>['profile']> };
 }
 
 export async function logWeight(payload: { date: string; weightKg: number; notes?: string }) {

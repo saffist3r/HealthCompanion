@@ -92,10 +92,13 @@ def serialize_weight(row: WeightEntry) -> dict[str, Any]:
 
 
 def serialize_profile(profile: BodyProfile) -> dict[str, Any]:
+    from app.services.diabetes_insights import device_care_payload
+
     locale = getattr(profile, "locale", None) or "en"
     if locale not in ("en", "fr"):
         locale = "en"
     targets = glucose_targets_from_profile(profile)
+    care = device_care_payload(profile)
     return {
         "heightCm": profile.height_cm,
         "sex": profile.sex,
@@ -108,6 +111,7 @@ def serialize_profile(profile: BodyProfile) -> dict[str, Any]:
         "tirGoalPct": targets["tirGoalPct"],
         "dailyCarbTargetG": targets["dailyCarbTargetG"],
         "updatedAt": int(profile.updated_at.timestamp() * 1000) if profile.updated_at else None,
+        **care,
     }
 
 

@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.45] - 2026-08-04
+
+### Added
+
+- **Diabetic engagement suite:** post-meal glucose stories, similar-meal memory, would-I-again meal ratings, resucrage↔hypo linking, overnight/dawn blurbs, hypo/hyper episode context, meal-log streaks, cannula/sensor day counters, CapAPS IOB/COB parse (when present), pre-bolus timer (mobile), site-change nudges, weekly plot twists + director’s cut share
+
 ## [1.5.44] - 2026-08-04
 
 ### Added

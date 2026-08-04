@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { deleteMeal, getApiBase, updateMeal } from '../api';
+import { deleteMeal, fetchMeal, getApiBase, updateMeal } from '../api';
 import { useLocale } from '../i18n';
 
 const MEAL_TYPES = [
@@ -31,6 +31,25 @@ type MealDetail = {
   warnings?: Array<{ title?: string; message?: string; severity?: string }>;
   suggestions?: string[];
   source?: string;
+  wouldAgain?: number | null;
+  wouldAgainNote?: string | null;
+  relatedHypoStartedAt?: number | null;
+  glucoseStory?: {
+    ready?: boolean;
+    reason?: string;
+    peakMgDl?: number;
+    timeToPeakMin?: number;
+    returnToRangeMin?: number | null;
+    blurb?: string;
+  } | null;
+  similarMeals?: Array<{
+    id?: string;
+    mealType?: string;
+    carbsG?: number;
+    aiSummary?: string;
+    wouldAgain?: number | null;
+    glucoseStory?: { ready?: boolean; blurb?: string } | null;
+  }>;
 };
 
 function mealTypeKey(type?: string) {
@@ -82,11 +101,17 @@ export default function MealDetailModal({
   const [calories, setCalories] = useState('');
   const [notes, setNotes] = useState('');
   const [summary, setSummary] = useState('');
+  const [detail, setDetail] = useState<MealDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [wouldAgain, setWouldAgain] = useState<number | null>(null);
+  const [ratingBusy, setRatingBusy] = useState(false);
 
   useEffect(() => {
     if (!meal) return;
     setEditing(false);
     setError(null);
+    setDetail(null);
+    setWouldAgain(meal.wouldAgain ?? null);
     setMealType(meal.mealType || 'other');
     setDate(toLocalDateInput(meal.eatenAt));
     setTime(toLocalTimeInput(meal.eatenAt));
@@ -96,16 +121,54 @@ export default function MealDetailModal({
     setCalories(String(Math.round(meal.macros?.caloriesKcal || 0)));
     setNotes(meal.notes || '');
     setSummary(meal.aiSummary || '');
+
+    if (!meal.id) return;
+    let cancelled = false;
+    setDetailLoading(true);
+    fetchMeal(meal.id)
+      .then((full) => {
+        if (cancelled) return;
+        setDetail(full);
+        setWouldAgain(full.wouldAgain ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [meal]);
 
   if (!meal) return null;
 
+  const view = detail || meal;
+  const glucoseStory = view.glucoseStory;
+  const similarMeals = view.similarMeals || [];
   const base = getApiBase().replace(/\/$/, '');
   const photo = meal.photoUrl ? `${base}${meal.photoUrl}` : null;
   const macros = meal.macros || {};
   const kcal = Math.round(macros.caloriesKcal || 0);
   const items = meal.items || [];
   const when = meal.eatenAt ? new Date(meal.eatenAt).toLocaleString() : '—';
+
+  const setRating = async (value: number) => {
+    if (!meal.id) return;
+    setRatingBusy(true);
+    setError(null);
+    try {
+      const updated = await updateMeal(meal.id, { wouldAgain: value });
+      setWouldAgain(value);
+      setDetail((prev) => (prev ? { ...prev, wouldAgain: value } : prev));
+      onSaved?.(updated);
+    } catch (err: any) {
+      setError(String(err?.response?.data?.detail || err.message || err));
+    } finally {
+      setRatingBusy(false);
+    }
+  };
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -283,6 +346,82 @@ export default function MealDetailModal({
                 <h3>{t('mealDetail.summary')}</h3>
                 <p className="meal-detail-text">{meal.aiSummary}</p>
               </section>
+            ) : null}
+
+            {detailLoading ? (
+              <p className="muted" style={{ fontSize: 13 }}>Loading glucose story…</p>
+            ) : glucoseStory?.ready ? (
+              <section className="meal-detail-section">
+                <h3>Glucose story</h3>
+                <p className="meal-detail-text">{glucoseStory.blurb}</p>
+                <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Peak {Math.round(glucoseStory.peakMgDl || 0)} mg/dL · {glucoseStory.timeToPeakMin} min to peak
+                  {glucoseStory.returnToRangeMin != null
+                    ? ` · back in range by ${glucoseStory.returnToRangeMin} min`
+                    : ''}
+                </p>
+              </section>
+            ) : glucoseStory && !glucoseStory.ready ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                Glucose arc still loading — CGM needs a few more readings.
+              </p>
+            ) : null}
+
+            {similarMeals.length > 0 ? (
+              <section className="meal-detail-section">
+                <h3>Similar meals</h3>
+                <ul className="meal-detail-items">
+                  {similarMeals.slice(0, 4).map((s) => (
+                    <li key={s.id}>
+                      <span className="capitalize">{s.mealType || 'meal'}</span>
+                      {s.carbsG != null ? ` · ${s.carbsG}g carbs` : ''}
+                      {s.aiSummary ? ` — ${String(s.aiSummary).slice(0, 60)}` : ''}
+                      {s.wouldAgain === 1 ? ' 👍' : s.wouldAgain === -1 ? ' 👎' : ''}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <section className="meal-detail-section">
+              <h3>Would I eat this again?</h3>
+              <div className="chip-row" style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className={`chip ${wouldAgain === 1 ? 'on' : ''}`}
+                  disabled={ratingBusy || !meal.id}
+                  onClick={() => setRating(1)}
+                >
+                  Again
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${wouldAgain === 0 ? 'on' : ''}`}
+                  disabled={ratingBusy || !meal.id}
+                  onClick={() => setRating(0)}
+                >
+                  Meh
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${wouldAgain === -1 ? 'on' : ''}`}
+                  disabled={ratingBusy || !meal.id}
+                  onClick={() => setRating(-1)}
+                >
+                  Never
+                </button>
+              </div>
+            </section>
+
+            {view.relatedHypoStartedAt ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                Resucrage logged near a hypo around{' '}
+                {new Date(view.relatedHypoStartedAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                . The plot thickens, but at least you documented it.
+              </p>
             ) : null}
 
             {meal.notes ? (

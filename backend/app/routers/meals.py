@@ -15,6 +15,7 @@ from app.core.database import get_db
 from app.core.deps import ensure_device, household_device_ids, require_device_id, require_user
 from app.models import Meal, User
 from app.schemas import MealAnalysisResult, MealCreate, MealOut, MealUpdate, Macros
+from app.services.diabetes_insights import find_related_hypo, post_meal_story, similar_meals
 from app.services.gemini_meal import analyze_meal_photo
 from app.services.reports import to_date_key
 from app.services.warnings import evaluate_meal_warnings, resolved_calories_kcal
@@ -41,13 +42,30 @@ def _upload_dir() -> Path:
     return path
 
 
-def serialize_meal(meal: Meal) -> MealOut:
+def serialize_meal(
+    meal: Meal,
+    *,
+    db: Session | None = None,
+    device_ids: list[str] | None = None,
+    include_story: bool = False,
+    include_similar: bool = False,
+) -> MealOut:
     try:
         raw_macros = json.loads(meal.macros_json or "{}")
     except json.JSONDecodeError:
         raw_macros = {}
     macros = Macros.model_validate(raw_macros)
     macros.caloriesKcal = resolved_calories_kcal(macros)
+    story = None
+    similar = []
+    if db is not None and include_story:
+        ids = device_ids if device_ids is not None else household_device_ids(db)
+        story = post_meal_story(
+            db, device_ids=ids, eaten_at_ms=int(meal.eaten_at.timestamp() * 1000)
+        )
+    if db is not None and include_similar:
+        ids = device_ids if device_ids is not None else household_device_ids(db)
+        similar = similar_meals(db, device_ids=ids, meal=meal)
     return MealOut(
         id=meal.id,
         deviceId=meal.device_id,
@@ -64,6 +82,11 @@ def serialize_meal(meal: Meal) -> MealOut:
         suggestions=json.loads(meal.suggestions_json or "[]"),
         source=meal.source,
         date=to_date_key(meal.eaten_at),
+        wouldAgain=getattr(meal, "would_again", None),
+        wouldAgainNote=getattr(meal, "would_again_note", None),
+        relatedHypoStartedAt=getattr(meal, "related_hypo_started_at", None),
+        glucoseStory=story,
+        similarMeals=similar,
     )
 
 
@@ -142,10 +165,16 @@ def create_meal(
         suggestions_json=json.dumps(body.suggestions),
         source=body.source,
     )
+    ids = household_device_ids(db)
+    eaten_ms = int(eaten_at.timestamp() * 1000)
+    if (body.mealType or "").lower() == "resucrage":
+        hypo = find_related_hypo(db, ids, eaten_ms)
+        if hypo:
+            meal.related_hypo_started_at = int(hypo["startedAt"])
     db.add(meal)
     db.commit()
     db.refresh(meal)
-    return serialize_meal(meal)
+    return serialize_meal(meal, db=db, device_ids=ids, include_story=True, include_similar=True)
 
 
 @router.get("")
@@ -165,6 +194,46 @@ def list_meals(
         q = q.filter(Meal.eaten_at >= start, Meal.eaten_at <= end)
     meals = q.order_by(Meal.eaten_at.desc()).limit(limit).all()
     return {"meals": [serialize_meal(m) for m in meals]}
+
+
+@router.get("/{meal_id}")
+def get_meal(
+    meal_id: str,
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    ids = household_device_ids(db)
+    q = db.query(Meal).filter(Meal.id == meal_id)
+    if ids:
+        q = q.filter(Meal.device_id.in_(ids))
+    meal = q.first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="not found")
+    return {
+        "meal": serialize_meal(
+            meal, db=db, device_ids=ids, include_story=True, include_similar=True
+        )
+    }
+
+
+@router.get("/{meal_id}/glucose-story")
+def meal_glucose_story(
+    meal_id: str,
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    ids = household_device_ids(db)
+    q = db.query(Meal).filter(Meal.id == meal_id)
+    if ids:
+        q = q.filter(Meal.device_id.in_(ids))
+    meal = q.first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="not found")
+    story = post_meal_story(
+        db, device_ids=ids, eaten_at_ms=int(meal.eaten_at.timestamp() * 1000)
+    )
+    similar = similar_meals(db, device_ids=ids, meal=meal)
+    return {"story": story, "similarMeals": similar}
 
 
 @router.patch("/{meal_id}", response_model=MealOut)
@@ -198,6 +267,11 @@ def update_meal(
     if body.eatenAt is not None:
         meal.eaten_at = body.eatenAt if body.eatenAt.tzinfo else body.eatenAt.astimezone()
 
+    if body.wouldAgain is not None:
+        meal.would_again = int(body.wouldAgain)
+    if body.wouldAgainNote is not None:
+        meal.would_again_note = body.wouldAgainNote.strip() or None
+
     macros_changed = False
     if body.macros is not None:
         macros = body.macros.model_copy()
@@ -220,9 +294,14 @@ def update_meal(
         )
         meal.warnings_json = json.dumps([w.model_dump() for w in warnings])
 
+    if (meal.meal_type or "").lower() == "resucrage" and meal.related_hypo_started_at is None:
+        hypo = find_related_hypo(db, ids, int(meal.eaten_at.timestamp() * 1000))
+        if hypo:
+            meal.related_hypo_started_at = int(hypo["startedAt"])
+
     db.commit()
     db.refresh(meal)
-    return serialize_meal(meal)
+    return serialize_meal(meal, db=db, device_ids=ids, include_story=True, include_similar=True)
 
 
 @router.delete("/{meal_id}")

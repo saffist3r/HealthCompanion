@@ -18,6 +18,10 @@ export interface PumpLogEvent {
   message: string;
   /** Insulin units when kind is insulin_delivered */
   units?: number;
+  /** Insulin on board (U) when CapAPS includes it */
+  iob?: number;
+  /** Carbs on board (g) when CapAPS includes it */
+  cob?: number;
   packageId?: string;
   timestamp: number;
   rawText: string;
@@ -154,6 +158,28 @@ function extractInsulinDelivered(text: string): { units?: number } | null {
   return null;
 }
 
+/** Pull IOB / COB when CapAPS surfaces them in notification text. */
+export function extractIobCob(text: string): { iob?: number; cob?: number } {
+  const out: { iob?: number; cob?: number } = {};
+  const iob =
+    text.match(/\bIOB[:\s]+(\d+[.,]?\d*)\s*(?:U|IU|units?)?/i) ||
+    text.match(/\b(\d+[.,]?\d*)\s*(?:U|IU)\s+IOB\b/i) ||
+    text.match(/\binsulin\s+on\s+board[:\s]+(\d+[.,]?\d*)/i);
+  const cob =
+    text.match(/\bCOB[:\s]+(\d+[.,]?\d*)\s*(?:g|grams?)?/i) ||
+    text.match(/\b(\d+[.,]?\d*)\s*g\s+COB\b/i) ||
+    text.match(/\bcarbs?\s+on\s+board[:\s]+(\d+[.,]?\d*)/i);
+  if (iob?.[1]) {
+    const n = parseFloat(iob[1].replace(',', '.'));
+    if (Number.isFinite(n) && n >= 0 && n < 100) out.iob = Math.round(n * 100) / 100;
+  }
+  if (cob?.[1]) {
+    const n = parseFloat(cob[1].replace(',', '.'));
+    if (Number.isFinite(n) && n >= 0 && n < 500) out.cob = Math.round(n * 10) / 10;
+  }
+  return out;
+}
+
 function detectKind(text: string): PumpEventKind | null {
   if (extractInsulinDelivered(text)) return 'insulin_delivered';
   for (const rule of KIND_RULES) {
@@ -197,17 +223,43 @@ export function parsePumpLogFromNotification(
   if (!combined) return null;
 
   const kind = detectKind(combined);
+  const board = extractIobCob(combined);
+  if (!kind && (board.iob != null || board.cob != null)) {
+    const bits = [
+      board.iob != null ? `IOB ${formatUnits(board.iob)} U` : null,
+      board.cob != null ? `COB ${board.cob} g` : null,
+    ].filter(Boolean);
+    return {
+      kind: 'other',
+      title: 'IOB / COB',
+      message: bits.join(' · '),
+      iob: board.iob,
+      cob: board.cob,
+      packageId: opts?.packageId,
+      timestamp: opts?.timestamp ?? Date.now(),
+      rawText: combined,
+    };
+  }
   if (!kind) return null;
 
   const delivered = kind === 'insulin_delivered' ? extractInsulinDelivered(combined) : null;
   const units = delivered?.units;
-  const message = summarizeEvent(kind, units, combined);
+  let message = summarizeEvent(kind, units, combined);
+  if (board.iob != null || board.cob != null) {
+    const bits = [
+      board.iob != null ? `IOB ${formatUnits(board.iob)} U` : null,
+      board.cob != null ? `COB ${board.cob} g` : null,
+    ].filter(Boolean);
+    message = `${message} · ${bits.join(' · ')}`;
+  }
 
   return {
     kind,
     title: PUMP_EVENT_KIND_LABELS[kind],
     message,
     units,
+    iob: board.iob,
+    cob: board.cob,
     packageId: opts?.packageId,
     timestamp: opts?.timestamp ?? Date.now(),
     rawText: message,

@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteMeal, updateMeal } from '../api/client';
+import { deleteMeal, fetchMeal, updateMeal, type SimilarMeal, type MealGlucoseStory } from '../api/client';
 
 const MEAL_TYPES = [
   { value: 'breakfast', label: 'Breakfast' },
@@ -46,6 +46,11 @@ type MealDetail = {
   warnings?: Array<{ title?: string; message?: string; severity?: string }>;
   suggestions?: string[];
   source?: string;
+  wouldAgain?: number | null;
+  wouldAgainNote?: string | null;
+  relatedHypoStartedAt?: number | null;
+  glucoseStory?: MealGlucoseStory | null;
+  similarMeals?: SimilarMeal[];
 };
 
 function mealTypeLabel(type?: string) {
@@ -76,6 +81,18 @@ function toTimeInput(ts?: number) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function wouldAgainLabel(v: number | null | undefined) {
+  if (v === 1) return 'Yes';
+  if (v === -1) return 'Nope';
+  if (v === 0) return 'Meh';
+  return '—';
+}
+
+function formatHypoTime(ts?: number | null) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function MealDetailModal({
   meal,
   onClose,
@@ -99,6 +116,11 @@ export default function MealDetailModal({
   const [calories, setCalories] = useState('');
   const [notes, setNotes] = useState('');
   const [summary, setSummary] = useState('');
+  const [wouldAgain, setWouldAgain] = useState<number | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [glucoseStory, setGlucoseStory] = useState<MealGlucoseStory | null>(null);
+  const [similarMeals, setSimilarMeals] = useState<SimilarMeal[]>([]);
+  const [relatedHypoStartedAt, setRelatedHypoStartedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!meal) return;
@@ -112,6 +134,25 @@ export default function MealDetailModal({
     setCalories(String(Math.round(meal.macros?.caloriesKcal || 0)));
     setNotes(meal.notes || '');
     setSummary(meal.aiSummary || '');
+    setWouldAgain(meal.wouldAgain ?? null);
+    setGlucoseStory(meal.glucoseStory ?? null);
+    setSimilarMeals(meal.similarMeals ?? []);
+    setRelatedHypoStartedAt(meal.relatedHypoStartedAt ?? null);
+
+    if (meal.id) {
+      setDetailLoading(true);
+      fetchMeal(meal.id)
+        .then((full) => {
+          setWouldAgain(full.wouldAgain ?? null);
+          setGlucoseStory(full.glucoseStory ?? null);
+          setSimilarMeals(full.similarMeals ?? []);
+          setRelatedHypoStartedAt(full.relatedHypoStartedAt ?? null);
+        })
+        .catch(() => {
+          /* keep list payload */
+        })
+        .finally(() => setDetailLoading(false));
+    }
   }, [meal]);
 
   if (!meal) return null;
@@ -120,6 +161,16 @@ export default function MealDetailModal({
   const photo = meal.resolvedPhotoUrl || meal.photoUrl;
   const items = meal.items || [];
   const ph = isDark ? '#6e7681' : '#9ca3af';
+
+  const rateWouldAgain = async (value: number) => {
+    if (!meal.id) return;
+    setWouldAgain(value);
+    try {
+      await updateMeal(meal.id, { wouldAgain: value });
+    } catch (e) {
+      Alert.alert('Rating failed', String(e));
+    }
+  };
 
   const save = async () => {
     if (!meal.id) return;
@@ -362,6 +413,78 @@ export default function MealDetailModal({
                     <Text style={t.body}>{w.message}</Text>
                   </View>
                 ))}
+
+                {detailLoading ? (
+                  <ActivityIndicator style={{ marginVertical: 12 }} color="#0d9488" />
+                ) : null}
+
+                {glucoseStory?.blurb ? (
+                  <View style={t.section}>
+                    <Text style={t.sectionTitle}>Glucose story</Text>
+                    <Text style={t.body}>{glucoseStory.blurb}</Text>
+                    {!glucoseStory.ready && glucoseStory.reason === 'waiting_for_glucose' ? (
+                      <Text style={t.sub}>Still collecting CGM data for this meal window.</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {relatedHypoStartedAt ? (
+                  <View style={t.hypoNote}>
+                    <Text style={t.hypoNoteTitle}>Possible resucrage context</Text>
+                    <Text style={t.body}>
+                      Hypo episode around {formatHypoTime(relatedHypoStartedAt)} — this meal may have
+                      been the sequel.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {!editing ? (
+                  <View style={t.section}>
+                    <Text style={t.sectionTitle}>Would eat again?</Text>
+                    <View style={t.rateRow}>
+                      {([
+                        { v: -1, label: 'Nope' },
+                        { v: 0, label: 'Meh' },
+                        { v: 1, label: 'Yes' },
+                      ] as const).map(({ v, label }) => (
+                        <TouchableOpacity
+                          key={v}
+                          style={[t.rateBtn, wouldAgain === v && t.rateBtnOn]}
+                          onPress={() => rateWouldAgain(v)}
+                        >
+                          <Text style={[t.rateBtnText, wouldAgain === v && t.rateBtnTextOn]}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {wouldAgain != null ? (
+                      <Text style={t.sub}>Rated: {wouldAgainLabel(wouldAgain)}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {similarMeals.length > 0 ? (
+                  <View style={t.section}>
+                    <Text style={t.sectionTitle}>Similar meals</Text>
+                    {similarMeals.map((sm) => (
+                      <View key={sm.id} style={t.similarRow}>
+                        <Text style={t.item}>
+                          {mealTypeLabel(sm.mealType)} · {sm.carbsG ?? '?'}g carbs
+                          {sm.wouldAgain === 1 ? ' · liked' : sm.wouldAgain === -1 ? ' · skip' : ''}
+                        </Text>
+                        {sm.aiSummary ? (
+                          <Text style={t.sub} numberOfLines={2}>
+                            {sm.aiSummary}
+                          </Text>
+                        ) : null}
+                        {sm.glucoseStory?.blurb ? (
+                          <Text style={[t.sub, { fontStyle: 'italic' }]}>{sm.glucoseStory.blurb}</Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </>
             )}
           </ScrollView>
@@ -469,4 +592,23 @@ const styles = (isDark: boolean) =>
     btnGhost: { backgroundColor: isDark ? '#21262d' : '#e5e7eb' },
     btnGhostText: { color: isDark ? '#e6edf3' : '#111', fontWeight: '700' },
     btnDanger: { backgroundColor: '#be123c', marginBottom: 20 },
+    rateRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    rateBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+      backgroundColor: isDark ? '#21262d' : '#eef2f7',
+    },
+    rateBtnOn: { backgroundColor: '#0d9488' },
+    rateBtnText: { fontWeight: '700', color: isDark ? '#c9d1d9' : '#334155' },
+    rateBtnTextOn: { color: '#fff' },
+    hypoNote: {
+      marginBottom: 14,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: isDark ? '#1c2a3a' : '#eff6ff',
+    },
+    hypoNoteTitle: { fontWeight: '700', color: '#2563eb', marginBottom: 4 },
+    similarRow: { marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: isDark ? '#30363d' : '#e5e7eb' },
   });

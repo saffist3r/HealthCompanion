@@ -43,6 +43,7 @@ export default function ReportsPage() {
   const [openDebriefDate, setOpenDebriefDate] = useState<string | null>(null);
   const [openDebrief, setOpenDebrief] = useState<DayDebriefDetail | null>(null);
   const [debriefBusy, setDebriefBusy] = useState(false);
+  const [directorsCopied, setDirectorsCopied] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -134,6 +135,18 @@ export default function ReportsPage() {
       setShareNote(t('reports.linkCopied'));
     } catch {
       setShareNote(share.shareUrl);
+    }
+  };
+
+  const copyDirectorsCut = async () => {
+    const text = weekly?.directorsCut;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setDirectorsCopied(true);
+      window.setTimeout(() => setDirectorsCopied(false), 2000);
+    } catch {
+      /* fallback */
     }
   };
 
@@ -737,6 +750,31 @@ export default function ReportsPage() {
               accent="blue"
             />
           </div>
+
+          {weekly.directorsCut ? (
+            <Panel
+              title="Director's cut"
+              subtitle="Your week as a screenplay — spoilers included"
+              action={
+                <button type="button" className="btn secondary compact" onClick={copyDirectorsCut}>
+                  {directorsCopied ? 'Copied!' : "Copy director's cut"}
+                </button>
+              }
+            >
+              <pre
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'inherit',
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  margin: 0,
+                  color: 'var(--text, inherit)',
+                }}
+              >
+                {weekly.directorsCut}
+              </pre>
+            </Panel>
+          ) : null}
 
           <div className="grid-2">
             <Panel title={t('reports.macrosByDay')} subtitle="Carbs vs protein vs fat (g)">

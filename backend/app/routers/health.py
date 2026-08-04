@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ from app.schemas import (
     CareVisitIn,
     CaffeineLogIn,
     DayCheckInIn,
+    DeviceCareIn,
     InjuryIn,
     InjuryPainLogIn,
     InjuryUpdate,
@@ -765,6 +766,18 @@ def update_body_profile(
         profile.tir_goal_pct = float(body.tirGoalPct)
     if body.dailyCarbTargetG is not None:
         profile.daily_carb_target_g = float(body.dailyCarbTargetG)
+    if body.markCannulaChanged:
+        profile.cannula_changed_at = datetime.now().astimezone()
+    elif body.cannulaChangedAt is not None:
+        profile.cannula_changed_at = datetime.fromtimestamp(
+            body.cannulaChangedAt / 1000, tz=timezone.utc
+        )
+    if body.markSensorStarted:
+        profile.sensor_started_at = datetime.now().astimezone()
+    elif body.sensorStartedAt is not None:
+        profile.sensor_started_at = datetime.fromtimestamp(
+            body.sensorStartedAt / 1000, tz=timezone.utc
+        )
     # Keep a valid range
     if float(profile.tir_high_mgdl or 180) <= float(profile.tir_low_mgdl or 70):
         profile.tir_high_mgdl = float(profile.tir_low_mgdl or 70) + 40
@@ -772,6 +785,32 @@ def update_body_profile(
     db.refresh(profile)
     targets = compute_targets_for_day(db, to_date_key(datetime.now()))
     return {"ok": True, "profile": serialize_profile(profile), "targets": targets}
+
+
+@router.post("/body-profile/device-care")
+def mark_device_care(
+    body: DeviceCareIn,
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark cannula site change and/or sensor start without rewriting full body profile."""
+    profile = ensure_body_defaults(db)
+    now = datetime.now().astimezone()
+    if body.markCannulaChanged:
+        profile.cannula_changed_at = now
+    if body.markSensorStarted:
+        profile.sensor_started_at = now
+    if body.cannulaChangedAt is not None:
+        profile.cannula_changed_at = datetime.fromtimestamp(
+            body.cannulaChangedAt / 1000, tz=timezone.utc
+        )
+    if body.sensorStartedAt is not None:
+        profile.sensor_started_at = datetime.fromtimestamp(
+            body.sensorStartedAt / 1000, tz=timezone.utc
+        )
+    db.commit()
+    db.refresh(profile)
+    return {"ok": True, "profile": serialize_profile(profile)}
 
 
 @router.post("/weight")

@@ -10,6 +10,7 @@ import {
   useColorScheme,
   ActivityIndicator,
   Alert,
+  Share,
   type ImageSourcePropType,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,8 +19,31 @@ import { absoluteUploadUrl, fetchDashboard } from '../api/client';
 import { syncActivityToCloud } from '../activityCloudSync';
 import MealDetailModal from '../components/MealDetailModal';
 import { AppIcons } from '../ui/appIcons';
+import { maybeNudgeSiteChange } from '../pushNudges';
 
 type Dash = any;
+
+function formatEpisodeTime(ts: number) {
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function episodeContextBlurb(context: any): string | null {
+  if (!context) return null;
+  const bits: string[] = [];
+  const meals = context.meals || [];
+  if (meals.length) {
+    const m = meals[meals.length - 1];
+    bits.push(`${m.mealType || 'meal'} (${Math.round(m.carbsG || 0)}g carbs)`);
+  }
+  const caffeine = context.caffeine || [];
+  if (caffeine.length) bits.push(`${caffeine.length} caffeine log(s)`);
+  const sports = context.sports || [];
+  if (sports.length) bits.push(`${sports[0].sport || 'sport'}`);
+  const pump = context.pump || [];
+  const insulin = pump.filter((p: any) => p.kind === 'insulin_delivered');
+  if (insulin.length) bits.push(`${insulin.length} bolus event(s)`);
+  return bits.length ? bits.join(' · ') : null;
+}
 
 function StatCard({
   label,
@@ -76,6 +100,7 @@ export default function DashboardScreen() {
         if (u && m.id) urls[m.id] = u;
       }
       setMealPhotos(urls);
+      if (dash.deviceCare) void maybeNudgeSiteChange(dash.deviceCare);
     } catch (e) {
       Alert.alert('Dashboard', String(e));
     } finally {
@@ -128,6 +153,22 @@ export default function DashboardScreen() {
     ...((data?.weeklyReport?.insights || []).slice(0, 2) as string[]),
   ];
   const warnings = data?.dailyReport?.warnings || [];
+  const streak = data?.mealLogStreak ?? 0;
+  const overnight = data?.overnight;
+  const deviceCare = data?.deviceCare;
+  const plotTwists: string[] = data?.plotTwists || [];
+  const directorsCut: string | undefined = data?.directorsCut;
+  const hypoEvents: any[] = data?.todayHypoEvents || [];
+  const hyperEvents: any[] = data?.todayHyperEvents || [];
+
+  const shareDirectorsCut = async () => {
+    if (!directorsCut) return;
+    try {
+      await Share.share({ message: directorsCut, title: "Director's cut" });
+    } catch {
+      /* user cancelled */
+    }
+  };
 
   return (
     <View style={t.root}>
@@ -207,6 +248,67 @@ export default function DashboardScreen() {
                 }
                 t={t}
               />
+            </View>
+
+            <View style={t.card}>
+              <Text style={t.cardTitle}>Diabetes plot</Text>
+              {streak > 0 ? (
+                <Text style={t.plotLine}>
+                  Meal log streak: {streak} day{streak === 1 ? '' : 's'} — the food diary remembers.
+                </Text>
+              ) : (
+                <Text style={t.plotLine}>No meal streak yet. Log something edible and start the arc.</Text>
+              )}
+              {overnight?.blurb ? <Text style={t.plotLine}>{overnight.blurb}</Text> : null}
+              {deviceCare ? (
+                <Text style={t.plotLine}>
+                  Cannula day {deviceCare.cannulaDay ?? '—'}
+                  {deviceCare.siteChangeSuggested ? ' (site change vibes)' : ''}
+                  {' · '}
+                  Sensor day {deviceCare.sensorDay ?? '—'}
+                  {deviceCare.sensorAging ? ' (aging sensor arc)' : ''}
+                </Text>
+              ) : null}
+              {plotTwists.length > 0 ? (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={t.plotSubtitle}>Plot twists</Text>
+                  {plotTwists.slice(0, 4).map((twist, i) => (
+                    <Text key={i} style={t.plotLine}>
+                      • {twist}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {directorsCut ? (
+                <TouchableOpacity style={t.shareBtn} onPress={shareDirectorsCut}>
+                  <Text style={t.shareBtnText}>Share director&apos;s cut</Text>
+                </TouchableOpacity>
+              ) : null}
+              {(hypoEvents.length > 0 || hyperEvents.length > 0) && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={t.plotSubtitle}>Today&apos;s episodes</Text>
+                  {hypoEvents.slice(0, 3).map((ev, i) => {
+                    const ctx = episodeContextBlurb(ev.context);
+                    return (
+                      <Text key={`hypo-${i}`} style={[t.plotLine, t.plotHypo]}>
+                        Hypo {formatEpisodeTime(ev.startedAt)} — min {ev.minMgDl} mg/dL
+                        {ev.durationMin ? ` · ${ev.durationMin} min` : ''}
+                        {ctx ? `\n  ${ctx}` : ''}
+                      </Text>
+                    );
+                  })}
+                  {hyperEvents.slice(0, 3).map((ev, i) => {
+                    const ctx = episodeContextBlurb(ev.context);
+                    return (
+                      <Text key={`hyper-${i}`} style={[t.plotLine, t.plotHyper]}>
+                        Hyper {formatEpisodeTime(ev.startedAt)} — peak {ev.maxMgDl} mg/dL
+                        {ev.durationMin ? ` · ${ev.durationMin} min` : ''}
+                        {ctx ? `\n  ${ctx}` : ''}
+                      </Text>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             {(insights.length > 0 || warnings.length > 0) && (
@@ -491,4 +593,24 @@ const styles = (isDark: boolean) =>
     },
     badgeGood: { backgroundColor: '#ccfbf1', color: '#0f766e' },
     badgeWarn: { backgroundColor: '#ffedd5', color: '#c2410c' },
+    plotLine: { marginTop: 6, color: isDark ? '#c9d1d9' : '#334155', lineHeight: 20, fontSize: 14 },
+    plotSubtitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: isDark ? '#8b949e' : '#64748b',
+      marginBottom: 2,
+    },
+    plotHypo: { color: isDark ? '#fca5a5' : '#b91c1c' },
+    plotHyper: { color: isDark ? '#fdba74' : '#c2410c' },
+    shareBtn: {
+      marginTop: 12,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: isDark ? '#21262d' : '#e0f2fe',
+    },
+    shareBtnText: { fontWeight: '700', color: isDark ? '#7dd3fc' : '#0369a1', fontSize: 13 },
   });

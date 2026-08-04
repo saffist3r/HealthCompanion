@@ -403,6 +403,27 @@ def dashboard(
     )
     today_caffeine_mg = sum(int(c.get("caffeineMg") or 0) for c in today_caffeine)
 
+    from app.models import BodyProfile
+    from app.services.diabetes_insights import (
+        device_care_payload,
+        episode_context,
+        meal_log_streak,
+    )
+
+    profile = db.query(BodyProfile).filter(BodyProfile.id == "default").first()
+    hypo_events = list(glucose.get("hypoEvents") or [])
+    hyper_events = list(glucose.get("hyperEvents") or [])
+    for ev in (hypo_events + hyper_events)[:8]:
+        try:
+            ev["context"] = episode_context(
+                db,
+                device_ids=ids,
+                started_at_ms=int(ev["startedAt"]),
+                ended_at_ms=int(ev["endedAt"]),
+            )
+        except Exception:
+            ev["context"] = None
+
     return {
         "deviceIds": ids,
         "mealCount": nutrition and daily["nutrition"]["mealCount"],
@@ -435,7 +456,14 @@ def dashboard(
         "timeInRangePct": glucose.get("timeInRangePct"),
         "glucoseTargets": daily.get("glucoseTargets"),
         "todayHypoEventCount": glucose.get("hypoEventCount") or 0,
-        "todayHypoEvents": glucose.get("hypoEvents") or [],
+        "todayHypoEvents": hypo_events,
+        "todayHyperEventCount": glucose.get("hyperEventCount") or 0,
+        "todayHyperEvents": hyper_events,
+        "overnight": daily.get("overnight"),
+        "mealLogStreak": meal_log_streak(db, ids),
+        "deviceCare": device_care_payload(profile),
+        "plotTwists": weekly.get("plotTwists") or [],
+        "directorsCut": weekly.get("directorsCut"),
         "recentMeals": [serialize_meal(m).model_dump() for m in recent],
         "dailyReport": daily,
         "weeklyReport": weekly,

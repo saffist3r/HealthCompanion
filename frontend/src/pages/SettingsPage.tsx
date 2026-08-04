@@ -7,6 +7,7 @@ import {
   getDeviceId,
   getStoredUser,
   logWeight,
+  markDeviceCare,
   pingHealth,
   setApiBase,
   setDeviceId,
@@ -59,6 +60,10 @@ export default function SettingsPage() {
   const [bodyNote, setBodyNote] = useState<string | null>(null);
   const [bodyBusy, setBodyBusy] = useState(false);
   const [langNote, setLangNote] = useState<string | null>(null);
+  const [cannulaDay, setCannulaDay] = useState<number | null>(null);
+  const [sensorDay, setSensorDay] = useState<number | null>(null);
+  const [siteChangeSuggested, setSiteChangeSuggested] = useState(false);
+  const [sensorAging, setSensorAging] = useState(false);
 
   const lowN = Number(tirLow) || 70;
   const highN = Number(tirHigh) || 180;
@@ -109,6 +114,10 @@ export default function SettingsPage() {
         if (body.profile.locale) {
           setLocale(normalizeLocale(body.profile.locale));
         }
+        setCannulaDay(body.profile.cannulaDay ?? null);
+        setSensorDay(body.profile.sensorDay ?? null);
+        setSiteChangeSuggested(Boolean(body.profile.siteChangeSuggested));
+        setSensorAging(Boolean(body.profile.sensorAging));
       }
       if (body.latestWeight) {
         setWeightKg(String(body.latestWeight.weightKg));
@@ -204,6 +213,29 @@ export default function SettingsPage() {
   const applyRange = (low: number, high: number) => {
     setTirLow(String(low));
     setTirHigh(String(high));
+  };
+
+  const markCare = async (payload: { markCannulaChanged?: boolean; markSensorStarted?: boolean }) => {
+    setBodyBusy(true);
+    setBodyNote(null);
+    try {
+      const res = await markDeviceCare(payload);
+      if (res.profile) {
+        setCannulaDay(res.profile.cannulaDay ?? null);
+        setSensorDay(res.profile.sensorDay ?? null);
+        setSiteChangeSuggested(Boolean(res.profile.siteChangeSuggested));
+        setSensorAging(Boolean(res.profile.sensorAging));
+      }
+      setBodyNote(
+        payload.markCannulaChanged
+          ? 'Site change logged — fresh real estate!'
+          : 'New sensor logged — day zero, baby.'
+      );
+    } catch (e: any) {
+      setBodyNote(String(e?.response?.data?.detail || e.message || e));
+    } finally {
+      setBodyBusy(false);
+    }
   };
 
   return (
@@ -439,6 +471,55 @@ export default function SettingsPage() {
               </button>
             </div>
             {bodyNote && tab === 'body' ? <p className="muted">{bodyNote}</p> : null}
+          </Panel>
+
+          <Panel title="Pump & sensor" subtitle="Track site changes and sensor starts — your future self will thank you">
+            <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 12 }}>
+              <StatCard
+                label="Cannula day"
+                value={cannulaDay ?? '—'}
+                unit={cannulaDay != null ? 'd' : undefined}
+                accent={siteChangeSuggested ? 'rose' : 'blue'}
+                foot={
+                  siteChangeSuggested
+                    ? "Day 3+ — rotation o'clock"
+                    : cannulaDay != null
+                      ? 'Current infusion site'
+                      : 'Not logged yet'
+                }
+              />
+              <StatCard
+                label="Sensor day"
+                value={sensorDay ?? '—'}
+                unit={sensorDay != null ? 'd' : undefined}
+                accent={sensorAging ? 'amber' : 'green'}
+                foot={
+                  sensorAging
+                    ? 'Getting crusty — plan a swap'
+                    : sensorDay != null
+                      ? 'Libre / CGM age'
+                      : 'Not logged yet'
+                }
+              />
+            </div>
+            <div className="form-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={bodyBusy}
+                onClick={() => markCare({ markCannulaChanged: true })}
+              >
+                Site changed today
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={bodyBusy}
+                onClick={() => markCare({ markSensorStarted: true })}
+              >
+                New sensor today
+              </button>
+            </div>
           </Panel>
 
           <Panel title={t('settings.weight')} subtitle={t('settings.weightHelp')}>

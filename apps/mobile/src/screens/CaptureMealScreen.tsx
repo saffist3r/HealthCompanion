@@ -18,6 +18,7 @@ import { toMgDl } from '@health-companion/shared';
 import { analyzeMealPhoto, saveMeal } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 import { onMealLogged } from '../pushNudges';
+import { startPreBolusTimer } from '../preBolus';
 
 const GLYCEMIA_KEY = '@health_companion/latest_glycemia';
 
@@ -101,6 +102,18 @@ export default function CaptureMealScreen() {
       Alert.alert('Save failed', String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const preBolus = async () => {
+    try {
+      const mins = await startPreBolusTimer();
+      Alert.alert(
+        'Pre-bolus timer started',
+        `Insulin gets a ${mins}-minute head start. We'll ping you when food may enter the chat.`
+      );
+    } catch (e) {
+      Alert.alert('Timer failed', String(e));
     }
   };
 
@@ -206,6 +219,10 @@ export default function CaptureMealScreen() {
           <TouchableOpacity style={t.primary} onPress={save} disabled={busy}>
             <Text style={t.primaryText}>Save to food log</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={t.preBolusBtn} onPress={preBolus} disabled={busy}>
+            <Text style={t.preBolusText}>Start pre-bolus timer</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
     </ScrollView>
@@ -288,4 +305,14 @@ const styles = (isDark: boolean) =>
       backgroundColor: isDark ? '#3d2c00' : '#fff7ed',
     },
     warnTitle: { fontWeight: '700', color: '#d97706', marginBottom: 4 },
+    preBolusBtn: {
+      marginTop: 10,
+      padding: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#30363d' : '#cbd5e1',
+      backgroundColor: isDark ? '#21262d' : '#f8fafc',
+    },
+    preBolusText: { fontWeight: '700', color: isDark ? '#7ee787' : '#0f766e', fontSize: 15 },
   });

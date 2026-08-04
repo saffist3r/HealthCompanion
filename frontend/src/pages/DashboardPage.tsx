@@ -37,6 +37,44 @@ function eventColor(type: GlycemiaChartEvent['type']) {
   return EVENT_COLORS[type] || '#64748b';
 }
 
+function episodeContextSummary(ctx: any): string {
+  if (!ctx) return '';
+  const bits: string[] = [];
+  const meals = ctx.meals || [];
+  if (meals.length) {
+    const carbs = meals.reduce((s: number, m: any) => s + (Number(m.carbsG) || 0), 0);
+    bits.push(`${meals.length} meal${meals.length === 1 ? '' : 's'} · ${Math.round(carbs)}g carbs`);
+  }
+  const caffeine = ctx.caffeine || [];
+  if (caffeine.length) {
+    const mg = caffeine.reduce((s: number, c: any) => s + (Number(c.caffeineMg) || 0), 0);
+    bits.push(`${mg} mg caffeine`);
+  }
+  const sports = ctx.sports || [];
+  if (sports.length) {
+    bits.push(
+      sports
+        .map((s: any) => s.sport || 'sport')
+        .slice(0, 2)
+        .join(', ')
+    );
+  }
+  const stress = ctx.stress || [];
+  if (stress.some((s: any) => s.level === 'high')) bits.push('stress high');
+  return bits.join(' · ');
+}
+
+function formatEpisodeLine(ev: any, kind: 'hypo' | 'hyper') {
+  const time = new Date(ev.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dur = ev.durationMin > 0 ? `${ev.durationMin} min` : 'brief';
+  const val =
+    kind === 'hypo'
+      ? `Low ${ev.minMgDl} mg/dL`
+      : `High ${ev.maxMgDl ?? '—'} mg/dL`;
+  const ctx = episodeContextSummary(ev.context);
+  return `${time} · ${val} · ${dur}${ctx ? ` · ${ctx}` : ''}`;
+}
+
 function nearestMgDl(
   readings: Array<{ valueMgDl: number; timestamp: number }>,
   ts: number
@@ -68,6 +106,7 @@ export default function DashboardPage() {
   const [glycemiaEvents, setGlycemiaEvents] = useState<GlycemiaChartEvent[]>([]);
   const [showEvents, setShowEvents] = useState(true);
   const [glycemiaLoading, setGlycemiaLoading] = useState(false);
+  const [directorsCopied, setDirectorsCopied] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -214,6 +253,24 @@ export default function DashboardPage() {
   const checkIn = data.todayDayCheckIn || null;
   const workouts = data.todayWorkouts || [];
   const pumpEvents = data.todayPumpEvents || [];
+  const overnight = data.overnight || data.dailyReport?.overnight;
+  const mealLogStreak = data.mealLogStreak ?? 0;
+  const deviceCare = data.deviceCare || {};
+  const plotTwists = (data.plotTwists || []).slice(0, 3);
+  const directorsCut = data.directorsCut as string | undefined;
+  const todayHypos = (data.todayHypoEvents || []).slice(0, 3);
+  const todayHypers = (data.todayHyperEvents || []).slice(0, 3);
+
+  const copyDirectorsCut = async () => {
+    if (!directorsCut) return;
+    try {
+      await navigator.clipboard.writeText(directorsCut);
+      setDirectorsCopied(true);
+      window.setTimeout(() => setDirectorsCopied(false), 2000);
+    } catch {
+      /* fallback: user can select manually */
+    }
+  };
 
   return (
     <div>
@@ -315,6 +372,104 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      <Panel
+        title="Diabetes plot"
+        subtitle="Streaks, overnight drama, and today's plot twists"
+        action={
+          directorsCut ? (
+            <button type="button" className="btn secondary compact" onClick={copyDirectorsCut}>
+              {directorsCopied ? 'Copied!' : "Copy director's cut"}
+            </button>
+          ) : null
+        }
+      >
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 12 }}>
+          <StatCard
+            label="Meal streak"
+            value={mealLogStreak}
+            unit="day"
+            accent="teal"
+            foot={mealLogStreak >= 3 ? 'Logging like it matters' : 'Log a meal to start the arc'}
+          />
+          <StatCard
+            label="Cannula"
+            value={deviceCare.cannulaDay ?? '—'}
+            unit={deviceCare.cannulaDay != null ? 'd' : undefined}
+            accent={deviceCare.siteChangeSuggested ? 'rose' : 'blue'}
+            foot={
+              deviceCare.siteChangeSuggested
+                ? 'Site change suggested — rotate before the drama'
+                : deviceCare.cannulaDay != null
+                  ? 'Days on current site'
+                  : 'Mark site change in Settings'
+            }
+          />
+          <StatCard
+            label="Sensor"
+            value={deviceCare.sensorDay ?? '—'}
+            unit={deviceCare.sensorDay != null ? 'd' : undefined}
+            accent={deviceCare.sensorAging ? 'amber' : 'green'}
+            foot={
+              deviceCare.sensorAging
+                ? 'Sensor getting long in the tooth'
+                : deviceCare.sensorDay != null
+                  ? 'Days since start'
+                  : 'Mark new sensor in Settings'
+            }
+          />
+        </div>
+
+        {overnight?.blurb ? (
+          <p className="meal-detail-text" style={{ margin: '0 0 12px' }}>
+            🌙 {overnight.blurb}
+          </p>
+        ) : (
+          <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+            Overnight recap brewing — need a few more CGM points after midnight.
+          </p>
+        )}
+
+        {plotTwists.length > 0 ? (
+          <section style={{ marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Weekly plot twists</h3>
+            <ul className="insight-list">
+              {plotTwists.map((twist: string, i: number) => (
+                <li key={i}>{twist}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {(todayHypos.length > 0 || todayHypers.length > 0) && (
+          <div className="meal-list">
+            {todayHypos.map((ev: any, i: number) => (
+              <div key={`hypo-${i}`} className="meal-row">
+                <div>
+                  <strong>Hypo episode</strong>
+                  <div className="muted" style={{ fontSize: 12 }}>{formatEpisodeLine(ev, 'hypo')}</div>
+                </div>
+                <span className="stat-badge warn">Hypo</span>
+              </div>
+            ))}
+            {todayHypers.map((ev: any, i: number) => (
+              <div key={`hyper-${i}`} className="meal-row">
+                <div>
+                  <strong>Hyper episode</strong>
+                  <div className="muted" style={{ fontSize: 12 }}>{formatEpisodeLine(ev, 'hyper')}</div>
+                </div>
+                <span className="stat-badge">High</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {todayHypos.length === 0 && todayHypers.length === 0 && plotTwists.length === 0 ? (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            No hypo/hyper episodes today. Boring glucose is underrated.
+          </p>
+        ) : null}
+      </Panel>
 
       <Panel
         title={t('dashboard.glycemia')}

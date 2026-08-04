@@ -50,6 +50,11 @@ def init_db() -> None:
         ("body_profile", "tir_goal_pct", "DOUBLE PRECISION DEFAULT 70", "FLOAT DEFAULT 70"),
         ("body_profile", "daily_carb_target_g", "DOUBLE PRECISION DEFAULT 180", "FLOAT DEFAULT 180"),
         ("day_debriefs", "locale", "VARCHAR(8) DEFAULT 'en'", "TEXT DEFAULT 'en'"),
+        ("meals", "would_again", "INTEGER", "INTEGER"),
+        ("meals", "would_again_note", "TEXT", "TEXT"),
+        ("meals", "related_hypo_started_at", "BIGINT", "INTEGER"),
+        ("body_profile", "cannula_changed_at", "TIMESTAMPTZ", "DATETIME"),
+        ("body_profile", "sensor_started_at", "TIMESTAMPTZ", "DATETIME"),
     ]
     with engine.begin() as conn:
         for table, col, pg_type, sqlite_type in alters:
