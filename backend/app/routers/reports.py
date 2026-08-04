@@ -260,7 +260,7 @@ async def daily_report_voice_video(
     _: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Reb3i Veo talking clip (chéchia + random beach/padel/café) + Darija TTS muxed."""
+    """Reb3i talking video: stock still (Ken Burns + audio pulse) + Darija TTS."""
     import asyncio
 
     from app.core.config import get_settings

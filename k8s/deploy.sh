@@ -105,7 +105,7 @@ printf '%s\n' '${REGISTRY_PASS}' | docker login "\$REGISTRY" -u ${REGISTRY_USER}
 echo "== Building backend \$VERSION =="
 docker build --network=host \
   -t "\$REGISTRY/healthcompanion-backend:\$VERSION" \
-  -f "\$PROJECT/backend/Dockerfile" "\$PROJECT/backend"
+  -f "\$PROJECT/backend/Dockerfile" "\$PROJECT"
 
 echo "== Building frontend \$VERSION =="
 docker build --network=host \

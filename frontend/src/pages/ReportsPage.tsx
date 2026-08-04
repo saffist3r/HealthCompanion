@@ -292,7 +292,7 @@ export default function ReportsPage() {
             <button
               className="btn secondary"
               type="button"
-              disabled={voiceBusy || loading || mode !== 'daily'}
+              disabled={voiceBusy || voiceVideoBusy || loading || mode !== 'daily'}
               onClick={playVoiceBriefing}
               title="Reb3i talks to Saff in Tunisian Darija"
             >
@@ -301,11 +301,11 @@ export default function ReportsPage() {
             <button
               className="btn secondary"
               type="button"
-              disabled={voiceVideoBusy || loading || mode !== 'daily'}
+              disabled={voiceBusy || voiceVideoBusy || loading || mode !== 'daily'}
               onClick={playVoiceVideo}
-              title="Reb3i on camera (Veo) — chechia + beach/padel/café"
+              title="Stock Reb3i still animated with Darija audio (free, no Veo)"
             >
-              {voiceVideoBusy ? 'Filming Reb3i… (1–3 min)' : 'Reb3i — video (TN)'}
+              {voiceVideoBusy ? 'Animating Reb3i…' : 'Reb3i — video (TN)'}
             </button>
             <button
               className="btn"

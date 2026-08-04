@@ -86,7 +86,6 @@ export default function ReportsScreen() {
     if (!daily?.date) return;
     setVideoBusy(true);
     try {
-      Alert.alert('Reb3i video', 'Filming Reb3i… this can take 1–3 minutes.');
       const res = await fetchDailyVoiceVideo(daily.date);
       setVoiceTranscript(res.transcript);
       setVoiceBackground(res.background || null);

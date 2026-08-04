@@ -245,12 +245,12 @@ export type DailyVoiceVideo = {
   source: string;
 };
 
-/** Reb3i Veo talking clip + Darija TTS (can take 1–3 minutes). */
+/** Reb3i stock-still talking clip + Darija TTS (Ken Burns; usually under ~1 min). */
 export async function fetchDailyVoiceVideo(date?: string): Promise<DailyVoiceVideo> {
   const { data } = await api.post(
     '/reports/daily/voice-video',
     null,
-    { params: date ? { date } : {}, timeout: 300_000 }
+    { params: date ? { date } : {}, timeout: 180_000 }
   );
   return data as DailyVoiceVideo;
 }

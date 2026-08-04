@@ -1,0 +1,12 @@
+# Backend image is built from repo root (see backend/Dockerfile).
+# Keep context small: only backend app + Reb3i stills.
+*
+!backend/
+!backend/**
+!media/
+!media/reb3i/
+!media/reb3i/**
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+**/.git/

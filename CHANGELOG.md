@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.51] - 2026-08-04
+
+### Changed
+
+- **Reb3i video** is free again: stock café/beach/padel stills + ffmpeg Ken Burns / audio pulse muxed with Darija TTS (no Veo / no Enterprise)
+
 ## [1.5.50] - 2026-08-04
 
 ### Changed
