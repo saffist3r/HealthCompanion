@@ -4,7 +4,7 @@ This document explains how releases work and what is included in each release.
 
 **Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). See `.cursor/rules/release-docs-required.mdc`.
 
-**Current deploy line:** `1.5.48` (see [CHANGELOG](CHANGELOG.md#1548---2026-08-04)). Latest **milestone tag:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0).
+**Current deploy line:** `1.5.49` (see [CHANGELOG](CHANGELOG.md#1549---2026-08-04)). Latest **milestone tag:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0).
 
 GitHub releases: [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) (latest tag) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 

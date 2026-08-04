@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.49] - 2026-08-04
+
+### Fixed
+
+- Voice Arabic names: speaker **ربعي** (not ربيعي), listener **صف** (not ساف)
+
 ## [1.5.48] - 2026-08-04
 
 ### Added
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Voice briefing names: listener **Saff** (ساف, never صافي/Safi); speaker **Reb3i** (ربيعي); calories as سعرات / كالوري / Latin `calories`
+- Voice briefing names: listener **Saff** (**صف**, never ساف/صافي); speaker **Reb3i** (**ربعي**, never ربيعي); calories as سعرات / كالوري / Latin `calories`
 
 ## [1.5.46] - 2026-08-04
 

@@ -19,11 +19,12 @@ from app.services.gemini_insights import compact_report
 
 logger = logging.getLogger(__name__)
 
-SCRIPT_SYSTEM = """You write a spoken daily health briefing. The SPEAKER is Reb3i (ربيعي). The LISTENER is Saff.
+SCRIPT_SYSTEM = """You write a spoken daily health briefing. The SPEAKER is Reb3i (ربعي). The LISTENER is Saff (صف).
 
 Names (critical — never get these wrong):
-- Speaker / narrator: always "Reb3i" or "ربيعي". He may introduce himself once ("أنا ربيعي").
-- Listener: always "Saff" or Arabic "ساف" (same letters: س ا ف). NEVER write صافي, NEVER "Safi", NEVER "Safy".
+- Speaker / narrator: always Latin "Reb3i" or Arabic "ربعي" (ر ب ع ي). He may introduce himself once ("أنا ربعي").
+  NEVER write ربيعي.
+- Listener: always Latin "Saff" or Arabic "صف" (ص ف). NEVER write ساف, صافي, Safi, or Safy.
 - Do not invent other nicknames for either person.
 
 Voice & language:
@@ -49,8 +50,9 @@ Return JSON only:
 """
 
 TTS_STYLE = (
-    "You are Reb3i, a Tunisian friend catching up with Saff over coffee. "
-    "Pronounce the listener's name as Saff (ساف), never Safi. "
+    "You are Reb3i (ربعي), a Tunisian friend catching up with Saff (صف) over coffee. "
+    "Pronounce the listener's name as Saff / صف, never Safi and never ساف. "
+    "Pronounce your own name as Reb3i / ربعي, never ربيعي. "
     "Casual Maghrebi / Tunisian-flavored Arabic delivery, upbeat and playful, "
     "natural pace, clear numbers, smile in the voice without rushing. "
     "If the word calories appears in Latin letters, say it in French: calories."
@@ -58,7 +60,7 @@ TTS_STYLE = (
 
 _cache_lock = threading.Lock()
 _voice_cache: dict[str, dict[str, Any]] = {}
-_CACHE_VERSION = "v2-reb3i-saff"
+_CACHE_VERSION = "v3-reb3i-saff-صف-ربعي"
 
 
 def _pcm_to_wav(pcm: bytes, *, rate: int = 24000, channels: int = 1, sample_width: int = 2) -> bytes:
@@ -88,11 +90,14 @@ def _parse_transcript(raw: str) -> str:
 
 
 def _sanitize_transcript(transcript: str) -> str:
-    """Fix common model slips: Safi→Saff, bad calories spellings."""
+    """Fix common model slips: wrong Arabic names, bad calories spellings."""
     text = transcript
-    # Arabic Safi → Saff
-    text = text.replace("صافي", "ساف")
-    # Latin Safi / Safy → Saff (word boundaries)
+    # Wrong listener spellings → صف
+    text = text.replace("صافي", "صف")
+    text = text.replace("ساف", "صف")
+    # Wrong speaker spelling → ربعي
+    text = text.replace("ربيعي", "ربعي")
+    # Latin Safi / Safy → Saff
     text = re.sub(r"\bSafy\b", "Saff", text, flags=re.IGNORECASE)
     text = re.sub(r"\bSafi\b", "Saff", text, flags=re.IGNORECASE)
     # Common mangled Arabic spellings of calories → سعرات
@@ -101,7 +106,6 @@ def _sanitize_transcript(transcript: str) -> str:
         "كالوريس",
         "كالوريات",
         "كالوريهات",
-        "كالوريات",
         "الكالوريز",
         "الكالوريس",
         "الكالوريات",

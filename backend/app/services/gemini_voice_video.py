@@ -68,7 +68,7 @@ def _veo_prompt(background_key: str) -> str:
         "Photorealistic cinematic medium shot of Reb3i, a funny Tunisian man in his early 30s, "
         "wearing a bright red traditional Tunisian chechia (chachia) hat and casual modern clothes. "
         "He looks at the camera and talks animatedly with expressive hand gestures and clear mouth "
-        "movements as if hosting a comedy daily health vlog for his friend Saff. "
+        "movements as if hosting a comedy daily health vlog for his friend Saff (صف). "
         f"Background: {bg}. "
         "Natural lighting, slight handheld documentary feel, shallow depth of field. "
         "No subtitles, no captions, no on-screen text, no logos, no watermark."
@@ -94,13 +94,7 @@ def generate_reb3i_veo_clip(*, background: str, duration_seconds: int = 8) -> by
             number_of_videos=1,
             duration_seconds=min(8, max(4, int(duration_seconds))),
             aspect_ratio="9:16",
-            person_generation="allow_adult",
-            enhance_prompt=True,
-            generate_audio=False,
-            negative_prompt=(
-                "subtitles, captions, on-screen text, watermark, logo, deformed face, "
-                "extra limbs, blurry, cartoon, anime"
-            ),
+            # Developer API: do not pass generate_audio / enhance_prompt (rejected).
         ),
     )
 
