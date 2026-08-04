@@ -232,7 +232,7 @@ async def daily_report_voice(
     _: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Tunisian Darija Gemini voice briefing for Saff (script + TTS)."""
+    """Tunisian Darija Gemini voice briefing (Reb3i → Saff; script + TTS)."""
     import asyncio
 
     from app.core.config import get_settings
@@ -252,6 +252,33 @@ async def daily_report_voice(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Voice briefing failed: {exc}") from exc
+
+
+@router.post("/daily/voice-video")
+async def daily_report_voice_video(
+    date: str | None = Query(None),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Reb3i Veo talking clip (chéchia + random beach/padel/café) + Darija TTS muxed."""
+    import asyncio
+
+    from app.core.config import get_settings
+    from app.services.gemini_voice_video import generate_daily_voice_video
+
+    if not get_settings().gemini_configured:
+        raise HTTPException(status_code=503, detail="Gemini is not configured on the server")
+
+    day = date or to_date_key(datetime.now())
+    if len(day) != 10:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    daily = _load_daily(db, household_device_ids(db), day)
+    try:
+        return await asyncio.to_thread(generate_daily_voice_video, daily)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Voice video failed: {exc}") from exc
 
 
 @router.get("/daily/pdf")

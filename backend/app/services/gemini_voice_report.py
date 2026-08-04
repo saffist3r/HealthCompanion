@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import logging
+import re
 import threading
 import wave
 from typing import Any
@@ -18,12 +19,19 @@ from app.services.gemini_insights import compact_report
 
 logger = logging.getLogger(__name__)
 
-SCRIPT_SYSTEM = """You write a spoken daily health briefing for Saff — a Tunisian friend living with diabetes.
+SCRIPT_SYSTEM = """You write a spoken daily health briefing. The SPEAKER is Reb3i (ربيعي). The LISTENER is Saff.
+
+Names (critical — never get these wrong):
+- Speaker / narrator: always "Reb3i" or "ربيعي". He may introduce himself once ("أنا ربيعي").
+- Listener: always "Saff" or Arabic "ساف" (same letters: س ا ف). NEVER write صافي, NEVER "Safi", NEVER "Safy".
+- Do not invent other nicknames for either person.
 
 Voice & language:
-- Address him as "Saff" (صافي / Saff) like a close mate — warm, teasing, never clinical.
+- Reb3i talks TO Saff like a close Tunisian mate — warm, teasing, never clinical.
 - Write the ENTIRE monologue in Tunisian Darija using Arabic script (تونسّي بالدارجة).
-- Light French/English loanwords are OK when Tunisians naturally use them (ex: carbs, steps, CapAPS).
+- Light French/English loanwords are OK when Tunisians naturally use them (ex: carbs, steps, CapAPS, TIR).
+- Calories spelling: write "calories" in Latin letters, OR Arabic "سعرات" / "سعرات حرارية", OR "كالوري".
+  NEVER misspell calories (no كالوريز, كالوريات, كالوريس, كالوريهات, or other invented forms).
 - Make gentle jokes about carbs, sleep, caffeine, sport, pump drama — never mock hypos cruelly.
 - Length: about 60–90 seconds when spoken (~180–320 Arabic words). Hard max ~450 words.
 - One continuous monologue suitable for text-to-speech. No stage directions, no bullet lists, no markdown.
@@ -41,13 +49,16 @@ Return JSON only:
 """
 
 TTS_STYLE = (
-    "Speak warmly like a Tunisian friend catching up with Saff over coffee. "
+    "You are Reb3i, a Tunisian friend catching up with Saff over coffee. "
+    "Pronounce the listener's name as Saff (ساف), never Safi. "
     "Casual Maghrebi / Tunisian-flavored Arabic delivery, upbeat and playful, "
-    "natural pace, clear numbers, smile in the voice without rushing."
+    "natural pace, clear numbers, smile in the voice without rushing. "
+    "If the word calories appears in Latin letters, say it in French: calories."
 )
 
 _cache_lock = threading.Lock()
 _voice_cache: dict[str, dict[str, Any]] = {}
+_CACHE_VERSION = "v2-reb3i-saff"
 
 
 def _pcm_to_wav(pcm: bytes, *, rate: int = 24000, channels: int = 1, sample_width: int = 2) -> bytes:
@@ -76,8 +87,31 @@ def _parse_transcript(raw: str) -> str:
     return text.strip()
 
 
+def _sanitize_transcript(transcript: str) -> str:
+    """Fix common model slips: Safi→Saff, bad calories spellings."""
+    text = transcript
+    # Arabic Safi → Saff
+    text = text.replace("صافي", "ساف")
+    # Latin Safi / Safy → Saff (word boundaries)
+    text = re.sub(r"\bSafy\b", "Saff", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bSafi\b", "Saff", text, flags=re.IGNORECASE)
+    # Common mangled Arabic spellings of calories → سعرات
+    for bad in (
+        "كالوريز",
+        "كالوريس",
+        "كالوريات",
+        "كالوريهات",
+        "كالوريات",
+        "الكالوريز",
+        "الكالوريس",
+        "الكالوريات",
+    ):
+        text = text.replace(bad, "سعرات")
+    return text
+
+
 def generate_tunisian_daily_script(daily_report: dict[str, Any]) -> dict[str, Any]:
-    """Generate a joking Tunisian Darija monologue for Saff."""
+    """Generate a joking Tunisian Darija monologue (Reb3i → Saff)."""
     settings = get_settings()
     if not settings.gemini_configured:
         raise RuntimeError("GEMINI_API_KEY is not configured on the server")
@@ -103,7 +137,7 @@ def generate_tunisian_daily_script(daily_report: dict[str, Any]) -> dict[str, An
             response_mime_type="application/json",
         ),
     )
-    transcript = _parse_transcript(response.text or "")
+    transcript = _sanitize_transcript(_parse_transcript(response.text or ""))
     if not transcript:
         raise RuntimeError("Gemini returned an empty voice transcript")
     return {"transcript": transcript, "source": "gemini"}
@@ -171,9 +205,10 @@ def synthesize_speech(transcript: str) -> bytes:
 def generate_daily_voice_briefing(daily_report: dict[str, Any]) -> dict[str, Any]:
     """Full pipeline: Darija script + Gemini TTS → base64 WAV payload."""
     day = str(daily_report.get("date") or "").strip()
-    if day:
+    cache_key = f"{_CACHE_VERSION}:{day}" if day else ""
+    if cache_key:
         with _cache_lock:
-            cached = _voice_cache.get(day)
+            cached = _voice_cache.get(cache_key)
             if cached:
                 return dict(cached)
 
@@ -186,9 +221,9 @@ def generate_daily_voice_briefing(daily_report: dict[str, Any]) -> dict[str, Any
         "audioBase64": base64.b64encode(wav_bytes).decode("ascii"),
         "source": script.get("source") or "gemini",
     }
-    if day:
+    if cache_key:
         with _cache_lock:
-            _voice_cache[day] = dict(out)
+            _voice_cache[cache_key] = dict(out)
             # Keep cache small
             if len(_voice_cache) > 14:
                 oldest = next(iter(_voice_cache))

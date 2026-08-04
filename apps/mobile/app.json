@@ -69,7 +69,8 @@
           "cameraPermission": "Allow Health Companion to photograph meals for nutrition analysis."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-video"
     ]
   }
 }

@@ -13,8 +13,14 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import type { DailyReport, WeeklyReport } from '@health-companion/shared';
-import { fetchDailyReport, fetchDailyVoiceBriefing, fetchWeeklyReport } from '../api/client';
+import {
+  fetchDailyReport,
+  fetchDailyVoiceBriefing,
+  fetchDailyVoiceVideo,
+  fetchWeeklyReport,
+} from '../api/client';
 
 export default function ReportsScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -23,8 +29,14 @@ export default function ReportsScreen() {
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  const [videoBusy, setVideoBusy] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
-  const player = useAudioPlayer(null);
+  const [voiceBackground, setVoiceBackground] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const audioPlayer = useAudioPlayer(null);
+  const videoPlayer = useVideoPlayer(null, (p) => {
+    p.loop = false;
+  });
   const t = styles(isDark);
 
   const load = useCallback(async () => {
@@ -55,17 +67,40 @@ export default function ReportsScreen() {
       await setAudioModeAsync({ playsInSilentMode: true });
       const res = await fetchDailyVoiceBriefing(daily.date);
       setVoiceTranscript(res.transcript);
-      // Write WAV to cache — data: URIs are unreliable on native audio players.
-      const file = new File(Paths.cache, `saff-voice-${daily.date}.wav`);
+      setVoiceBackground(null);
+      setVideoUri(null);
+      const file = new File(Paths.cache, `reb3i-voice-${daily.date}.wav`);
       if (file.exists) file.delete();
       file.create();
       file.write(res.audioBase64, { encoding: 'base64' });
-      player.replace({ uri: file.uri });
-      player.play();
+      audioPlayer.replace({ uri: file.uri });
+      audioPlayer.play();
     } catch (e) {
-      Alert.alert('Saff voice', String(e));
+      Alert.alert('Reb3i voice', String(e));
     } finally {
       setVoiceBusy(false);
+    }
+  };
+
+  const playVideo = async () => {
+    if (!daily?.date) return;
+    setVideoBusy(true);
+    try {
+      Alert.alert('Reb3i video', 'Filming Reb3i… this can take 1–3 minutes.');
+      const res = await fetchDailyVoiceVideo(daily.date);
+      setVoiceTranscript(res.transcript);
+      setVoiceBackground(res.background || null);
+      const file = new File(Paths.cache, `reb3i-video-${daily.date}.mp4`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(res.videoBase64, { encoding: 'base64' });
+      setVideoUri(file.uri);
+      videoPlayer.replace({ uri: file.uri });
+      videoPlayer.play();
+    } catch (e) {
+      Alert.alert('Reb3i video', String(e));
+    } finally {
+      setVideoBusy(false);
     }
   };
 
@@ -101,21 +136,44 @@ export default function ReportsScreen() {
           <TouchableOpacity
             style={[t.voiceBtn, voiceBusy && t.voiceBtnBusy]}
             onPress={playVoice}
-            disabled={voiceBusy}
+            disabled={voiceBusy || videoBusy}
           >
             {voiceBusy ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={t.voiceBtnText}>Saff — voice briefing (TN)</Text>
+              <Text style={t.voiceBtnText}>Reb3i — voice (TN)</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[t.videoBtn, videoBusy && t.voiceBtnBusy]}
+            onPress={playVideo}
+            disabled={voiceBusy || videoBusy}
+          >
+            {videoBusy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={t.voiceBtnText}>Reb3i — video (TN)</Text>
+            )}
+          </TouchableOpacity>
+          {videoUri ? (
+            <VideoView
+              style={t.video}
+              player={videoPlayer}
+              allowsFullscreen
+              contentFit="contain"
+              nativeControls
+            />
+          ) : null}
+          {voiceBackground ? (
+            <Text style={t.disclaimer}>Set: {voiceBackground} · Reb3i → Saff</Text>
+          ) : null}
           {voiceTranscript ? (
             <Text style={t.transcript} selectable>
               {voiceTranscript}
             </Text>
           ) : null}
           {voiceTranscript ? (
-            <Text style={t.disclaimer}>Lifestyle chatter for Saff — not medical advice.</Text>
+            <Text style={t.disclaimer}>Reb3i → Saff · lifestyle chatter — not medical advice.</Text>
           ) : null}
           <Text style={t.line}>
             Meals: {daily.nutrition.mealCount} · {Math.round(daily.nutrition.macros.caloriesKcal || 0)}{' '}
@@ -206,8 +264,23 @@ const styles = (isDark: boolean) =>
       alignItems: 'center',
       marginBottom: 4,
     },
+    videoBtn: {
+      backgroundColor: '#b45309',
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      marginBottom: 4,
+    },
     voiceBtnBusy: { opacity: 0.7 },
     voiceBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    video: {
+      width: '100%',
+      height: 360,
+      borderRadius: 12,
+      backgroundColor: '#000',
+      marginTop: 4,
+    },
     transcript: {
       color: isDark ? '#e6edf3' : '#1f2937',
       fontSize: 14,

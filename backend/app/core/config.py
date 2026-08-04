@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-flash-latest"
     gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
     gemini_tts_voice: str = "Puck"
+    gemini_veo_model: str = "veo-3.1-fast-generate-preview"
     upload_dir: str = "uploads"
     max_upload_mb: int = 8
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"

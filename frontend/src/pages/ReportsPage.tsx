@@ -20,6 +20,7 @@ import {
   fetchDebriefs,
   fetchDebrief,
   fetchDailyVoiceBriefing,
+  fetchDailyVoiceVideo,
   type DailyShare,
   type DayDebriefSummary,
   type DayDebriefDetail,
@@ -46,9 +47,12 @@ export default function ReportsPage() {
   const [debriefBusy, setDebriefBusy] = useState(false);
   const [directorsCopied, setDirectorsCopied] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceVideoBusy, setVoiceVideoBusy] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
+  const [voiceVideoUrl, setVoiceVideoUrl] = useState<string | null>(null);
+  const [voiceBackground, setVoiceBackground] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -181,11 +185,40 @@ export default function ReportsPage() {
     }
   };
 
+  const playVoiceVideo = async () => {
+    setVoiceVideoBusy(true);
+    setVoiceError(null);
+    try {
+      const res = await fetchDailyVoiceVideo(reportDate);
+      setVoiceTranscript(res.transcript);
+      setVoiceBackground(res.background || null);
+      const binary = atob(res.videoBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: res.mimeType || 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      setVoiceVideoUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (e: any) {
+      setVoiceError(String(e?.response?.data?.detail || e.message || e));
+    } finally {
+      setVoiceVideoBusy(false);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (voiceAudioUrl) URL.revokeObjectURL(voiceAudioUrl);
     };
   }, [voiceAudioUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (voiceVideoUrl) URL.revokeObjectURL(voiceVideoUrl);
+    };
+  }, [voiceVideoUrl]);
 
   const openArchiveDebrief = async (date: string) => {
     if (openDebriefDate === date) {
@@ -261,9 +294,18 @@ export default function ReportsPage() {
               type="button"
               disabled={voiceBusy || loading || mode !== 'daily'}
               onClick={playVoiceBriefing}
-              title="Tunisian Darija voice briefing for Saff"
+              title="Reb3i talks to Saff in Tunisian Darija"
             >
-              {voiceBusy ? 'Saff is warming up…' : 'Saff — voice (TN)'}
+              {voiceBusy ? 'Reb3i is warming up…' : 'Reb3i — voice (TN)'}
+            </button>
+            <button
+              className="btn secondary"
+              type="button"
+              disabled={voiceVideoBusy || loading || mode !== 'daily'}
+              onClick={playVoiceVideo}
+              title="Reb3i on camera (Veo) — chechia + beach/padel/café"
+            >
+              {voiceVideoBusy ? 'Filming Reb3i… (1–3 min)' : 'Reb3i — video (TN)'}
             </button>
             <button
               className="btn"
@@ -282,9 +324,25 @@ export default function ReportsPage() {
       {emailNote ? <p className="muted">{emailNote}</p> : null}
       {loading ? <p className="muted">Loading report…</p> : null}
 
-      {mode === 'daily' && (voiceTranscript || voiceAudioUrl) ? (
-        <Panel title="Saff — voice briefing (TN)" subtitle="Lifestyle chatter — not medical advice.">
-          {voiceAudioUrl ? (
+      {mode === 'daily' && (voiceTranscript || voiceAudioUrl || voiceVideoUrl) ? (
+        <Panel
+          title="Reb3i — briefing (TN)"
+          subtitle={
+            voiceBackground
+              ? `Reb3i → Saff · set: ${voiceBackground} · not medical advice`
+              : 'Reb3i → Saff · lifestyle chatter — not medical advice.'
+          }
+        >
+          {voiceVideoUrl ? (
+            <video
+              controls
+              autoPlay
+              playsInline
+              src={voiceVideoUrl}
+              style={{ width: '100%', maxHeight: 520, borderRadius: 12, marginBottom: 12, background: '#111' }}
+            />
+          ) : null}
+          {voiceAudioUrl && !voiceVideoUrl ? (
             <audio controls src={voiceAudioUrl} style={{ width: '100%', marginBottom: 12 }} />
           ) : null}
           {voiceTranscript ? (

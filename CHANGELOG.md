@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.48] - 2026-08-04
+
+### Added
+
+- **Reb3i video briefing** — Gemini Veo clip of Reb3i (chéchia; random beach / padel / café populaire) looped under Darija TTS; play from Reports on web + mobile
+
+### Fixed
+
+- Voice briefing names: listener **Saff** (ساف, never صافي/Safi); speaker **Reb3i** (ربيعي); calories as سعرات / كالوري / Latin `calories`
+
 ## [1.5.46] - 2026-08-04
 
 ### Added

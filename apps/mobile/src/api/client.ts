@@ -359,6 +359,27 @@ export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoice
   return ensureOk(res);
 }
 
+export type DailyVoiceVideo = {
+  date: string;
+  transcript: string;
+  background: string;
+  mimeType: string;
+  videoBase64: string;
+  audioMimeType?: string;
+  audioBase64?: string;
+  source: string;
+};
+
+/** Reb3i Veo talking clip + Darija TTS (slow — 1–3 minutes). */
+export async function fetchDailyVoiceVideo(date?: string): Promise<DailyVoiceVideo> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : '';
+  const res = await fetch(`${await base()}/reports/daily/voice-video${q}`, {
+    method: 'POST',
+    headers: await headers(),
+  });
+  return ensureOk(res);
+}
+
 export async function fetchDashboard(): Promise<any> {
   const res = await fetch(`${await base()}/reports/dashboard`, { headers: await headers() });
   return ensureOk(res);

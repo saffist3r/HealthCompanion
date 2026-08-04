@@ -224,7 +224,7 @@ export type DailyVoiceBriefing = {
   source: string;
 };
 
-/** Tunisian Darija Gemini voice briefing for Saff (script + TTS WAV). */
+/** Tunisian Darija Gemini voice briefing (Reb3i → Saff; script + TTS WAV). */
 export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoiceBriefing> {
   const { data } = await api.post(
     '/reports/daily/voice',
@@ -232,6 +232,27 @@ export async function fetchDailyVoiceBriefing(date?: string): Promise<DailyVoice
     { params: date ? { date } : {}, timeout: 120_000 }
   );
   return data as DailyVoiceBriefing;
+}
+
+export type DailyVoiceVideo = {
+  date: string;
+  transcript: string;
+  background: 'beach' | 'padel' | 'cafe' | string;
+  mimeType: string;
+  videoBase64: string;
+  audioMimeType?: string;
+  audioBase64?: string;
+  source: string;
+};
+
+/** Reb3i Veo talking clip + Darija TTS (can take 1–3 minutes). */
+export async function fetchDailyVoiceVideo(date?: string): Promise<DailyVoiceVideo> {
+  const { data } = await api.post(
+    '/reports/daily/voice-video',
+    null,
+    { params: date ? { date } : {}, timeout: 300_000 }
+  );
+  return data as DailyVoiceVideo;
 }
 
 export async function fetchWeekly() {
