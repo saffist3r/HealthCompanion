@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, time
@@ -88,12 +89,15 @@ async def analyze(
     dest = _upload_dir() / filename
     dest.write_bytes(data)
 
+    hour = hourLocal if hourLocal is not None else datetime.now().hour
     try:
-        analysis = analyze_meal_photo(
+        # Gemini client is sync; run off the event loop so /health probes stay responsive.
+        analysis = await asyncio.to_thread(
+            analyze_meal_photo,
             image_bytes=data,
             mime_type=photo.content_type or "image/jpeg",
             glucose_mg_dl=glucoseMgDl,
-            hour_local=hourLocal if hourLocal is not None else datetime.now().hour,
+            hour_local=hour,
             notes=notes,
         )
     except Exception as exc:  # noqa: BLE001

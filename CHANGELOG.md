@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.41] - 2026-08-04
+
+### Fixed
+
+- **502s during meal photo analysis** — sync Gemini call no longer blocks uvicorn’s event loop (probes timed out and Traefik returned 502); run analyze in a thread, 2 uvicorn workers, slightly looser liveness
+
 ## [1.5.40] - 2026-08-03
 
 ### Added
