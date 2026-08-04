@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.44] - 2026-08-04
+
+### Added
+
+- **Funny local push nudges** for morning/evening, meals, post-meal, carbs, meds, weight, injury, sport, care follow-up, daily/weekly reports, glucose OOR/rate/missed, and pump drama — all toggleable in Settings → Reminders
+
 ## [1.5.43] - 2026-08-04
 
 ### Fixed

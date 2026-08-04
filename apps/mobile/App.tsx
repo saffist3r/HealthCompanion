@@ -23,10 +23,11 @@ import { startGlucoseAutoSync, stopGlucoseAutoSync } from './src/glucoseCloudSyn
 import { startPumpAutoSync, stopPumpAutoSync } from './src/pumpCloudSync';
 import { startActivityAutoSync, stopActivityAutoSync } from './src/activityCloudSync';
 import {
-  isMorningReminderResponse,
-  syncMorningReminderOnLaunch,
-} from './src/morningReminder';
-import { navigationRef, openMorningLog } from './src/navigation';
+  isNudgeResponse,
+  syncAllNudges,
+  checkMissedGlucose,
+} from './src/pushNudges';
+import { navigationRef, openNudgeScreen } from './src/navigation';
 import DashboardScreen from './src/screens/DashboardScreen';
 import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
@@ -251,22 +252,29 @@ function SignedInRoot() {
   const isDark = useColorScheme() === 'dark';
 
   useEffect(() => {
-    void syncMorningReminderOnLaunch();
+    void syncAllNudges();
+    const missedTimer = setInterval(() => {
+      void checkMissedGlucose();
+    }, 30 * 60 * 1000);
 
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (isMorningReminderResponse(response.notification.request.content.data)) {
-        openMorningLog();
+      const data = response.notification.request.content.data;
+      if (isNudgeResponse(data)) {
+        openNudgeScreen((data as { screen?: string }).screen);
       }
     });
 
     void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response && isMorningReminderResponse(response.notification.request.content.data)) {
-        // Defer until nav is mounted.
-        setTimeout(openMorningLog, 400);
+      if (response && isNudgeResponse(response.notification.request.content.data)) {
+        const data = response.notification.request.content.data as { screen?: string };
+        setTimeout(() => openNudgeScreen(data.screen), 400);
       }
     });
 
-    return () => sub.remove();
+    return () => {
+      clearInterval(missedTimer);
+      sub.remove();
+    };
   }, []);
 
   return (

@@ -123,6 +123,12 @@ export async function pushPumpEventToCloud(event: PumpLogEvent): Promise<void> {
 
   DeviceEventEmitter.emit(PUMP_LOG_UPDATED_EVENT, event);
   await appendLocalHistory(event);
+  try {
+    const { onPumpEvent } = await import('./pushNudges');
+    void onPumpEvent(event);
+  } catch {
+    /* optional */
+  }
 
   const token = await getAccessToken();
   if (!token) {

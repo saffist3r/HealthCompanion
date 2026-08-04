@@ -17,6 +17,7 @@ import type { MealAnalysisResult, MealType, GlycemiaReading } from '@health-comp
 import { toMgDl } from '@health-companion/shared';
 import { analyzeMealPhoto, saveMeal } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
+import { onMealLogged } from '../pushNudges';
 
 const GLYCEMIA_KEY = '@health_companion/latest_glycemia';
 
@@ -91,6 +92,9 @@ export default function CaptureMealScreen() {
         suggestions: analysis.suggestions,
         source: 'ai_photo',
       });
+      const carbs =
+        typeof analysis.macros?.carbsG === 'number' ? analysis.macros.carbsG : undefined;
+      void onMealLogged(carbs);
       Alert.alert('Saved', 'Meal added to your food log.');
       nav.goBack();
     } catch (e) {

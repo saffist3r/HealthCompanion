@@ -86,6 +86,13 @@ async function enqueue(reading: GlycemiaReading): Promise<void> {
  */
 export async function pushGlucoseToCloud(reading: GlycemiaReading): Promise<void> {
   DeviceEventEmitter.emit(GLYCEMIA_UPDATED_EVENT, reading);
+  try {
+    const { evaluateGlucoseNudges, checkMissedGlucose } = await import('./pushNudges');
+    void evaluateGlucoseNudges(reading);
+    void checkMissedGlucose();
+  } catch {
+    /* nudges optional in headless */
+  }
 
   const token = await getAccessToken();
   if (!token) {

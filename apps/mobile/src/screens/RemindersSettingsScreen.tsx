@@ -8,14 +8,19 @@ import {
   View,
   useColorScheme,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  getMorningReminderEnabled,
+  getNudgePrefs,
+  NUDGE_META,
+  setNudgePref,
+  syncAllNudges,
+  type NudgeKind,
+  type NudgePrefs,
   MORNING_REMINDER_HOUR,
   MORNING_REMINDER_MINUTE,
-  setMorningReminderEnabled,
-} from '../morningReminder';
+} from '../pushNudges';
 import { openMorningLog } from '../navigation';
 
 function pad(n: number) {
@@ -25,54 +30,71 @@ function pad(n: number) {
 export default function RemindersSettingsScreen() {
   const isDark = useColorScheme() === 'dark';
   const t = styles(isDark);
-  const [enabled, setEnabled] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const timeLabel = `${pad(MORNING_REMINDER_HOUR)}:${pad(MORNING_REMINDER_MINUTE)}`;
+  const [prefs, setPrefs] = useState<NudgePrefs | null>(null);
+  const [busyKind, setBusyKind] = useState<NudgeKind | null>(null);
+  const morningLabel = `${pad(MORNING_REMINDER_HOUR)}:${pad(MORNING_REMINDER_MINUTE)}`;
 
   useFocusEffect(
     useCallback(() => {
-      getMorningReminderEnabled().then(setEnabled);
+      getNudgePrefs().then(setPrefs);
     }, [])
   );
 
-  const toggle = async (next: boolean) => {
-    setBusy(true);
+  const toggle = async (kind: NudgeKind, next: boolean) => {
+    setBusyKind(kind);
     try {
-      const stillOn = await setMorningReminderEnabled(next);
-      setEnabled(stillOn);
-      if (next && !stillOn) {
-        Alert.alert(
-          'Notifications blocked',
-          'Allow notifications for Health Companion to get the daily 10:30 reminder.'
-        );
+      const updated = await setNudgePref(kind, next);
+      setPrefs(updated);
+      if (next) {
+        const ok = await syncAllNudges();
+        if (!ok) {
+          Alert.alert(
+            'Notifications blocked',
+            'Allow notifications so Health Companion can send these delightfully unhinged nudges.'
+          );
+          const reverted = await setNudgePref(kind, false);
+          setPrefs(reverted);
+        }
       }
     } catch (e) {
       Alert.alert('Reminder', String(e));
     } finally {
-      setBusy(false);
+      setBusyKind(null);
     }
   };
 
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content}>
       <Text style={t.title}>Reminders</Text>
-      <Text style={t.sub}>Local daily nudge on this phone (device time zone).</Text>
+      <Text style={t.sub}>
+        Local nudges on this phone — funny on purpose, never a substitute for CapAPS or your care team.
+        Morning log still lands at {morningLabel}.
+      </Text>
 
-      <View style={t.card}>
-        <View style={t.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={t.rowTitle}>Morning check-in</Text>
-            <Text style={t.rowSub}>Every day at {timeLabel} — opens weight + mental log</Text>
-          </View>
-          <Switch
-            value={enabled}
-            onValueChange={toggle}
-            disabled={busy}
-            trackColor={{ false: isDark ? '#30363d' : '#d1d5db', true: '#5eead4' }}
-            thumbColor={enabled ? '#0d9488' : '#f4f3f4'}
-          />
+      {!prefs ? (
+        <ActivityIndicator color="#0d9488" style={{ marginTop: 24 }} />
+      ) : (
+        <View style={t.card}>
+          {NUDGE_META.map((row, i) => (
+            <View
+              key={row.kind}
+              style={[t.row, i < NUDGE_META.length - 1 && t.rowBorder]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={t.rowTitle}>{row.title}</Text>
+                <Text style={t.rowSub}>{row.blurb}</Text>
+              </View>
+              <Switch
+                value={!!prefs[row.kind]}
+                onValueChange={(v) => toggle(row.kind, v)}
+                disabled={busyKind === row.kind}
+                trackColor={{ false: isDark ? '#30363d' : '#d1d5db', true: '#5eead4' }}
+                thumbColor={prefs[row.kind] ? '#0d9488' : '#f4f3f4'}
+              />
+            </View>
+          ))}
         </View>
-      </View>
+      )}
 
       <TouchableOpacity style={t.btn} onPress={openMorningLog}>
         <Text style={t.btnText}>Open morning log now</Text>
@@ -84,20 +106,29 @@ export default function RemindersSettingsScreen() {
 const styles = (isDark: boolean) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { padding: 16, paddingBottom: 40 },
+    content: { padding: 16, paddingBottom: 48 },
     title: { fontSize: 24, fontWeight: '700', color: isDark ? '#fff' : '#111' },
-    sub: { marginTop: 4, marginBottom: 16, color: isDark ? '#9aa4b2' : '#667' },
+    sub: { marginTop: 4, marginBottom: 16, color: isDark ? '#9aa4b2' : '#667', lineHeight: 20 },
     card: {
       backgroundColor: isDark ? '#161b22' : '#fff',
       borderRadius: 14,
-      padding: 14,
+      paddingHorizontal: 14,
       marginBottom: 16,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: isDark ? '#30363d' : '#e5e7eb',
     },
-    row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    rowTitle: { fontSize: 16, fontWeight: '600', color: isDark ? '#e6edf3' : '#111' },
-    rowSub: { marginTop: 4, fontSize: 13, color: isDark ? '#8b949e' : '#6b7280', lineHeight: 18 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+    },
+    rowBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? '#30363d' : '#e5e7eb',
+    },
+    rowTitle: { fontSize: 15, fontWeight: '600', color: isDark ? '#e6edf3' : '#111' },
+    rowSub: { marginTop: 3, fontSize: 12, color: isDark ? '#8b949e' : '#6b7280', lineHeight: 17 },
     btn: {
       backgroundColor: '#0d9488',
       padding: 14,

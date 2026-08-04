@@ -65,6 +65,7 @@ import {
 } from '../api/client';
 import { getAccessToken } from '../api/auth';
 import { AppIcons, careKindIcon, sportResultIcon } from '../ui/appIcons';
+import { onCareLogged, onMealLogged, onSportLogged } from '../pushNudges';
 
 export type EntryKind = 'meal' | 'care' | 'sport' | 'weight' | 'injury' | 'checkin' | 'caffeine' | 'stress';
 type InjuryMode = 'choose' | 'new' | 'pain';
@@ -439,6 +440,7 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
         label: careLabel.trim() || undefined,
         notes: careNotes.trim() || undefined,
       });
+      void onCareLogged();
       finish();
     } catch (e) {
       Alert.alert('Care visit', String(e));
@@ -472,6 +474,7 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
         intensity: competitive ? undefined : intensity,
         notes: padelNotes.trim() || undefined,
       });
+      void onSportLogged();
       finish();
     } catch (e) {
       Alert.alert('Sport', String(e));
