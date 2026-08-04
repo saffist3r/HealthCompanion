@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.53] - 2026-08-04
+
+### Fixed
+
+- Reb3i video OOM (ffmpeg exit -9): encode a short 720p Ken Burns loop then mux TTS instead of full-length 1080p zoompan
+
 ## [1.5.52] - 2026-08-04
 
 ### Fixed
