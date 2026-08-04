@@ -6,8 +6,8 @@ import { AppIcons } from '../ui/appIcons';
 type Row = {
   title: string;
   subtitle: string;
-  icon: 'watch' | 'settings';
-  screen: 'WatchSettings' | 'AppSettings';
+  icon: 'watch' | 'settings' | 'notifications';
+  screen: 'WatchSettings' | 'AppSettings' | 'RemindersSettings';
 };
 
 const ROWS: Row[] = [
@@ -16,6 +16,12 @@ const ROWS: Row[] = [
     subtitle: 'Background, colors, and sync to Wear OS',
     icon: 'watch',
     screen: 'WatchSettings',
+  },
+  {
+    title: 'Reminders',
+    subtitle: 'Daily 10:30 check-in & weight nudge',
+    icon: 'notifications',
+    screen: 'RemindersSettings',
   },
   {
     title: 'Settings',
@@ -33,7 +39,7 @@ export default function SettingsHubScreen() {
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content}>
       <Text style={t.title}>Settings</Text>
-      <Text style={t.sub}>Watch face options and app connection.</Text>
+      <Text style={t.sub}>Watch, reminders, and app connection.</Text>
 
       <View style={t.list}>
         {ROWS.map((row) => (
@@ -46,6 +52,8 @@ export default function SettingsHubScreen() {
             <View style={t.iconWrap}>
               {row.icon === 'settings' ? (
                 <Ionicons name="settings-outline" size={22} color="#0d9488" />
+              ) : row.icon === 'notifications' ? (
+                <Ionicons name="notifications-outline" size={22} color="#0d9488" />
               ) : (
                 <Image source={AppIcons.watch} style={t.iconImg} />
               )}

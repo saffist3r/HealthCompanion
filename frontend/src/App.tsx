@@ -11,6 +11,7 @@ import ShareReportPage from './pages/ShareReportPage';
 import SportsPage from './pages/SportsPage';
 import InjuriesPage from './pages/InjuriesPage';
 import MentalPage from './pages/MentalPage';
+import MorningPage from './pages/MorningPage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
 
@@ -29,6 +30,7 @@ function AppShell() {
     { to: '/meals', label: t('nav.meals') },
     { to: '/sports', label: t('nav.sports') },
     { to: '/mental', label: t('nav.mental') },
+    { to: '/morning', label: t('nav.morning') },
     { to: '/injuries', label: t('nav.injuries') },
     { to: '/reports', label: t('nav.reports') },
     ...(user?.role === 'admin' ? [{ to: '/users', label: t('nav.users') }] : []),
@@ -80,6 +82,7 @@ function AppShell() {
           <Route path="/meals" element={<MealsPage />} />
           <Route path="/sports" element={<SportsPage />} />
           <Route path="/mental" element={<MentalPage />} />
+          <Route path="/morning" element={<MorningPage />} />
           <Route path="/injuries" element={<InjuriesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/users" element={<UsersPage />} />

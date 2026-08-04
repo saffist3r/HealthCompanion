@@ -7,6 +7,7 @@ import {
   RefreshControl,
   useColorScheme,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import {
   fetchStressLogs,
 } from '../api/client';
 import { syncActivityToCloud } from '../activityCloudSync';
+import { openMorningLog } from '../navigation';
 
 type Dash = any;
 
@@ -75,6 +77,10 @@ export default function MentalScreen() {
           Mood, ADHD check-in, caffeine, and Samsung Energy Score (continuous stress isn’t exposed to
           third-party apps — Energy Score is the readiness proxy).
         </Text>
+
+        <TouchableOpacity style={t.morningBtn} onPress={openMorningLog} activeOpacity={0.85}>
+          <Text style={t.morningBtnText}>Morning log — weight + check-in</Text>
+        </TouchableOpacity>
 
         {loading && !data ? <ActivityIndicator style={{ marginTop: 24 }} color="#0d9488" /> : null}
 
@@ -198,6 +204,15 @@ function styles(isDark: boolean) {
     content: { paddingHorizontal: 16 },
     title: { fontSize: 28, fontWeight: '700', color: isDark ? '#e6edf3' : '#111' },
     sub: { marginTop: 6, fontSize: 13, lineHeight: 18, color: isDark ? '#8b949e' : '#6b7280' },
+    morningBtn: {
+      marginTop: 14,
+      backgroundColor: '#0d9488',
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+    },
+    morningBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
     statGrid: { flexDirection: 'row', gap: 10, marginTop: 16 },
     stat: {
       flex: 1,

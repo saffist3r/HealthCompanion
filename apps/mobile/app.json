@@ -3,6 +3,7 @@
     "name": "Health Companion",
     "slug": "health-companion",
     "version": "1.0.0",
+    "scheme": "healthcompanion",
     "orientation": "portrait",
     "icon": "./assets/health-companion-logo.png",
     "userInterfaceStyle": "light",
@@ -25,6 +26,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.saffist3r.healthcompanion",
       "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
         "android.permission.health.READ_TOTAL_CALORIES_BURNED",
@@ -42,6 +44,14 @@
       "./plugins/withSamsungHealth",
       "./plugins/withHealthConnectSetup",
       "react-native-health-connect",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/health-companion-logo.png",
+          "color": "#0d9488",
+          "defaultChannel": "morning-checkin"
+        }
+      ],
       [
         "expo-build-properties",
         {

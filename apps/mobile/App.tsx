@@ -11,17 +11,22 @@ import {
   NavigationContainer,
   DarkTheme,
   DefaultTheme,
-  createNavigationContainerRef,
 } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { startGlucoseAutoSync, stopGlucoseAutoSync } from './src/glucoseCloudSync';
 import { startPumpAutoSync, stopPumpAutoSync } from './src/pumpCloudSync';
 import { startActivityAutoSync, stopActivityAutoSync } from './src/activityCloudSync';
+import {
+  isMorningReminderResponse,
+  syncMorningReminderOnLaunch,
+} from './src/morningReminder';
+import { navigationRef, openMorningLog } from './src/navigation';
 import DashboardScreen from './src/screens/DashboardScreen';
 import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
@@ -32,13 +37,16 @@ import MentalScreen from './src/screens/MentalScreen';
 import SettingsHubScreen from './src/screens/SettingsHubScreen';
 import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import RemindersSettingsScreen from './src/screens/RemindersSettingsScreen';
+import MorningLogScreen from './src/screens/MorningLogScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import AddEntrySheet from './src/components/AddEntrySheet';
 
 const Tab = createBottomTabNavigator();
 const MealsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
-export const navigationRef = createNavigationContainerRef();
+const RootStack = createNativeStackNavigator();
+export { navigationRef };
 
 /** Content row for text-only tabs (no icon slot). */
 const TAB_BAR_CONTENT_HEIGHT = 44;
@@ -93,6 +101,11 @@ function SettingsStackScreen() {
         name="WatchSettings"
         component={WatchSettingsScreen}
         options={{ title: 'Watch' }}
+      />
+      <SettingsStack.Screen
+        name="RemindersSettings"
+        component={RemindersSettingsScreen}
+        options={{ title: 'Reminders' }}
       />
       <SettingsStack.Screen
         name="AppSettings"
@@ -234,6 +247,45 @@ function MainTabs() {
   );
 }
 
+function SignedInRoot() {
+  const isDark = useColorScheme() === 'dark';
+
+  useEffect(() => {
+    void syncMorningReminderOnLaunch();
+
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (isMorningReminderResponse(response.notification.request.content.data)) {
+        openMorningLog();
+      }
+    });
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response && isMorningReminderResponse(response.notification.request.content.data)) {
+        // Defer until nav is mounted.
+        setTimeout(openMorningLog, 400);
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
+
+  return (
+    <RootStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerTintColor: isDark ? '#e6edf3' : '#111',
+      }}
+    >
+      <RootStack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+      <RootStack.Screen
+        name="MorningLog"
+        component={MorningLogScreen}
+        options={{ title: 'Morning log', presentation: 'modal' }}
+      />
+    </RootStack.Navigator>
+  );
+}
+
 function RootNavigator() {
   const isDark = useColorScheme() === 'dark';
   const { ready, signedIn } = useAuth();
@@ -270,7 +322,7 @@ function RootNavigator() {
     );
   }
 
-  return signedIn ? <MainTabs /> : <LoginScreen />;
+  return signedIn ? <SignedInRoot /> : <LoginScreen />;
 }
 
 export default function App() {
@@ -282,6 +334,25 @@ export default function App() {
           <NavigationContainer
             ref={navigationRef}
             theme={isDark ? DarkTheme : DefaultTheme}
+            linking={{
+              prefixes: ['healthcompanion://'],
+              config: {
+                screens: {
+                  MorningLog: 'morning',
+                  Tabs: {
+                    screens: {
+                      Today: 'today',
+                      Mental: 'mental',
+                      Settings: {
+                        screens: {
+                          RemindersSettings: 'reminders',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            }}
           >
             <StatusBar style={isDark ? 'light' : 'dark'} />
             <RootNavigator />

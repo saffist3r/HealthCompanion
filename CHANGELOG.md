@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.42] - 2026-08-04
+
+### Added
+
+- **Daily 10:30 morning reminder** (mobile local notification) for mental check-in + weight; tap opens a combined Morning log screen
+- Settings → Reminders toggle; Mental tab shortcut; web **/morning** page with the same combined form
+
 ## [1.5.41] - 2026-08-04
 
 ### Fixed

@@ -356,6 +356,15 @@ export async function logWeight(payload: {
   return ensureOk(res);
 }
 
+export async function fetchWeightHistory(limit = 60) {
+  const res = await fetch(
+    `${await base()}/health-data/weight?limit=${encodeURIComponent(String(limit))}`,
+    { headers: await headers() }
+  );
+  const data = await ensureOk(res);
+  return (data.weights || []) as Array<{ date: string; weightKg: number; notes?: string }>;
+}
+
 export async function fetchInjuries(status: 'active' | 'open' | 'healed' | 'all' = 'open') {
   const res = await fetch(
     `${await base()}/health-data/injuries?status=${encodeURIComponent(status)}`,
