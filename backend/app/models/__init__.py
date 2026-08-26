@@ -61,6 +61,9 @@ class Device(Base):
     pump_log_events = relationship(
         "PumpLogEvent", back_populates="device", cascade="all, delete-orphan"
     )
+    workout_plans = relationship(
+        "WorkoutPlan", back_populates="device", cascade="all, delete-orphan"
+    )
 
 
 class Meal(Base):
@@ -357,4 +360,24 @@ class PumpLogEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     device = relationship("Device", back_populates="pump_log_events")
+
+
+class WorkoutPlan(Base):
+    """AI-generated workout session saved for later."""
+
+    __tablename__ = "workout_plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(128), ForeignKey("devices.id"), index=True)
+    title: Mapped[str] = mapped_column(String(255), default="Workout")
+    focus: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    duration_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    exercises_json: Mapped[str] = mapped_column(Text, default="[]")
+    prompt_context_json: Mapped[str] = mapped_column(Text, default="{}")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(32), default="gemini")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    device = relationship("Device", back_populates="workout_plans")
 

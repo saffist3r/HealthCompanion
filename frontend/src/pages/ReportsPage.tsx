@@ -19,6 +19,8 @@ import {
   createDailyShare,
   fetchDebriefs,
   fetchDebrief,
+  fetchRagArchive,
+  downloadRagArchive,
   fetchDailyVoiceBriefing,
   fetchDailyVoiceVideo,
   type DailyShare,
@@ -30,7 +32,7 @@ import { useLocale } from '../i18n';
 
 export default function ReportsPage() {
   const { t, locale } = useLocale();
-  const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
+  const [mode, setMode] = useState<'daily' | 'weekly' | 'archive'>('daily');
   const [daily, setDaily] = useState<any>(null);
   const [weekly, setWeekly] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +44,11 @@ export default function ReportsPage() {
   const [share, setShare] = useState<DailyShare | null>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [debriefs, setDebriefs] = useState<DayDebriefSummary[]>([]);
+  const [archiveWorkouts, setArchiveWorkouts] = useState<any[]>([]);
   const [openDebriefDate, setOpenDebriefDate] = useState<string | null>(null);
   const [openDebrief, setOpenDebrief] = useState<DayDebriefDetail | null>(null);
   const [debriefBusy, setDebriefBusy] = useState(false);
+  const [archiveDownloadBusy, setArchiveDownloadBusy] = useState(false);
   const [directorsCopied, setDirectorsCopied] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [voiceVideoBusy, setVoiceVideoBusy] = useState(false);
@@ -55,6 +59,7 @@ export default function ReportsPage() {
   const [voiceBackground, setVoiceBackground] = useState<string | null>(null);
 
   useEffect(() => {
+    if (mode === 'archive') return;
     setLoading(true);
     setError(null);
     const run = mode === 'daily' ? fetchDaily() : fetchWeekly();
@@ -67,10 +72,38 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, [mode]);
 
+  const loadArchive = () => {
+    setLoading(true);
+    fetchRagArchive(30)
+      .then((data) => {
+        setDebriefs(data.debriefs || []);
+        setArchiveWorkouts(data.workoutPlans || []);
+      })
+      .catch(() => {
+        fetchDebriefs(30)
+          .then(setDebriefs)
+          .catch(() => setDebriefs([]));
+        setArchiveWorkouts([]);
+      })
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
-    fetchDebriefs(30)
-      .then(setDebriefs)
-      .catch(() => setDebriefs([]));
+    if (mode === 'archive') {
+      loadArchive();
+      return;
+    }
+    fetchRagArchive(30)
+      .then((data) => {
+        setDebriefs(data.debriefs || []);
+        setArchiveWorkouts(data.workoutPlans || []);
+      })
+      .catch(() => {
+        fetchDebriefs(30)
+          .then(setDebriefs)
+          .catch(() => setDebriefs([]));
+        setArchiveWorkouts([]);
+      });
   }, [mode, emailNote]);
 
   const reportDate = daily?.date;
@@ -239,6 +272,18 @@ export default function ReportsPage() {
     }
   };
 
+  const downloadArchiveBulk = async (format: 'zip' | 'json' = 'zip') => {
+    setArchiveDownloadBusy(true);
+    setError(null);
+    try {
+      await downloadRagArchive(format, 200);
+    } catch (e: any) {
+      setError(String(e?.response?.data?.detail || e.message || e));
+    } finally {
+      setArchiveDownloadBusy(false);
+    }
+  };
+
   const weekChart = useMemo(() => {
     if (!weekly?.days) return [];
     return weekly.days.map((d: any) => ({
@@ -267,10 +312,11 @@ export default function ReportsPage() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented
               value={mode}
-              onChange={(id) => setMode(id as 'daily' | 'weekly')}
+              onChange={(id) => setMode(id as 'daily' | 'weekly' | 'archive')}
               options={[
                 { id: 'daily', label: t('reports.daily') },
                 { id: 'weekly', label: t('reports.weekly') },
+                { id: 'archive', label: t('reports.archive') },
               ]}
             />
             <button
@@ -322,7 +368,8 @@ export default function ReportsPage() {
       {error ? <p className="error">{error}</p> : null}
       {voiceError ? <p className="error">{voiceError}</p> : null}
       {emailNote ? <p className="muted">{emailNote}</p> : null}
-      {loading ? <p className="muted">Loading report…</p> : null}
+      {loading && mode !== 'archive' ? <p className="muted">Loading report…</p> : null}
+      {loading && mode === 'archive' ? <p className="muted">Loading archive…</p> : null}
 
       {mode === 'daily' && (voiceTranscript || voiceAudioUrl || voiceVideoUrl) ? (
         <Panel
@@ -783,6 +830,30 @@ export default function ReportsPage() {
               ))}
             </Panel>
           </div>
+
+          {(daily.glucose?.readings || []).length > 0 ? (
+            <Panel title={t('reports.glucoseHistory')} subtitle={t('reports.glucoseHistoryHelp')}>
+              <div className="meal-list">
+                {(daily.glucose.readings as Array<{ timestamp: number; mgDl: number }>)
+                  .slice(0, 48)
+                  .map((r, i) => (
+                    <div key={i} className="meal-row">
+                      <div>
+                        <strong>
+                          {new Date(r.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </strong>
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {Math.round(r.mgDl)} mg/dL
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </Panel>
+          ) : null}
         </>
       ) : null}
 
@@ -1099,76 +1170,116 @@ export default function ReportsPage() {
         </>
       ) : null}
 
-      <Panel title={t('reports.archive')} subtitle={t('reports.archiveHelp')}>
-        {debriefs.length === 0 ? (
-          <p className="muted">{t('reports.noArchive')}</p>
-        ) : (
-          <div className="meal-list">
-            {debriefs.map((d) => (
-              <div key={d.id}>
-                <button
-                  type="button"
-                  className="meal-row"
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    border: 'none',
-                    background: openDebriefDate === d.date ? 'var(--surface-2, #f1f5f9)' : 'transparent',
-                  }}
-                  onClick={() => openArchiveDebrief(d.date)}
-                  disabled={debriefBusy}
-                >
-                  <div>
-                    <strong>{d.date}</strong>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {d.headline || t('reports.dayOverview')}
-                    </div>
-                    <div className="muted" style={{ fontSize: 11 }}>
-                      {t('reports.archiveLocale', {
-                        locale: d.locale === 'fr' ? t('locale.fr') : t('locale.en'),
-                      })}
-                    </div>
-                  </div>
-                  <span className="stat-badge">{d.source}</span>
-                </button>
-                {openDebriefDate === d.date && openDebrief ? (
-                  <div
+      {mode === 'archive' ? (
+        <Panel title={t('reports.archive')} subtitle={t('reports.archiveHelp')}>
+          {debriefs.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <button
+                className="btn"
+                type="button"
+                disabled={archiveDownloadBusy || loading}
+                onClick={() => downloadArchiveBulk('zip')}
+              >
+                {archiveDownloadBusy ? t('common.loading') : t('reports.downloadArchiveZip')}
+              </button>
+              <button
+                className="btn secondary"
+                type="button"
+                disabled={archiveDownloadBusy || loading}
+                onClick={() => downloadArchiveBulk('json')}
+              >
+                {t('reports.downloadArchiveJson')}
+              </button>
+            </div>
+          ) : null}
+          {debriefs.length === 0 && !loading ? (
+            <p className="muted">{t('reports.noArchive')}</p>
+          ) : (
+            <div className="meal-list">
+              {debriefs.map((d) => (
+                <div key={d.id}>
+                  <button
+                    type="button"
+                    className="meal-row"
                     style={{
-                      margin: '0 0 12px',
-                      padding: 12,
-                      borderRadius: 10,
-                      background: 'var(--surface-2, #f1f5f9)',
+                      width: '100%',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none',
+                      background: openDebriefDate === d.date ? 'var(--surface-2, #f1f5f9)' : 'transparent',
                     }}
+                    onClick={() => openArchiveDebrief(d.date)}
+                    disabled={debriefBusy}
                   >
-                    <p style={{ marginTop: 0, lineHeight: 1.5 }}>{openDebrief.summary}</p>
-                    {(openDebrief.highlights || []).length > 0 ? (
-                      <>
-                        <strong style={{ fontSize: 13 }}>Highlights</strong>
-                        <ul className="insight-list">
-                          {openDebrief.highlights.map((h, i) => (
-                            <li key={i}>{h}</li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                    {(openDebrief.tomorrowTips || []).length > 0 ? (
-                      <>
-                        <strong style={{ fontSize: 13 }}>Tips</strong>
-                        <ul className="insight-list">
-                          {openDebrief.tomorrowTips.map((t, i) => (
-                            <li key={i}>{t}</li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
+                    <div>
+                      <strong>{d.date}</strong>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {d.headline || t('reports.dayOverview')}
+                      </div>
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {t('reports.archiveLocale', {
+                          locale: d.locale === 'fr' ? t('locale.fr') : t('locale.en'),
+                        })}
+                      </div>
+                    </div>
+                    <span className="stat-badge">{d.source}</span>
+                  </button>
+                  {openDebriefDate === d.date && openDebrief ? (
+                    <div
+                      style={{
+                        margin: '0 0 12px',
+                        padding: 12,
+                        borderRadius: 10,
+                        background: 'var(--surface-2, #f1f5f9)',
+                      }}
+                    >
+                      <p style={{ marginTop: 0, lineHeight: 1.5 }}>{openDebrief.summary}</p>
+                      {(openDebrief.highlights || []).length > 0 ? (
+                        <>
+                          <strong style={{ fontSize: 13 }}>Highlights</strong>
+                          <ul className="insight-list">
+                            {openDebrief.highlights.map((h, i) => (
+                              <li key={i}>{h}</li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null}
+                      {(openDebrief.tomorrowTips || []).length > 0 ? (
+                        <>
+                          <strong style={{ fontSize: 13 }}>Tips</strong>
+                          <ul className="insight-list">
+                            {openDebrief.tomorrowTips.map((tip, i) => (
+                              <li key={i}>{tip}</li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+          {archiveWorkouts.length > 0 ? (
+            <>
+              <h3 style={{ marginTop: 20, marginBottom: 8 }}>{t('reports.workoutPlansArchive')}</h3>
+              <div className="meal-list">
+                {archiveWorkouts.map((p) => (
+                  <div key={p.id} className="meal-row">
+                    <div>
+                      <strong>{p.title}</strong>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {(p.focus ? `${p.focus} · ` : '') +
+                          `${(p.exercises || []).length} exercises`}
+                      </div>
+                    </div>
                   </div>
-                ) : null}
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+            </>
+          ) : null}
+        </Panel>
+      ) : null}
     </div>
   );
 }

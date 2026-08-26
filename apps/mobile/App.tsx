@@ -33,6 +33,7 @@ import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
 import CaptureMealScreen from './src/screens/CaptureMealScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
+import LifeReviewScreen from './src/screens/LifeReviewScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
 import MentalScreen from './src/screens/MentalScreen';
 import SettingsHubScreen from './src/screens/SettingsHubScreen';
@@ -45,6 +46,7 @@ import AddEntrySheet from './src/components/AddEntrySheet';
 
 const Tab = createBottomTabNavigator();
 const MealsStack = createNativeStackNavigator();
+const ReportsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
 export { navigationRef };
@@ -70,7 +72,7 @@ function MealsStackScreen() {
   return (
     <MealsStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
         headerTintColor: isDark ? '#e6edf3' : '#111',
       }}
     >
@@ -84,12 +86,35 @@ function MealsStackScreen() {
   );
 }
 
+function ReportsStackScreen() {
+  const isDark = useColorScheme() === 'dark';
+  return (
+    <ReportsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
+        headerTintColor: isDark ? '#e6edf3' : '#111',
+      }}
+    >
+      <ReportsStack.Screen
+        name="ReportsHome"
+        component={ReportsScreen}
+        options={{ headerShown: false }}
+      />
+      <ReportsStack.Screen
+        name="LifeReview"
+        component={LifeReviewScreen}
+        options={{ title: 'Life review' }}
+      />
+    </ReportsStack.Navigator>
+  );
+}
+
 function SettingsStackScreen() {
   const isDark = useColorScheme() === 'dark';
   return (
     <SettingsStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
         headerTintColor: isDark ? '#e6edf3' : '#111',
       }}
     >
@@ -179,7 +204,7 @@ function MainTabs() {
         />
         <Tab.Screen
           name="Reports"
-          component={ReportsScreen}
+          component={ReportsStackScreen}
           options={{
             tabBarLabel: ({ color }) => <TabLabel label="Reports" color={color} />,
             tabBarIcon: () => null,
@@ -253,6 +278,21 @@ function SignedInRoot() {
 
   useEffect(() => {
     void syncAllNudges();
+    // Android OS updates often leave notification access "on" but the listener unbound.
+    if (Platform.OS === 'android') {
+      void (async () => {
+        try {
+          const RNAndroidNotificationListener =
+            require('react-native-android-notification-listener').default;
+          const status = await RNAndroidNotificationListener?.getPermissionStatus?.();
+          if (status === 'authorized' && RNAndroidNotificationListener?.requestRebind) {
+            await RNAndroidNotificationListener.requestRebind();
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
+    }
     const missedTimer = setInterval(() => {
       void checkMissedGlucose();
     }, 30 * 60 * 1000);
@@ -280,7 +320,7 @@ function SignedInRoot() {
   return (
     <RootStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
         headerTintColor: isDark ? '#e6edf3' : '#111',
       }}
     >
@@ -322,7 +362,7 @@ function RootNavigator() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isDark ? '#0d1117' : '#f5f7fa',
+          backgroundColor: isDark ? '#0d1117' : '#f3f7f6',
         }}
       >
         <ActivityIndicator color="#0d9488" />

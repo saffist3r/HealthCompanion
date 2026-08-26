@@ -289,6 +289,87 @@ export async function fetchDebrief(date: string) {
   return data as DayDebriefDetail;
 }
 
+export async function fetchRagArchive(limit = 30) {
+  const { data } = await api.get('/reports/rag-archive', { params: { limit } });
+  return data as {
+    debriefs: DayDebriefSummary[];
+    workoutPlans: Array<{
+      id: string;
+      title: string;
+      focus?: string | null;
+      durationMin?: number | null;
+      exercises: Array<{ name: string }>;
+      basedOn?: string | null;
+    }>;
+  };
+}
+
+export type LifeAssessment = {
+  periodStart: string;
+  periodEnd: string;
+  dayCount: number;
+  headline: string;
+  honestSummary: string;
+  wins: string[];
+  concerns: string[];
+  patterns: string[];
+  priorities: string[];
+  glucoseVerdict?: string;
+  lifestyleVerdict?: string;
+  moodVerdict?: string;
+  source: 'gemini' | 'fallback';
+  locale?: string;
+  note?: string;
+  totals?: Record<string, unknown>;
+  generatedAt?: number;
+};
+
+export async function generateLifeAssessment(days = 7) {
+  const { data } = await api.post('/reports/life-assessment', null, { params: { days } });
+  return data as LifeAssessment;
+}
+
+export async function downloadRagArchive(format: 'json' | 'zip' = 'zip', limit = 200) {
+  try {
+    const { data, headers } = await api.get('/reports/rag-archive/export', {
+      params: { format, limit },
+      responseType: 'blob',
+    });
+    const contentType = String(headers['content-type'] || '');
+    if (contentType.includes('application/json') && format === 'zip') {
+      const text = await (data as Blob).text();
+      const parsed = JSON.parse(text);
+      throw new Error(parsed.detail || 'Archive export failed');
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    const ext = format === 'json' ? 'json' : 'zip';
+    const blob =
+      data instanceof Blob
+        ? data
+        : new Blob([data], { type: format === 'json' ? 'application/json' : 'application/zip' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `health-companion-rag-archive-${stamp}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    const blob = err?.response?.data;
+    if (blob instanceof Blob) {
+      try {
+        const text = await blob.text();
+        const parsed = JSON.parse(text);
+        throw new Error(parsed.detail || text || 'Archive download failed');
+      } catch (inner) {
+        if (inner instanceof Error && inner.message !== 'Archive download failed') throw inner;
+      }
+    }
+    throw err;
+  }
+}
+
 export async function downloadDailyPdf(date?: string) {
   try {
     const { data, headers } = await api.get('/reports/daily/pdf', {

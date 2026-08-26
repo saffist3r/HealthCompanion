@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   DeviceEventEmitter,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -20,13 +21,19 @@ import {
   type CareVisitKind,
   type Injury,
   type SportMatch,
+  type WorkoutPlan,
+  type WorkoutPlanDraft,
 } from '@health-companion/shared';
 import {
   deleteCareVisit,
   deleteSportMatch,
+  deleteWorkoutPlan,
   fetchCareVisits,
   fetchInjuries,
   fetchSportMatches,
+  fetchWorkoutPlans,
+  generateWorkout,
+  saveWorkoutPlan,
   syncActivity,
   updateInjury,
 } from '../api/client';
@@ -46,6 +53,9 @@ import {
   isSamsungHealthAvailable,
 } from '../samsungHealth';
 import { AppIcons, careKindIcon, sportSessionIcon } from '../ui/appIcons';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
+import { HC, themeColors } from '../theme';
 
 export default function ActivityScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -57,6 +67,10 @@ export default function ActivityScreen() {
   const [careVisits, setCareVisits] = useState<CareVisit[]>([]);
   const [matches, setMatches] = useState<SportMatch[]>([]);
   const [injuries, setInjuries] = useState<Injury[]>([]);
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [workoutNote, setWorkoutNote] = useState('');
+  const [workoutDraft, setWorkoutDraft] = useState<WorkoutPlanDraft | null>(null);
+  const [workoutBusy, setWorkoutBusy] = useState(false);
   const t = styles(isDark);
   const today = toDateKey(Date.now());
 
@@ -122,14 +136,16 @@ export default function ActivityScreen() {
       const snap = await readTodayActivity();
       setSnapshot(snap);
       if (token) {
-        const [care, sport, openInjuries] = await Promise.all([
+        const [care, sport, openInjuries, plans] = await Promise.all([
           fetchCareVisits(today),
           fetchSportMatches(today),
           fetchInjuries('open'),
+          fetchWorkoutPlans(15),
         ]);
         setCareVisits(care);
         setMatches(sport);
         setInjuries(openInjuries);
+        setWorkoutPlans(plans);
         // Keep reports up to date whenever Activity loads Samsung/HC data.
         if (snap.stepsSource || snap.energyScore != null || snap.steps > 0) {
           await pushToCloud({ silent: true });
@@ -214,15 +230,21 @@ export default function ActivityScreen() {
     <ScrollView
       style={t.root}
       contentContainerStyle={t.content}
-      refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}
+      refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} tintColor={HC.teal} />}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={t.title}>Activity</Text>
-      <Text style={t.hint}>Use + to log meals, check-ins, weight, injuries, care visits, or sport. Energy score comes from Samsung Health.</Text>
+      <ScreenHero
+        eyebrow="MOVE & RECOVER"
+        title="Activity"
+        subtitle="Steps, Samsung Energy, workouts, care visits, and sport."
+        pills={['Steps', 'Sport', 'Care', 'Workouts']}
+        compact
+      />
 
       {Platform.OS !== 'android' ? (
         <Text style={t.empty}>Activity sync is Android-only.</Text>
       ) : (
+        <FadeIn>
         <>
           <View style={t.card}>
             <Text style={t.label}>Status</Text>
@@ -231,7 +253,7 @@ export default function ActivityScreen() {
               {samsungOk ? ' · Samsung ready' : ' · Samsung not linked'}
               {loggedIn ? ' · signed in' : ' · not signed in'}
             </Text>
-            {busy ? <ActivityIndicator style={{ marginTop: 8 }} /> : null}
+            {busy ? <ActivityIndicator style={{ marginTop: 8 }} color={HC.teal} /> : null}
           </View>
 
           <TouchableOpacity style={t.btn} onPress={connectSamsung}>
@@ -332,6 +354,134 @@ export default function ActivityScreen() {
           >
             <Text style={t.btnTextDark}>Sync today to reports</Text>
           </TouchableOpacity>
+
+          <View style={t.card}>
+            <Text style={t.label}>Suggest workout</Text>
+            <Text style={t.meta}>
+              Uses recent sport, activity, and open injuries. Not medical advice.
+            </Text>
+            <TextInput
+              style={t.input}
+              placeholder="Optional: legs, padel recovery, 45 min gym…"
+              placeholderTextColor={isDark ? '#6e7681' : '#999'}
+              value={workoutNote}
+              onChangeText={setWorkoutNote}
+            />
+            <TouchableOpacity
+              style={[t.btn, (workoutBusy || !loggedIn) && { opacity: 0.5 }]}
+              disabled={workoutBusy || !loggedIn}
+              onPress={async () => {
+                if (!loggedIn) {
+                  Alert.alert('Sign in required', 'Sign in to generate workouts.');
+                  return;
+                }
+                setWorkoutBusy(true);
+                try {
+                  const res = await generateWorkout(workoutNote.trim() || undefined);
+                  setWorkoutDraft(res.plan);
+                } catch (e) {
+                  const msg = String(e);
+                  Alert.alert(
+                    'Workout failed',
+                    msg.includes('busy') || msg.includes('503')
+                      ? 'AI is busy right now. Wait a few seconds and try again.'
+                      : msg
+                  );
+                } finally {
+                  setWorkoutBusy(false);
+                }
+              }}
+            >
+              {workoutBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={t.btnText}>Suggest workout with AI</Text>
+              )}
+            </TouchableOpacity>
+
+            {workoutDraft ? (
+              <View style={t.workoutDraft}>
+                <Text style={t.value}>{workoutDraft.title}</Text>
+                {workoutDraft.focus ? <Text style={t.meta}>Focus: {workoutDraft.focus}</Text> : null}
+                {workoutDraft.durationMin ? (
+                  <Text style={t.meta}>~{workoutDraft.durationMin} min</Text>
+                ) : null}
+                {workoutDraft.summary ? <Text style={t.meta}>{workoutDraft.summary}</Text> : null}
+                {workoutDraft.exercises.map((ex, i) => (
+                  <Text key={i} style={t.meta}>
+                    · {ex.name}
+                    {ex.sets ? ` · ${ex.sets} sets` : ''}
+                    {ex.reps ? ` · ${ex.reps}` : ''}
+                    {ex.durationMin ? ` · ${ex.durationMin} min` : ''}
+                  </Text>
+                ))}
+                <View style={t.row}>
+                  <TouchableOpacity
+                    style={t.btnSecondary}
+                    onPress={() => setWorkoutDraft(null)}
+                  >
+                    <Text style={t.btnTextDark}>Discard</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={t.btn}
+                    onPress={async () => {
+                      setWorkoutBusy(true);
+                      try {
+                        await saveWorkoutPlan({
+                          title: workoutDraft.title,
+                          focus: workoutDraft.focus,
+                          durationMin: workoutDraft.durationMin,
+                          summary: workoutDraft.summary,
+                          exercises: workoutDraft.exercises,
+                          basedOn: workoutDraft.basedOn,
+                        });
+                        setWorkoutDraft(null);
+                        setWorkoutNote('');
+                        await refresh();
+                        Alert.alert('Saved', 'Workout plan saved to your archive.');
+                      } catch (e) {
+                        Alert.alert('Save failed', String(e));
+                      } finally {
+                        setWorkoutBusy(false);
+                      }
+                    }}
+                  >
+                    <Text style={t.btnText}>Save plan</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {workoutPlans.length > 0 ? (
+            <View style={t.card}>
+              <Text style={t.label}>Saved workout plans</Text>
+              {workoutPlans.map((plan) => (
+                <View key={plan.id} style={t.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={t.value}>{plan.title}</Text>
+                    <Text style={t.meta}>
+                      {plan.focus ? `${plan.focus} · ` : ''}
+                      {plan.durationMin ? `${plan.durationMin} min · ` : ''}
+                      {plan.exercises.length} exercises
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      try {
+                        await deleteWorkoutPlan(plan.id);
+                        await refresh();
+                      } catch (e) {
+                        Alert.alert('Delete failed', String(e));
+                      }
+                    }}
+                  >
+                    <Text style={t.delete}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {injuries.length > 0 ? (
             <View style={t.card}>
@@ -434,52 +584,83 @@ export default function ActivityScreen() {
             </View>
           </TouchableOpacity>
         </>
+        </FadeIn>
       )}
     </ScrollView>
   );
 }
 
-const styles = (isDark: boolean) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { padding: 16, paddingBottom: 100 },
-    title: { fontSize: 24, fontWeight: '700', color: isDark ? '#fff' : '#111', marginBottom: 6 },
-    hint: { color: isDark ? '#8b949e' : '#666', marginBottom: 16, fontSize: 13 },
-    empty: { color: isDark ? '#8b949e' : '#666' },
+const styles = (isDark: boolean) => {
+  const c = themeColors(isDark);
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    content: { paddingBottom: 100 },
+    title: { fontSize: 24, fontWeight: '700', color: c.ink, marginBottom: 6 },
+    hint: { color: c.muted, marginBottom: 16, fontSize: 13 },
+    empty: { color: c.muted, paddingHorizontal: 16, marginTop: 8 },
     card: {
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 12,
-      padding: 14,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.lg,
+      padding: 16,
       marginBottom: 12,
+      marginHorizontal: 16,
+      borderWidth: 1,
+      borderColor: c.border,
     },
-    label: { color: isDark ? '#8b949e' : '#666', fontSize: 13, marginBottom: 6 },
-    value: { marginTop: 4, color: isDark ? '#e6edf3' : '#222', flex: 1 },
-    meta: { marginTop: 4, fontSize: 13, color: isDark ? '#8b949e' : '#666' },
+    label: {
+      color: c.muted,
+      fontSize: 12,
+      marginBottom: 6,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    value: { marginTop: 4, color: c.ink, flex: 1 },
+    meta: { marginTop: 4, fontSize: 13, color: c.muted },
     sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
     sourceIcon: { width: 16, height: 16, borderRadius: 4 },
-    big: { fontSize: 36, fontWeight: '700', color: isDark ? '#7ee787' : '#0f766e', marginTop: 4 },
-    warn: { marginTop: 8, color: '#d97706', fontSize: 13 },
+    big: { fontSize: 36, fontWeight: '800', color: isDark ? '#7ee787' : HC.tealMid, marginTop: 4 },
+    warn: { marginTop: 8, color: HC.amber, fontSize: 13 },
     btn: {
-      backgroundColor: '#0d9488',
-      borderRadius: 12,
+      backgroundColor: HC.teal,
+      borderRadius: HC.radius.md,
       paddingVertical: 14,
       alignItems: 'center',
       marginBottom: 10,
+      marginHorizontal: 16,
     },
     btnSecondary: {
-      backgroundColor: isDark ? '#21262d' : '#e5e7eb',
-      borderRadius: 12,
+      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      borderRadius: HC.radius.md,
       paddingVertical: 14,
       alignItems: 'center',
       marginBottom: 10,
+      marginHorizontal: 16,
     },
     btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     btnIcon: { width: 22, height: 22, borderRadius: 6 },
-    btnText: { color: '#fff', fontWeight: '700' },
-    btnTextDark: { color: isDark ? '#e6edf3' : '#111', fontWeight: '600' },
+    btnText: { color: '#fff', fontWeight: '800' },
+    btnTextDark: { color: c.ink, fontWeight: '700' },
     sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
     sectionIcon: { width: 28, height: 28, borderRadius: 8 },
     row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
     rowIcon: { width: 28, height: 28, borderRadius: 8 },
-    delete: { color: '#ef4444', fontWeight: '600', paddingHorizontal: 6 },
+    delete: { color: '#ef4444', fontWeight: '700', paddingHorizontal: 6 },
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 10,
+      marginTop: 8,
+      marginBottom: 10,
+      color: c.ink,
+      backgroundColor: isDark ? '#0d1117' : '#fff',
+    },
+    workoutDraft: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      gap: 4,
+    },
   });
+};

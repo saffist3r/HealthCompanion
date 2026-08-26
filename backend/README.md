@@ -41,5 +41,5 @@ Same paths as the mobile client expects:
 |----------|---------|
 | `DATABASE_URL` | Postgres URL |
 | `GEMINI_API_KEY` | Google AI Studio / Gemini API key |
-| `GEMINI_MODEL` | default `gemini-flash-latest` |
+| `GEMINI_MODEL` | default `gemini-3.6-flash` |
 | `UPLOAD_DIR` | meal photo storage |

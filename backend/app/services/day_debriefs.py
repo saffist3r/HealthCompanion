@@ -146,6 +146,28 @@ def archive_daily_debrief(
     return ai_display, row
 
 
+def refresh_debrief_facts(db: Session, daily: dict[str, Any]) -> DayDebrief | None:
+    """Refresh structured facts on an existing debrief without regenerating AI narrative."""
+    day = str(daily.get("date") or "").strip()
+    if not day or len(day) != 10:
+        return None
+    row = db.query(DayDebrief).filter(DayDebrief.date == day).first()
+    if row is None:
+        return None
+    facts = compact_report(daily)
+    try:
+        existing = json.loads(row.facts_json or "{}")
+    except json.JSONDecodeError:
+        existing = {}
+    fr = existing.get("frNarrative")
+    if fr:
+        facts["frNarrative"] = fr
+    row.facts_json = json.dumps(facts, ensure_ascii=False)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 def list_day_debriefs(db: Session, *, limit: int = 30) -> list[DayDebrief]:
     return (
         db.query(DayDebrief)

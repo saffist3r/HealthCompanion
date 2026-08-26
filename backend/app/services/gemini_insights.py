@@ -85,19 +85,25 @@ def compact_report(daily: dict[str, Any]) -> dict[str, Any]:
     nutrition = daily.get("nutrition") or {}
     glucose = daily.get("glucose") or {}
     activity = daily.get("activity") or {}
+    readings = glucose.get("readings") or []
     return {
         "date": daily.get("date"),
         "meals": nutrition.get("mealCount"),
         "macros": nutrition.get("macros"),
         "glucose": {
             "avgMgDl": glucose.get("avgMgDl"),
+            "minMgDl": glucose.get("minMgDl"),
+            "maxMgDl": glucose.get("maxMgDl"),
             "timeInRangePct": glucose.get("timeInRangePct"),
             "lowCount": glucose.get("lowCount"),
             "highCount": glucose.get("highCount"),
             "readingCount": glucose.get("readingCount"),
             "hypoEventCount": glucose.get("hypoEventCount"),
             "hypoEvents": glucose.get("hypoEvents") or [],
-            "minMgDl": glucose.get("minMgDl"),
+            "hyperEventCount": glucose.get("hyperEventCount"),
+            "hyperEvents": glucose.get("hyperEvents") or [],
+            "readings": _downsample_readings(readings, max_points=96),
+            "overnight": daily.get("overnight"),
         },
         "activity": {
             "steps": activity.get("steps") if activity else 0,
@@ -106,6 +112,7 @@ def compact_report(daily: dict[str, Any]) -> dict[str, Any]:
             "workouts": activity.get("workouts") if activity else [],
             "source": activity.get("source") if activity else None,
         },
+        "workoutPlans": daily.get("workoutPlans") or [],
         "careVisits": daily.get("careVisits") or [],
         "sportMatches": daily.get("sportMatches") or [],
         "injuries": daily.get("injuries") or [],
@@ -117,6 +124,26 @@ def compact_report(daily: dict[str, Any]) -> dict[str, Any]:
         "ruleInsights": daily.get("insights") or [],
         "warnings": daily.get("warnings") or [],
     }
+
+
+def _downsample_readings(readings: list[Any], *, max_points: int = 96) -> list[dict[str, Any]]:
+    if not readings or len(readings) <= max_points:
+        return [
+            {"timestamp": int(r.get("timestamp") or 0), "mgDl": float(r.get("mgDl") or 0)}
+            for r in readings
+            if isinstance(r, dict)
+        ]
+    step = max(1, len(readings) // max_points)
+    out: list[dict[str, Any]] = []
+    for i, r in enumerate(readings):
+        if i % step == 0 and isinstance(r, dict):
+            out.append({"timestamp": int(r.get("timestamp") or 0), "mgDl": float(r.get("mgDl") or 0)})
+    if readings and isinstance(readings[-1], dict):
+        last = {"timestamp": int(readings[-1].get("timestamp") or 0), "mgDl": float(readings[-1].get("mgDl") or 0)}
+        if not out or out[-1]["timestamp"] != last["timestamp"]:
+            out.append(last)
+    return out[:max_points]
+
 
 
 def _compact_report(daily: dict[str, Any]) -> dict[str, Any]:

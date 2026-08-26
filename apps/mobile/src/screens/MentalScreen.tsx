@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchCaffeineLogs,
   fetchDashboard,
@@ -18,12 +17,14 @@ import {
 } from '../api/client';
 import { syncActivityToCloud } from '../activityCloudSync';
 import { openMorningLog } from '../navigation';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
+import { HC, themeColors } from '../theme';
 
 type Dash = any;
 
 export default function MentalScreen() {
   const isDark = useColorScheme() === 'dark';
-  const insets = useSafeAreaInsets();
   const t = styles(isDark);
   const [data, setData] = useState<Dash | null>(null);
   const [caffeine, setCaffeine] = useState<any[]>([]);
@@ -69,172 +70,189 @@ export default function MentalScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={[t.content, { paddingTop: insets.top + 12, paddingBottom: 120 }]}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#0d9488" />}
+        contentContainerStyle={t.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={HC.teal} />}
       >
-        <Text style={t.title}>Mental</Text>
-        <Text style={t.sub}>
-          Mood, ADHD check-in, caffeine, and Samsung Energy Score (continuous stress isn’t exposed to
-          third-party apps — Energy Score is the readiness proxy).
-        </Text>
+        <ScreenHero
+          eyebrow="MIND & ENERGY"
+          title="Mental"
+          subtitle="Mood, ADHD check-in, caffeine, and Samsung Energy Score."
+          pills={['Mood', 'Stress', 'Caffeine']}
+          compact
+        >
+          <TouchableOpacity style={t.morningBtn} onPress={openMorningLog} activeOpacity={0.85}>
+            <Text style={t.morningBtnText}>Morning log — weight + check-in</Text>
+          </TouchableOpacity>
+        </ScreenHero>
 
-        <TouchableOpacity style={t.morningBtn} onPress={openMorningLog} activeOpacity={0.85}>
-          <Text style={t.morningBtnText}>Morning log — weight + check-in</Text>
-        </TouchableOpacity>
+        {loading && !data ? <ActivityIndicator style={{ marginTop: 8 }} color={HC.teal} /> : null}
 
-        {loading && !data ? <ActivityIndicator style={{ marginTop: 24 }} color="#0d9488" /> : null}
-
-        <View style={t.statGrid}>
-          <View style={t.stat}>
-            <Text style={t.statLabel}>Energy Score</Text>
-            <Text style={t.statValue}>{energy != null ? Math.round(energy) : '—'}</Text>
-            <Text style={t.statFoot}>Samsung Health</Text>
+        <FadeIn>
+          <View style={t.statGrid}>
+            <View style={t.stat}>
+              <Text style={t.statLabel}>Energy Score</Text>
+              <Text style={t.statValue}>{energy != null ? Math.round(energy) : '—'}</Text>
+              <Text style={t.statFoot}>Samsung Health</Text>
+            </View>
+            <View style={t.stat}>
+              <Text style={t.statLabel}>Caffeine</Text>
+              <Text style={t.statValue}>{todayMg || '—'}</Text>
+              <Text style={t.statFoot}>
+                {todayMg ? `${todayCaf.length} drink(s) · mg` : 'Use + → Caffeine'}
+              </Text>
+            </View>
           </View>
-          <View style={t.stat}>
-            <Text style={t.statLabel}>Caffeine</Text>
-            <Text style={t.statValue}>{todayMg || '—'}</Text>
-            <Text style={t.statFoot}>{todayMg ? `${todayCaf.length} drink(s) · mg` : 'Use + → Caffeine'}</Text>
+        </FadeIn>
+
+        <FadeIn delay={80}>
+          <View style={t.card}>
+            <Text style={t.cardTitle}>Today’s check-in</Text>
+            {!checkIn ? (
+              <Text style={t.line}>No check-in yet. Use + → Check-in (mood, wake, ADHD).</Text>
+            ) : (
+              <>
+                <Text style={t.rowTitle}>
+                  Mood {checkIn.moodLabel || checkIn.mood} · woke{' '}
+                  {checkIn.wakeQualityLabel || checkIn.wakeQuality}
+                </Text>
+                <Text style={t.line}>
+                  Focus {checkIn.focusLabel || checkIn.focus || '—'} · restlessness{' '}
+                  {checkIn.restlessnessLabel || checkIn.restlessness || '—'} · overwhelm{' '}
+                  {checkIn.overwhelmLabel || checkIn.overwhelm || '—'}
+                </Text>
+                <Text style={t.line}>
+                  Task start {checkIn.taskInitiationLabel || checkIn.taskInitiation || '—'} ·
+                  impulsivity {checkIn.impulsivityLabel || checkIn.impulsivity || '—'}
+                </Text>
+                <Text style={t.line}>
+                  {[
+                    checkIn.medicationTaken ? 'Meds taken' : null,
+                    checkIn.hyperfocus ? 'Hyperfocus' : null,
+                    checkIn.sleepHours != null ? `Sleep ${checkIn.sleepHours}h` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'No meds / hyperfocus / sleep logged'}
+                </Text>
+                {checkIn.notes ? <Text style={t.line}>{checkIn.notes}</Text> : null}
+              </>
+            )}
           </View>
-        </View>
+        </FadeIn>
 
-        <View style={t.card}>
-          <Text style={t.cardTitle}>Today’s check-in</Text>
-          {!checkIn ? (
-            <Text style={t.line}>No check-in yet. Use + → Check-in (mood, wake, ADHD).</Text>
-          ) : (
-            <>
-              <Text style={t.rowTitle}>
-                Mood {checkIn.moodLabel || checkIn.mood} · woke {checkIn.wakeQualityLabel || checkIn.wakeQuality}
-              </Text>
+        <FadeIn delay={120}>
+          <View style={t.card}>
+            <Text style={t.cardTitle}>Stress today</Text>
+            {samsungStress ? (
               <Text style={t.line}>
-                Focus {checkIn.focusLabel || checkIn.focus || '—'} · restlessness{' '}
-                {checkIn.restlessnessLabel || checkIn.restlessness || '—'} · overwhelm{' '}
-                {checkIn.overwhelmLabel || checkIn.overwhelm || '—'}
+                Samsung Energy → {samsungStress.levelLabel || samsungStress.level}
+                {samsungStress.score != null ? ` (${samsungStress.score})` : ''}
               </Text>
-              <Text style={t.line}>
-                Task start {checkIn.taskInitiationLabel || checkIn.taskInitiation || '—'} · impulsivity{' '}
-                {checkIn.impulsivityLabel || checkIn.impulsivity || '—'}
-              </Text>
-              <Text style={t.line}>
-                {[
-                  checkIn.medicationTaken ? 'Meds taken' : null,
-                  checkIn.hyperfocus ? 'Hyperfocus' : null,
-                  checkIn.sleepHours != null ? `Sleep ${checkIn.sleepHours}h` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'No meds / hyperfocus / sleep logged'}
-              </Text>
-              {checkIn.notes ? <Text style={t.line}>{checkIn.notes}</Text> : null}
-            </>
-          )}
-        </View>
+            ) : (
+              <Text style={t.line}>Sync Activity to pull Samsung Energy Score.</Text>
+            )}
+            {manualStress.length === 0 ? (
+              <Text style={t.line}>No manual stress logs. Use + → Stress.</Text>
+            ) : (
+              manualStress.map((s: any) => (
+                <Text key={s.id} style={t.line}>
+                  {s.levelLabel || s.level}
+                  {s.score != null ? ` (${s.score})` : ''}
+                  {s.notes ? ` · ${s.notes}` : ''}
+                </Text>
+              ))
+            )}
+          </View>
+        </FadeIn>
 
-        <View style={t.card}>
-          <Text style={t.cardTitle}>Stress today</Text>
-          {samsungStress ? (
-            <Text style={t.line}>
-              Samsung Energy → {samsungStress.levelLabel || samsungStress.level}
-              {samsungStress.score != null ? ` (${samsungStress.score})` : ''}
-            </Text>
-          ) : (
-            <Text style={t.line}>Sync Activity to pull Samsung Energy Score.</Text>
-          )}
-          {manualStress.length === 0 ? (
-            <Text style={t.line}>No manual stress logs. Use + → Stress.</Text>
-          ) : (
-            manualStress.map((s: any) => (
-              <Text key={s.id} style={t.line}>
-                {s.levelLabel || s.level}
-                {s.score != null ? ` (${s.score})` : ''}
-                {s.notes ? ` · ${s.notes}` : ''}
-              </Text>
-            ))
-          )}
-        </View>
+        <FadeIn delay={160}>
+          <View style={t.card}>
+            <Text style={t.cardTitle}>Caffeine today</Text>
+            {todayCaf.length === 0 ? (
+              <Text style={t.line}>Nothing logged. Espresso, coffee, tea…</Text>
+            ) : (
+              todayCaf.map((caf: any) => (
+                <Text key={caf.id} style={t.line}>
+                  {caf.drinkLabel || caf.drink}
+                  {caf.time ? ` @ ${caf.time}` : ''} · {caf.caffeineMg} mg
+                </Text>
+              ))
+            )}
+          </View>
+        </FadeIn>
 
-        <View style={t.card}>
-          <Text style={t.cardTitle}>Caffeine today</Text>
-          {todayCaf.length === 0 ? (
-            <Text style={t.line}>Nothing logged. Espresso, coffee, tea…</Text>
-          ) : (
-            todayCaf.map((c: any) => (
-              <Text key={c.id} style={t.line}>
-                {c.drinkLabel || c.drink}
-                {c.time ? ` @ ${c.time}` : ''} · {c.caffeineMg} mg
-              </Text>
-            ))
-          )}
-        </View>
+        <FadeIn delay={200}>
+          <View style={t.card}>
+            <Text style={t.cardTitle}>Recent stress</Text>
+            {stress.length === 0 ? (
+              <Text style={t.line}>No stress entries yet.</Text>
+            ) : (
+              stress.slice(0, 8).map((s: any) => (
+                <Text key={s.id} style={t.line}>
+                  {s.date} · {s.levelLabel || s.level}
+                  {s.score != null ? ` (${s.score})` : ''}
+                  {s.source === 'samsung_energy' ? ' · Samsung' : ''}
+                </Text>
+              ))
+            )}
+          </View>
+        </FadeIn>
 
-        <View style={t.card}>
-          <Text style={t.cardTitle}>Recent stress</Text>
-          {stress.length === 0 ? (
-            <Text style={t.line}>No stress entries yet.</Text>
-          ) : (
-            stress.slice(0, 8).map((s: any) => (
-              <Text key={s.id} style={t.line}>
-                {s.date} · {s.levelLabel || s.level}
-                {s.score != null ? ` (${s.score})` : ''}
-                {s.source === 'samsung_energy' ? ' · Samsung' : ''}
-              </Text>
-            ))
-          )}
-        </View>
-
-        <View style={t.card}>
-          <Text style={t.cardTitle}>Recent caffeine</Text>
-          {caffeine.length === 0 ? (
-            <Text style={t.line}>No caffeine entries yet.</Text>
-          ) : (
-            caffeine.slice(0, 10).map((c: any) => (
-              <Text key={c.id} style={t.line}>
-                {c.date} · {c.drinkLabel || c.drink} · {c.caffeineMg} mg
-              </Text>
-            ))
-          )}
-        </View>
+        <FadeIn delay={240}>
+          <View style={t.card}>
+            <Text style={t.cardTitle}>Recent caffeine</Text>
+            {caffeine.length === 0 ? (
+              <Text style={t.line}>No caffeine entries yet.</Text>
+            ) : (
+              caffeine.slice(0, 10).map((caf: any) => (
+                <Text key={caf.id} style={t.line}>
+                  {caf.date} · {caf.drinkLabel || caf.drink} · {caf.caffeineMg} mg
+                </Text>
+              ))
+            )}
+          </View>
+        </FadeIn>
       </ScrollView>
     </View>
   );
 }
 
 function styles(isDark: boolean) {
+  const c = themeColors(isDark);
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { paddingHorizontal: 16 },
-    title: { fontSize: 28, fontWeight: '700', color: isDark ? '#e6edf3' : '#111' },
-    sub: { marginTop: 6, fontSize: 13, lineHeight: 18, color: isDark ? '#8b949e' : '#6b7280' },
+    root: { flex: 1, backgroundColor: c.bg },
+    content: { paddingBottom: 120 },
     morningBtn: {
-      marginTop: 14,
-      backgroundColor: '#0d9488',
-      borderRadius: 12,
-      paddingVertical: 12,
+      marginTop: 8,
+      backgroundColor: '#fff',
+      borderRadius: HC.radius.md,
+      paddingVertical: 14,
       paddingHorizontal: 14,
       alignItems: 'center',
     },
-    morningBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-    statGrid: { flexDirection: 'row', gap: 10, marginTop: 16 },
+    morningBtnText: { color: HC.tealDeep, fontWeight: '800', fontSize: 15 },
+    statGrid: { flexDirection: 'row', gap: 10, marginTop: 4, paddingHorizontal: 16 },
     stat: {
       flex: 1,
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 14,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.lg,
       padding: 14,
       borderWidth: 1,
-      borderColor: isDark ? '#21262d' : '#e5e7eb',
+      borderColor: c.border,
     },
-    statLabel: { fontSize: 12, color: isDark ? '#8b949e' : '#6b7280', fontWeight: '600' },
-    statValue: { marginTop: 6, fontSize: 26, fontWeight: '700', color: isDark ? '#e6edf3' : '#111' },
-    statFoot: { marginTop: 4, fontSize: 11, color: isDark ? '#6e7681' : '#9ca3af' },
+    statLabel: { fontSize: 11, color: c.muted, fontWeight: '800', textTransform: 'uppercase' },
+    statValue: { marginTop: 6, fontSize: 26, fontWeight: '800', color: c.ink },
+    statFoot: { marginTop: 4, fontSize: 11, color: c.muted },
     card: {
       marginTop: 12,
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 14,
-      padding: 14,
+      marginHorizontal: 16,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.lg,
+      padding: 16,
       borderWidth: 1,
-      borderColor: isDark ? '#21262d' : '#e5e7eb',
+      borderColor: c.border,
     },
-    cardTitle: { fontSize: 16, fontWeight: '700', color: isDark ? '#e6edf3' : '#111', marginBottom: 8 },
-    rowTitle: { fontSize: 15, fontWeight: '600', color: isDark ? '#e6edf3' : '#111', marginBottom: 4 },
-    line: { fontSize: 13, color: isDark ? '#9aa4b2' : '#4b5563', marginBottom: 4, lineHeight: 18 },
+    cardTitle: { fontSize: 16, fontWeight: '800', color: c.ink, marginBottom: 8 },
+    rowTitle: { fontSize: 15, fontWeight: '700', color: c.ink, marginBottom: 4 },
+    line: { fontSize: 13, color: c.muted, marginBottom: 4, lineHeight: 18 },
   });
 }

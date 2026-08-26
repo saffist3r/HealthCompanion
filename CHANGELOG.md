@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.5.57] - 2026-08-24
+
+### Added
+
+- **Life Review** — dedicated 7-day honest AI assessment (glucose, meals, steps, mood, stress, sport) on web (`/life-review`) and mobile, with cinematic hero, loading progress, and staggered result animations
+- **RAG archive** — bulk ZIP/JSON export of day debriefs + workout plans; CGM readings retained in exports and daily reports
+- **Workout plans** — Gemini-generated workout drafts with save/list on Activity (mobile) and shared types
+
+### Changed
+
+- Reports Archive tab for browsing debriefs; glucose readings hidden from expanded archive cards (still in export)
+- Mobile tabs restyled to the Life Review theme (shared hero, tokens, FadeIn); Glucose uses teal instead of iOS blue
+
+### Fixed
+
+- Mobile Settings/Reports crashes: missing `SettingsStack` navigator and undeclared Reports `loading` state
+
 ## [1.5.56] - 2026-08-04
 
 ### Changed

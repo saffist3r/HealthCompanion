@@ -14,12 +14,14 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { absoluteUploadUrl, fetchDashboard } from '../api/client';
 import { syncActivityToCloud } from '../activityCloudSync';
 import MealDetailModal from '../components/MealDetailModal';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
 import { AppIcons } from '../ui/appIcons';
 import { maybeNudgeSiteChange } from '../pushNudges';
+import { HC, themeColors } from '../theme';
 
 type Dash = any;
 
@@ -81,7 +83,6 @@ function StatCard({
 
 export default function DashboardScreen() {
   const isDark = useColorScheme() === 'dark';
-  const insets = useSafeAreaInsets();
   const t = styles(isDark);
   const [data, setData] = useState<Dash | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,16 +174,22 @@ export default function DashboardScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={[t.content, { paddingTop: insets.top + 12, paddingBottom: 120 }]}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#0d9488" />}
+        contentContainerStyle={t.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={HC.teal} />}
       >
-        <Text style={t.title}>Today</Text>
-        <Text style={t.sub}>Glucose, meals, pump & activity — pull to refresh</Text>
+        <ScreenHero
+          eyebrow="DAILY PULSE"
+          title="Today"
+          subtitle="Glucose, meals, pump & activity — pull to refresh"
+          pills={['Glucose', 'Meals', 'Pump', 'Steps']}
+          compact
+        />
 
-        {loading && !data ? <ActivityIndicator style={{ marginTop: 24 }} color="#0d9488" /> : null}
+        {loading && !data ? <ActivityIndicator style={{ marginTop: 8 }} color={HC.teal} /> : null}
 
         {data ? (
           <>
+            <FadeIn>
             <View style={t.statGrid}>
               <StatCard
                 label="Avg glucose"
@@ -249,6 +256,7 @@ export default function DashboardScreen() {
                 t={t}
               />
             </View>
+            </FadeIn>
 
             <View style={t.card}>
               <Text style={t.cardTitle}>Diabetes plot</Text>
@@ -507,80 +515,88 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = (isDark: boolean) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { paddingHorizontal: 16 },
-    title: { fontSize: 28, fontWeight: '700', color: isDark ? '#fff' : '#0f172a', letterSpacing: -0.4 },
-    sub: { marginTop: 4, marginBottom: 16, color: isDark ? '#8b949e' : '#64748b', fontSize: 14 },
-    statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+const styles = (isDark: boolean) => {
+  const c = themeColors(isDark);
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    content: { paddingBottom: 120 },
+    title: { fontSize: 28, fontWeight: '700', color: c.ink, letterSpacing: -0.4 },
+    sub: { marginTop: 4, marginBottom: 16, color: c.muted, fontSize: 14 },
+    statGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 12,
+      paddingHorizontal: 16,
+    },
     statCard: {
       width: '48%',
       flexGrow: 1,
       minWidth: '46%',
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 16,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.md,
       padding: 14,
       borderWidth: 1,
-      borderColor: isDark ? '#21262d' : '#e5e7eb',
+      borderColor: c.borderSoft,
     },
     statWarn: { borderColor: isDark ? '#9a3412' : '#fdba74' },
     statLabel: {
       fontSize: 12,
-      fontWeight: '600',
-      color: isDark ? '#8b949e' : '#64748b',
+      fontWeight: '700',
+      color: c.muted,
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
     statValue: {
       marginTop: 8,
       fontSize: 24,
-      fontWeight: '700',
-      color: isDark ? '#fff' : '#0f172a',
+      fontWeight: '800',
+      color: c.ink,
     },
-    statUnit: { fontSize: 14, fontWeight: '600', color: isDark ? '#8b949e' : '#64748b' },
-    statFoot: { flex: 1, fontSize: 12, color: isDark ? '#8b949e' : '#64748b', lineHeight: 16 },
+    statUnit: { fontSize: 14, fontWeight: '600', color: c.muted },
+    statFoot: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 16 },
     statFootRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
     statFootIcon: { width: 16, height: 16, borderRadius: 4 },
     card: {
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 16,
-      padding: 14,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.lg,
+      padding: 16,
       marginBottom: 12,
+      marginHorizontal: 16,
       borderWidth: 1,
-      borderColor: isDark ? '#21262d' : '#e5e7eb',
+      borderColor: c.border,
     },
     cardTitle: {
       fontSize: 16,
-      fontWeight: '700',
-      color: isDark ? '#fff' : '#0f172a',
+      fontWeight: '800',
+      color: c.ink,
       marginBottom: 10,
     },
-    insight: { marginTop: 6, color: isDark ? '#c9d1d9' : '#334155', lineHeight: 20 },
-    line: { color: isDark ? '#c9d1d9' : '#334155', lineHeight: 20 },
+    insight: { marginTop: 6, color: c.line, lineHeight: 20 },
+    line: { color: c.line, lineHeight: 20 },
     warn: {
       marginTop: 10,
       padding: 10,
-      borderRadius: 10,
+      borderRadius: HC.radius.sm,
       backgroundColor: isDark ? '#3d2c00' : '#fff7ed',
     },
-    warnTitle: { fontWeight: '700', color: '#d97706', marginBottom: 2 },
+    warnTitle: { fontWeight: '700', color: HC.amber, marginBottom: 2 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       paddingVertical: 10,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: isDark ? '#21262d' : '#e5e7eb',
+      borderTopColor: c.borderSoft,
     },
     thumb: { width: 44, height: 44, borderRadius: 12 },
     rowTitle: {
       fontSize: 15,
       fontWeight: '600',
-      color: isDark ? '#e6edf3' : '#0f172a',
+      color: c.ink,
       textTransform: 'capitalize',
     },
-    rowSub: { marginTop: 2, fontSize: 12, color: isDark ? '#8b949e' : '#64748b' },
+    rowSub: { marginTop: 2, fontSize: 12, color: c.muted },
     badge: {
       fontSize: 12,
       fontWeight: '700',
@@ -589,17 +605,17 @@ const styles = (isDark: boolean) =>
       overflow: 'hidden',
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 999,
+      borderRadius: HC.radius.pill,
     },
-    badgeGood: { backgroundColor: '#ccfbf1', color: '#0f766e' },
+    badgeGood: { backgroundColor: HC.tealWash, color: HC.tealMid },
     badgeWarn: { backgroundColor: '#ffedd5', color: '#c2410c' },
-    plotLine: { marginTop: 6, color: isDark ? '#c9d1d9' : '#334155', lineHeight: 20, fontSize: 14 },
+    plotLine: { marginTop: 6, color: c.line, lineHeight: 20, fontSize: 14 },
     plotSubtitle: {
       fontSize: 12,
       fontWeight: '700',
       letterSpacing: 0.4,
       textTransform: 'uppercase',
-      color: isDark ? '#8b949e' : '#64748b',
+      color: c.muted,
       marginBottom: 2,
     },
     plotHypo: { color: isDark ? '#fca5a5' : '#b91c1c' },
@@ -608,9 +624,10 @@ const styles = (isDark: boolean) =>
       marginTop: 12,
       alignSelf: 'flex-start',
       paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 999,
-      backgroundColor: isDark ? '#21262d' : '#e0f2fe',
+      paddingVertical: 10,
+      borderRadius: HC.radius.pill,
+      backgroundColor: HC.teal,
     },
-    shareBtnText: { fontWeight: '700', color: isDark ? '#7dd3fc' : '#0369a1', fontSize: 13 },
+    shareBtnText: { fontWeight: '700', color: '#fff', fontSize: 13 },
   });
+};

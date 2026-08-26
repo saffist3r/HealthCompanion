@@ -227,6 +227,7 @@ def build_daily_report(
     caffeine_logs: list[CaffeineLog] | None = None,
     pump_events: list[PumpLogEvent] | None = None,
     injuries: list[dict[str, Any]] | None = None,
+    workout_plans: list[dict[str, Any]] | None = None,
     calorie_targets: dict[str, Any] | None = None,
     weight: dict[str, Any] | None = None,
     glucose_targets: dict[str, Any] | None = None,
@@ -477,6 +478,7 @@ def build_daily_report(
         "dayCheckIn": check_in,
         "caffeineLogs": caffeine,
         "injuries": injury_list,
+        "workoutPlans": list(workout_plans or []),
         "pumpEvents": pump,
         "weight": weight,
         "calorieTargets": calorie_targets,
@@ -560,6 +562,21 @@ def build_day_activity_prompt(daily: dict[str, Any]) -> str:
             lines.append(f"- Hypoglycemia episodes (<{tir_low:g}): {hypo}")
         if g.get("lowCount"):
             lines.append(f"- Low readings: {g.get('lowCount')} · high readings: {g.get('highCount') or 0}")
+        readings = g.get("readings") or []
+        if readings:
+            lines.append(f"- CGM timeline ({len(readings)} samples):")
+            for r in readings[:48]:
+                if not isinstance(r, dict):
+                    continue
+                ts = int(r.get("timestamp") or 0)
+                mg = r.get("mgDl")
+                try:
+                    clock = datetime.fromtimestamp(ts / 1000).strftime("%H:%M")
+                except (OSError, ValueError, OverflowError):
+                    clock = "—"
+                lines.append(f"  · {clock}: {mg} mg/dL")
+            if len(readings) > 48:
+                lines.append(f"  · … +{len(readings) - 48} more readings in archive")
     else:
         lines.append("- No glucose samples synced.")
 
@@ -634,6 +651,35 @@ def build_day_activity_prompt(daily: dict[str, Any]) -> str:
             lines.append("- Sport: " + " · ".join(b for b in bits if b))
     else:
         lines.append("- No logged sport sessions.")
+
+    plans = daily.get("workoutPlans") or []
+    if plans:
+        lines.append("")
+        lines.append("## Suggested workout plans")
+        for p in plans:
+            if not isinstance(p, dict):
+                continue
+            title = p.get("title") or "Workout"
+            focus = p.get("focus") or ""
+            dur = p.get("durationMin")
+            head = f"- {title}"
+            if focus:
+                head += f" ({focus})"
+            if dur:
+                head += f" · ~{dur} min"
+            lines.append(head)
+            for ex in (p.get("exercises") or [])[:8]:
+                if not isinstance(ex, dict):
+                    continue
+                name = ex.get("name") or "Exercise"
+                detail = []
+                if ex.get("sets"):
+                    detail.append(f"{ex['sets']} sets")
+                if ex.get("reps"):
+                    detail.append(str(ex["reps"]))
+                if ex.get("durationMin"):
+                    detail.append(f"{ex['durationMin']} min")
+                lines.append(f"  · {name}" + (f" — {', '.join(detail)}" if detail else ""))
 
     lines.append("")
     lines.append("## Care visits")
@@ -1040,6 +1086,7 @@ def _glucose_summary(
             "hypoEvents": [],
             "hyperEventCount": 0,
             "hyperEvents": [],
+            "readings": [],
             "tirLowMgDl": tir_low,
             "tirHighMgDl": tir_high,
         }
@@ -1057,6 +1104,7 @@ def _glucose_summary(
     from app.services.diabetes_insights import _hyper_events
 
     hyper_events = _hyper_events(points, threshold=tir_high)
+    readings = [{"timestamp": p["timestamp"], "mgDl": round(float(p["mgDl"]) * 10) / 10} for p in points]
     return {
         "date": date,
         "readingCount": len(mg),
@@ -1070,6 +1118,7 @@ def _glucose_summary(
         "hypoEvents": hypo_events,
         "hyperEventCount": len(hyper_events),
         "hyperEvents": hyper_events,
+        "readings": readings,
         "tirLowMgDl": tir_low,
         "tirHighMgDl": tir_high,
     }

@@ -391,6 +391,59 @@ export async function fetchWeeklyReport(date?: string): Promise<WeeklyReport> {
   return ensureOk(res);
 }
 
+export type DayDebriefSummary = {
+  id: string;
+  date: string;
+  headline: string;
+  source: string;
+  locale?: string;
+  createdAt?: number;
+};
+
+export type DayDebriefDetail = DayDebriefSummary & {
+  summary: string;
+  highlights: string[];
+  watchouts: string[];
+  tomorrowTips: string[];
+  agentPrompt: string;
+  facts: Record<string, unknown>;
+};
+
+export async function fetchDebriefs(limit = 30): Promise<DayDebriefSummary[]> {
+  const res = await fetch(`${await base()}/reports/debriefs?limit=${encodeURIComponent(String(limit))}`, {
+    headers: await headers(),
+  });
+  const data = await ensureOk(res);
+  return (data.debriefs || []) as DayDebriefSummary[];
+}
+
+export async function fetchDebrief(date: string): Promise<DayDebriefDetail> {
+  const res = await fetch(`${await base()}/reports/debriefs/${encodeURIComponent(date)}`, {
+    headers: await headers(),
+  });
+  return ensureOk(res);
+}
+
+export async function fetchRagArchive(limit = 30): Promise<{
+  debriefs: DayDebriefSummary[];
+  workoutPlans: import('@health-companion/shared').WorkoutPlan[];
+}> {
+  const res = await fetch(`${await base()}/reports/rag-archive?limit=${encodeURIComponent(String(limit))}`, {
+    headers: await headers(),
+  });
+  return ensureOk(res);
+}
+
+export type LifeAssessment = import('@health-companion/shared').LifeAssessment;
+
+export async function generateLifeAssessment(days = 7): Promise<LifeAssessment> {
+  const res = await fetch(`${await base()}/reports/life-assessment?days=${encodeURIComponent(String(days))}`, {
+    method: 'POST',
+    headers: await headers(),
+  });
+  return ensureOk(res);
+}
+
 export async function syncActivity(payload: {
   date: string;
   steps: number;
@@ -472,6 +525,52 @@ export async function createSportMatch(payload: {
 
 export async function deleteSportMatch(id: string) {
   const res = await fetch(`${await base()}/health-data/sport-matches/${id}`, {
+    method: 'DELETE',
+    headers: await headers(),
+  });
+  await ensureOk(res);
+}
+
+export async function generateWorkout(notes?: string): Promise<{
+  plan: import('@health-companion/shared').WorkoutPlanDraft;
+  contextSummary?: string;
+}> {
+  const res = await fetch(`${await base()}/health-data/workouts/generate`, {
+    method: 'POST',
+    headers: await headers(),
+    body: JSON.stringify({ notes: notes?.trim() || undefined }),
+  });
+  return ensureOk(res);
+}
+
+export async function saveWorkoutPlan(input: {
+  title: string;
+  focus?: string | null;
+  durationMin?: number | null;
+  summary?: string | null;
+  exercises: import('@health-companion/shared').WorkoutExercise[];
+  basedOn?: string | null;
+  notes?: string | null;
+}): Promise<import('@health-companion/shared').WorkoutPlan> {
+  const res = await fetch(`${await base()}/health-data/workouts`, {
+    method: 'POST',
+    headers: await headers(),
+    body: JSON.stringify({ ...input, source: 'gemini' }),
+  });
+  const data = await ensureOk(res);
+  return data.workoutPlan as import('@health-companion/shared').WorkoutPlan;
+}
+
+export async function fetchWorkoutPlans(limit = 20): Promise<import('@health-companion/shared').WorkoutPlan[]> {
+  const res = await fetch(`${await base()}/health-data/workouts?limit=${encodeURIComponent(String(limit))}`, {
+    headers: await headers(),
+  });
+  const data = await ensureOk(res);
+  return (data.workoutPlans || []) as import('@health-companion/shared').WorkoutPlan[];
+}
+
+export async function deleteWorkoutPlan(id: string): Promise<void> {
+  const res = await fetch(`${await base()}/health-data/workouts/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: await headers(),
   });

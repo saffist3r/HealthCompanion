@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -21,6 +22,7 @@ from app.models import (
     SportMatch,
     StressLog,
     User,
+    WorkoutPlan,
 )
 from app.routers.meals import serialize_meal
 from app.services.daily_report_mail import send_daily_report_email
@@ -32,6 +34,8 @@ from app.services.day_debriefs import (
 )
 from app.services.email_smtp import smtp_configured
 from app.i18n import household_locale
+from app.services.gemini_life_assessment import generate_life_assessment
+from app.services.life_assessment import build_life_assessment_context, rolling_date_keys
 from app.services.report_pdf import build_daily_pdf
 from app.services.report_share import (
     build_qr_png,
@@ -47,6 +51,7 @@ from app.services.reports import (
     monday_of,
     to_date_key,
 )
+from app.services.workouts import serialize_workout_plan
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -198,6 +203,20 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             serialize_injury(inj, latest_pain=latest, today_pain=today_p)
         )
 
+    day_start = datetime.strptime(date, "%Y-%m-%d")
+    day_end = datetime.combine(day_start.date(), time(23, 59, 59, 999999))
+    workout_rows = (
+        db.query(WorkoutPlan)
+        .filter(
+            WorkoutPlan.device_id.in_(device_ids),
+            WorkoutPlan.created_at >= day_start,
+            WorkoutPlan.created_at <= day_end,
+        )
+        .order_by(WorkoutPlan.created_at.desc())
+        .all()
+    )
+    workout_plans = [serialize_workout_plan(w) for w in workout_rows]
+
     return build_daily_report(
         date=date,
         meals=meals,
@@ -210,6 +229,7 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         caffeine_logs=caffeine_logs,
         pump_events=pump_events,
         injuries=injury_dicts,
+        workout_plans=workout_plans,
         calorie_targets=targets,
         weight=weight,
         glucose_targets=glucose_targets,
@@ -401,6 +421,94 @@ def get_debrief(
     if not row:
         raise HTTPException(status_code=404, detail="No debrief archived for this date")
     return serialize_day_debrief(row, full=True)
+
+
+@router.get("/rag-archive")
+def rag_archive(
+    limit: int = Query(30, ge=1, le=200),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Unified RAG archive: daily debrief facts + saved workout plans."""
+    ids = household_device_ids(db)
+    debrief_rows = list_day_debriefs(db, limit=limit)
+    debriefs = [serialize_day_debrief(r, full=False) for r in debrief_rows]
+    workout_plans: list[dict] = []
+    if ids:
+        rows = (
+            db.query(WorkoutPlan)
+            .filter(WorkoutPlan.device_id.in_(ids))
+            .order_by(WorkoutPlan.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        workout_plans = [serialize_workout_plan(r) for r in rows]
+    return {"debriefs": debriefs, "workoutPlans": workout_plans}
+
+
+@router.get("/rag-archive/export")
+def export_rag_archive(
+    limit: int = Query(200, ge=1, le=200),
+    format: Literal["json", "zip"] = Query("zip"),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Bulk download: JSON (RAG) or ZIP (JSON + all archived PDFs)."""
+    ids = household_device_ids(db)
+    rows = list_day_debriefs(db, limit=limit)
+    if not rows:
+        raise HTTPException(status_code=404, detail="No archived debriefs to export")
+
+    stamp = datetime.now().strftime("%Y-%m-%d")
+    if format == "json":
+        body = build_rag_archive_json(db, device_ids=ids, limit=limit)
+        filename = f"health-companion-rag-archive-{stamp}.json"
+        return Response(
+            content=body,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    locale = household_locale(db)
+    body = build_rag_archive_zip(
+        db,
+        device_ids=ids,
+        limit=limit,
+        locale=locale,
+        load_daily=_load_daily,
+    )
+    filename = f"health-companion-rag-archive-{stamp}.zip"
+    return Response(
+        content=body,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/life-assessment")
+def life_assessment(
+    days: int = Query(7, ge=3, le=14),
+    end: str | None = Query(None, description="Last day of window (YYYY-MM-DD), default today"),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Honest AI review of the last N days of tracked health & lifestyle data."""
+    if end and (len(end) != 10):
+        raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
+    period_start, period_end, keys = rolling_date_keys(end_date=end, days=days)
+    ids = household_device_ids(db)
+    daily_days = [_load_daily(db, ids, d) for d in keys]
+    context = build_life_assessment_context(daily_days)
+    locale = household_locale(db)
+    ai = generate_life_assessment(context, locale=locale)
+    return {
+        "periodStart": period_start,
+        "periodEnd": period_end,
+        "dayCount": len(keys),
+        "totals": context.get("totals"),
+        "generatedAt": int(datetime.now().timestamp() * 1000),
+        **ai,
+    }
 
 
 @router.get("/weekly")

@@ -42,28 +42,28 @@ export const NUDGE_META: Array<{
   blurb: string;
   channel: 'lifestyle' | 'meals' | 'glucose' | 'reports';
 }> = [
-  { kind: 'morning', title: 'Morning log', blurb: '10:30 — weight + mental check-in', channel: 'lifestyle' },
-  { kind: 'evening', title: 'Evening wind-down', blurb: '21:30 — mood / sleep vibes', channel: 'lifestyle' },
-  { kind: 'mealLunch', title: 'Lunch nudge', blurb: '13:00 — did food happen?', channel: 'meals' },
-  { kind: 'mealDinner', title: 'Dinner nudge', blurb: '20:00 — evening carbs calling', channel: 'meals' },
+  { kind: 'morning', title: 'Morning log', blurb: '10:30 — weight + check-in', channel: 'lifestyle' },
+  { kind: 'evening', title: 'Evening check-in', blurb: '21:30 — mood / sleep', channel: 'lifestyle' },
+  { kind: 'mealLunch', title: 'Lunch reminder', blurb: '13:00 — log lunch if you ate', channel: 'meals' },
+  { kind: 'mealDinner', title: 'Dinner reminder', blurb: '20:00 — log dinner if you ate', channel: 'meals' },
   { kind: 'postMeal', title: 'Post-meal check', blurb: '+2h after you log a meal', channel: 'meals' },
-  { kind: 'carbTarget', title: 'Carb party alerts', blurb: 'When a meal is carb-enthusiastic', channel: 'meals' },
-  { kind: 'weightWeekly', title: 'Weekly weigh-in', blurb: 'Sunday 10:00 — hop on the scale', channel: 'lifestyle' },
-  { kind: 'meds', title: 'Meds nudge', blurb: '09:00 — brain chemistry support', channel: 'lifestyle' },
-  { kind: 'injuryPain', title: 'Injury check', blurb: '19:00 — how’s the boo-boo?', channel: 'lifestyle' },
-  { kind: 'afterSport', title: 'After sport', blurb: '+30 min after you log a session', channel: 'lifestyle' },
-  { kind: 'careFollowUp', title: 'Care follow-up', blurb: 'Next day after a care visit', channel: 'lifestyle' },
-  { kind: 'reportReady', title: 'Daily report', blurb: '07:05 — yesterday’s roast is ready', channel: 'reports' },
-  { kind: 'weeklySummary', title: 'Weekly summary', blurb: 'Sunday 18:00 — TIR & ADHD recap', channel: 'reports' },
-  { kind: 'glucoseOor', title: 'Out-of-range streak', blurb: 'Sustained high/low (~20 min)', channel: 'glucose' },
-  { kind: 'glucoseRate', title: 'Rocket / freefall', blurb: 'Fast rise or drop', channel: 'glucose' },
-  { kind: 'glucoseMissed', title: 'Silent CGM', blurb: 'No reading for ~3 hours', channel: 'glucose' },
-  { kind: 'pumpAlert', title: 'Pump drama', blurb: 'Reservoir / battery / occlusion vibes', channel: 'glucose' },
-  { kind: 'siteChange', title: 'Site change nudge', blurb: 'When cannula day count gets spicy', channel: 'glucose' },
-  { kind: 'preBolus', title: 'Pre-bolus timer', blurb: 'Eat-now ping after insulin head start', channel: 'meals' },
+  { kind: 'carbTarget', title: 'High-carb meal', blurb: 'When a logged meal is high in carbs', channel: 'meals' },
+  { kind: 'weightWeekly', title: 'Weekly weigh-in', blurb: 'Sunday 10:00', channel: 'lifestyle' },
+  { kind: 'meds', title: 'Meds reminder', blurb: '09:00', channel: 'lifestyle' },
+  { kind: 'injuryPain', title: 'Injury check', blurb: '19:00 — pain score', channel: 'lifestyle' },
+  { kind: 'afterSport', title: 'After sport', blurb: '+30 min after a logged session', channel: 'lifestyle' },
+  { kind: 'careFollowUp', title: 'Care follow-up', blurb: 'Day after a care visit', channel: 'lifestyle' },
+  { kind: 'reportReady', title: 'Daily report', blurb: '07:05 — yesterday’s report', channel: 'reports' },
+  { kind: 'weeklySummary', title: 'Weekly summary', blurb: 'Sunday 18:00', channel: 'reports' },
+  { kind: 'glucoseOor', title: 'Out of range', blurb: 'Sustained high or low (~20 min)', channel: 'glucose' },
+  { kind: 'glucoseRate', title: 'Fast change', blurb: 'Rapid rise or drop', channel: 'glucose' },
+  { kind: 'glucoseMissed', title: 'No CGM reading', blurb: 'No reading for ~3 hours', channel: 'glucose' },
+  { kind: 'pumpAlert', title: 'Pump alert', blurb: 'Reservoir / battery / occlusion', channel: 'glucose' },
+  { kind: 'siteChange', title: 'Site change', blurb: 'When cannula day count is high', channel: 'glucose' },
+  { kind: 'preBolus', title: 'Pre-bolus timer', blurb: 'Reminder when your timer ends', channel: 'meals' },
 ];
 
-const PREFS_KEY = 'hc.nudgePrefs.v1';
+const PREFS_KEY = 'hc.nudgePrefs.v2';
 const LEGACY_MORNING_KEY = 'hc.morningReminder.enabled';
 const OOR_SINCE_KEY = 'hc.nudge.oorSince';
 const LAST_OOR_NOTIFY_KEY = 'hc.nudge.lastOorNotify';
@@ -79,104 +79,39 @@ export const MORNING_REMINDER_MINUTE = 30;
 const DEFAULT_TIR_LOW = 70;
 const DEFAULT_TIR_HIGH = 180;
 
-type Funny = { title: string; body: string };
+/** Kinds enabled by default — keep the noise low; user can turn more on. */
+const DEFAULT_ON: ReadonlySet<NudgeKind> = new Set([
+  'morning',
+  'meds',
+  'reportReady',
+  'glucoseOor',
+  'glucoseMissed',
+  'pumpAlert',
+  'preBolus',
+]);
 
-const COPY: Record<NudgeKind, Funny[]> = {
-  morning: [
-    { title: 'Rise and… weigh?', body: 'Scale + feelings check. Your future self wants data, not vibes alone.' },
-    { title: 'Morning briefing', body: 'Mood, ADHD dials, and kg. Takes 60 seconds. Bribe optional.' },
-    { title: 'Hello, human', body: 'Log weight & check-in before the day gaslights you.' },
-  ],
-  evening: [
-    { title: 'Wind-down check', body: 'How’s the brain soup tonight? Tap in before doomscrolling wins.' },
-    { title: 'Soft landing', body: 'Evening mental log: fewer open tabs in the skull, please.' },
-    { title: 'Almost bedtime', body: 'Quick check-in so tomorrow’s report doesn’t say “mystery gremlin.”' },
-  ],
-  mealLunch: [
-    { title: 'Lunch o’clock', body: 'Has food entered the chat? CapAPS can’t smell your sandwich.' },
-    { title: 'Midday carbs?', body: 'If you ate, log it. If you didn’t… still log the chaos.' },
-    { title: 'Fuel check', body: 'Your pancreas-adjacent lifestyle coach wants a meal photo or a confession.' },
-  ],
-  mealDinner: [
-    { title: 'Dinner plot twist', body: 'Log tonight’s carbs before they become a 3am subplot.' },
-    { title: 'Evening buffet?', body: 'Snap the plate or type the crime. Future-you is watching.' },
-    { title: 'Night carbs calling', body: 'If it went in your mouth, it belongs in the app.' },
-  ],
-  postMeal: [
-    { title: 'Plot check +2h', body: 'How’s glucose after that meal? Peek at CapAPS like a nosy neighbor.' },
-    { title: 'Digestive sequel', body: 'Two hours later: still vibing, or did the pasta start a gang war?' },
-    { title: 'Post-meal spy mission', body: 'Quick glance at the trend. Science, but make it dramatic.' },
-  ],
-  carbTarget: [
-    { title: 'Carb festival detected', body: 'That meal brought friends. Maybe walk, hydrate, or just own it.' },
-    { title: 'Macro plot twist', body: 'Carbs showed up fashionably heavy. Note it so the report doesn’t roast you cold.' },
-    { title: 'Spaghetti diplomacy', body: 'Big carb energy. Log honesty > silent regret.' },
-  ],
-  weightWeekly: [
-    { title: 'Sunday weigh-in', body: 'Hop on the scale. Gravity isn’t judging… okay, a little.' },
-    { title: 'Weekly kg check', body: 'One number, zero drama (mostly). Update the trendline.' },
-    { title: 'Mass mutual', body: 'Weekly weight log: your calorie math’s favorite gossip.' },
-  ],
-  meds: [
-    { title: 'Meds o’clock', body: 'Brain chemistry support — did the tiny tablet clock in?' },
-    { title: 'Pharmacy reminder', body: 'ADHD/insulin-adjacent checklist: meds taken? Tick the box, hero.' },
-    { title: 'Pill patrol', body: 'Future-you hates scavenger hunts for “did I take it?”' },
-  ],
-  injuryPain: [
-    { title: 'Boo-boo roll call', body: 'How’s the injury feeling (0–10)? Be honest; the knee already knows.' },
-    { title: 'Pain check', body: 'Log today’s score so physio lore stays accurate.' },
-    { title: 'Joint journalism', body: 'Quick pain update. Your body is trending — cover the story.' },
-  ],
-  afterSport: [
-    { title: 'Cool-down interrogation', body: 'Sport done. Any pain flare? Intensity still a flex?' },
-    { title: 'Athlete debrief', body: 'You moved! Log how it felt before the endorphins commit perjury.' },
-    { title: 'Sweat → data', body: '+30 min: rate the session / check the injury plotline.' },
-  ],
-  careFollowUp: [
-    { title: 'Care hangover check', body: 'Day after the pro poked you — how’s the area feeling?' },
-    { title: 'Follow-up vibes', body: 'Kiné/osteo sequel episode: log pain or notes while it’s fresh.' },
-    { title: 'Clinic aftercare', body: 'Yesterday’s appointment wants a status update. Spill.' },
-  ],
-  reportReady: [
-    { title: 'Yesterday got roasted', body: 'Daily report is ready. Read it like celebrity gossip, but medical.' },
-    { title: 'Mailbag: your pancreas', body: 'Fresh debrief dropped. Spoilers: carbs may have been involved.' },
-    { title: 'Morning paper', body: 'Yesterday’s highlight reel is cooked. Open Reports for the tea.' },
-  ],
-  weeklySummary: [
-    { title: 'Weekly season finale', body: 'TIR + ADHD recap time. Popcorn optional, honesty mandatory.' },
-    { title: 'Sunday scaries (data edition)', body: 'Glance at the week before Monday invents new lore.' },
-    { title: 'Box set binge', body: 'Seven days of you, compressed. Open Reports and judge kindly.' },
-  ],
-  glucoseOor: [
-    { title: 'Still off the dance floor', body: 'Glucose hanging outside your range. Check CapAPS / treat if needed.' },
-    { title: 'Range? Never heard of her', body: 'Sustained out-of-band vibes. Peek at the trend, hydrate, don’t panic-scroll.' },
-    { title: 'TIR wants a word', body: 'You’ve been out of range a bit. Worth a look — funny message, serious glance.' },
-  ],
-  glucoseRate: [
-    { title: 'Glucose go brrr', body: 'Rapid change detected. Eyes on CapAPS; arrows aren’t just for decoration.' },
-    { title: 'Elevator glucose', body: 'Going up/down fast. Confirm with the pump app before inventing a thesis.' },
-    { title: 'Plot acceleration', body: 'Rate-of-change said “hold my beer.” Check the graph.' },
-  ],
-  glucoseMissed: [
-    { title: 'CGM went AFK', body: 'No fresh reading in a while. Sensor nap? Phone drama? Investigate.' },
-    { title: 'Radio silence', body: 'CapAPS has been quiet. Might be fine — or the listener needs a pep talk.' },
-    { title: 'Missing persons: glucose', body: 'Three hours, no ping. Open Glucose and see who’s ghosting whom.' },
-  ],
-  pumpAlert: [
-    { title: 'Pump is theatrical again', body: 'Hardware wants attention (reservoir / battery / occlusion). Check CapAPS.' },
-    { title: 'Device drama incoming', body: 'Pump/sensor alert parsed. Not medical advice — just your phone being helpful-chaotic.' },
-    { title: 'Beep lore', body: 'Something pump-shaped needs a glance. Better now than at 3am.' },
-  ],
-  siteChange: [
-    { title: 'Site change o’clock?', body: 'Cannula day count is getting dramatic. Rotate real estate before insulin gets moody.' },
-    { title: 'Fresh real estate wanted', body: 'Your pump site has been on the job a while. Mark a change in Settings when you swap.' },
-    { title: 'Adhesive fatigue arc', body: 'Day count says “maybe new site.” Not medical advice — just your app being nosy-helpful.' },
-  ],
-  preBolus: [
-    { title: 'Pre-bolus timer done', body: 'Insulin has a head start. Food may enter the chat now.' },
-    { title: 'Eat window open', body: 'Timer’s up — carbs and insulin can meet on neutral ground.' },
-    { title: 'Bolus head start complete', body: 'If you haven’t eaten yet, the clock says “now-ish.” If you have, ignore the drama.' },
-  ],
+type NudgeCopy = { title: string; body: string };
+
+const COPY: Record<NudgeKind, NudgeCopy[]> = {
+  morning: [{ title: 'Morning log', body: 'Time for weight and a quick check-in.' }],
+  evening: [{ title: 'Evening check-in', body: 'Log how you’re feeling before bed.' }],
+  mealLunch: [{ title: 'Lunch', body: 'Log lunch if you ate.' }],
+  mealDinner: [{ title: 'Dinner', body: 'Log dinner if you ate.' }],
+  postMeal: [{ title: 'Post-meal check', body: 'Check glucose about 2 hours after your meal.' }],
+  carbTarget: [{ title: 'High-carb meal', body: 'That meal was high in carbs. Worth a note.' }],
+  weightWeekly: [{ title: 'Weekly weigh-in', body: 'Log your weight for the week.' }],
+  meds: [{ title: 'Meds', body: 'Have you taken your medication?' }],
+  injuryPain: [{ title: 'Injury check', body: 'Log today’s pain score if you have an open injury.' }],
+  afterSport: [{ title: 'After sport', body: 'How did the session feel? Add a quick note.' }],
+  careFollowUp: [{ title: 'Care follow-up', body: 'How are you feeling after yesterday’s care visit?' }],
+  reportReady: [{ title: 'Daily report', body: 'Yesterday’s report is ready.' }],
+  weeklySummary: [{ title: 'Weekly summary', body: 'Your week summary is ready in Reports.' }],
+  glucoseOor: [{ title: 'Out of range', body: 'Glucose has been outside your target for a while. Check CapAPS.' }],
+  glucoseRate: [{ title: 'Fast change', body: 'Glucose is changing quickly. Check CapAPS.' }],
+  glucoseMissed: [{ title: 'No reading', body: 'No glucose reading for a few hours. Check CapAPS or the sensor.' }],
+  pumpAlert: [{ title: 'Pump alert', body: 'Check CapAPS — reservoir, battery, or occlusion may need attention.' }],
+  siteChange: [{ title: 'Site change', body: 'Cannula day count is high. Consider a site change.' }],
+  preBolus: [{ title: 'Pre-bolus timer', body: 'Timer done — you can eat now.' }],
 };
 
 const SCREEN_FOR: Record<NudgeKind, NudgeScreen> = {
@@ -210,7 +145,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-function pickCopy(kind: NudgeKind): Funny {
+function pickCopy(kind: NudgeKind): NudgeCopy {
   const list = COPY[kind];
   return list[Math.floor(Math.random() * list.length)] || list[0];
 }
@@ -240,7 +175,7 @@ async function ensureChannels() {
 
 function defaultPrefs(): NudgePrefs {
   const prefs = {} as NudgePrefs;
-  for (const m of NUDGE_META) prefs[m.kind] = true;
+  for (const m of NUDGE_META) prefs[m.kind] = DEFAULT_ON.has(m.kind);
   return prefs;
 }
 
@@ -251,6 +186,22 @@ export async function getNudgePrefs(): Promise<NudgePrefs> {
     try {
       const parsed = JSON.parse(raw) as Partial<NudgePrefs>;
       return { ...base, ...parsed };
+    } catch {
+      /* ignore */
+    }
+  }
+  // Migrate from v1: start from quieter defaults (v1 had everything on).
+  const legacyV1 = await AsyncStorage.getItem('hc.nudgePrefs.v1');
+  if (legacyV1) {
+    try {
+      const parsed = JSON.parse(legacyV1) as Partial<NudgePrefs>;
+      const merged = { ...base };
+      // Keep only explicit offs from v1 for kinds that stay on by default.
+      for (const kind of DEFAULT_ON) {
+        if (parsed[kind] === false) merged[kind] = false;
+      }
+      await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(merged));
+      return merged;
     } catch {
       /* ignore */
     }
@@ -530,7 +481,7 @@ export async function evaluateGlucoseNudges(reading: GlycemiaReading): Promise<v
       const since = sinceRaw ? Number(sinceRaw) : now;
       if (!sinceRaw) await AsyncStorage.setItem(OOR_SINCE_KEY, String(now));
       const lastNotify = Number((await AsyncStorage.getItem(LAST_OOR_NOTIFY_KEY)) || '0');
-      if (now - since >= 20 * 60 * 1000 && now - lastNotify >= 45 * 60 * 1000) {
+      if (now - since >= 20 * 60 * 1000 && now - lastNotify >= 90 * 60 * 1000) {
         await fireNow('glucoseOor', 'glucose');
         await AsyncStorage.setItem(LAST_OOR_NOTIFY_KEY, String(now));
       }
@@ -549,7 +500,7 @@ export async function evaluateGlucoseNudges(reading: GlycemiaReading): Promise<v
         const dtMin = Math.max(1, (now - prev.timestamp) / 60_000);
         const rate = Math.abs(mg - prevMg) / dtMin;
         const last = Number((await AsyncStorage.getItem(LAST_RATE_NOTIFY_KEY)) || '0');
-        if (rate >= 3 && Math.abs(mg - prevMg) >= 25 && now - last >= 30 * 60 * 1000) {
+        if (rate >= 3 && Math.abs(mg - prevMg) >= 25 && now - last >= 90 * 60 * 1000) {
           await fireNow('glucoseRate', 'glucose');
           await AsyncStorage.setItem(LAST_RATE_NOTIFY_KEY, String(now));
         }
@@ -597,7 +548,7 @@ export async function onPumpEvent(event: PumpLogEvent): Promise<void> {
   if (!PUMP_KINDS.has(event.kind)) return;
   const now = Date.now();
   const last = Number((await AsyncStorage.getItem(LAST_PUMP_NOTIFY_KEY)) || '0');
-  if (now - last < 20 * 60 * 1000) return;
+  if (now - last < 45 * 60 * 1000) return;
   await ensureChannels();
   await fireNow('pumpAlert', 'glucose');
   await AsyncStorage.setItem(LAST_PUMP_NOTIFY_KEY, String(now));

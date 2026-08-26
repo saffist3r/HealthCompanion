@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { DEFAULT_API_BASE_URL, getApiBaseUrl, setApiBaseUrl } from '../api/config';
 import { useAuth } from '../auth/AuthContext';
-import { useEffect } from 'react';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
+import { HC, themeColors } from '../theme';
 
 export default function LoginScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -41,82 +43,104 @@ export default function LoginScreen() {
 
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content} keyboardShouldPersistTaps="handled">
-      <Text style={t.brand}>Health Companion</Text>
-      <Text style={t.sub}>Sign in to sync meals, glucose, and activity with your household dashboard.</Text>
-
-      <Text style={t.label}>API URL</Text>
-      <TextInput
-        style={t.input}
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        placeholderTextColor={isDark ? '#6e7681' : '#999'}
+      <ScreenHero
+        eyebrow="HEALTH COMPANION"
+        title="Welcome back"
+        subtitle="Sign in to sync meals, glucose, and activity with your household dashboard."
+        pills={['Sync', 'Household', 'Secure']}
       />
 
-      <Text style={t.label}>Email</Text>
-      <TextInput
-        style={t.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-        placeholderTextColor={isDark ? '#6e7681' : '#999'}
-      />
+      <FadeIn>
+        <View style={t.form}>
+          <Text style={t.label}>API URL</Text>
+          <TextInput
+            style={t.input}
+            value={url}
+            onChangeText={setUrl}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholderTextColor={isDark ? '#6e7681' : '#999'}
+          />
 
-      <Text style={t.label}>Password</Text>
-      <TextInput
-        style={t.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="password"
-        placeholderTextColor={isDark ? '#6e7681' : '#999'}
-      />
+          <Text style={t.label}>Email</Text>
+          <TextInput
+            style={t.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            placeholderTextColor={isDark ? '#6e7681' : '#999'}
+          />
 
-      <TouchableOpacity style={t.btn} onPress={onSubmit} disabled={busy}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.btnText}>Sign in</Text>}
-      </TouchableOpacity>
+          <Text style={t.label}>Password</Text>
+          <TextInput
+            style={t.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="password"
+            placeholderTextColor={isDark ? '#6e7681' : '#999'}
+          />
 
-      <View style={t.card}>
-        <Text style={t.hint}>
-          Use the same account as the web dashboard. Ask the household admin if you need an invite.
-        </Text>
-      </View>
+          <TouchableOpacity style={t.btn} onPress={onSubmit} disabled={busy} activeOpacity={0.85}>
+            {busy ? (
+              <ActivityIndicator color={HC.tealDeep} />
+            ) : (
+              <Text style={t.btnText}>Sign in</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={t.card}>
+            <Text style={t.hint}>
+              Use the same account as the web dashboard. Ask the household admin if you need an invite.
+            </Text>
+          </View>
+        </View>
+      </FadeIn>
     </ScrollView>
   );
 }
 
-const styles = (isDark: boolean) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { padding: 24, paddingTop: 72, paddingBottom: 40 },
-    brand: { fontSize: 28, fontWeight: '700', color: isDark ? '#fff' : '#111' },
-    sub: { marginTop: 8, marginBottom: 28, color: isDark ? '#9aa4b2' : '#667', lineHeight: 20 },
-    label: { fontSize: 13, color: isDark ? '#8b949e' : '#666', marginBottom: 6 },
+const styles = (isDark: boolean) => {
+  const c = themeColors(isDark);
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    content: { paddingBottom: 40 },
+    form: { paddingHorizontal: 24, marginTop: 8 },
+    label: { fontSize: 12, color: c.muted, marginBottom: 6, fontWeight: '800', textTransform: 'uppercase' },
     input: {
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#ddd',
-      borderRadius: 12,
+      borderColor: c.border,
+      borderRadius: HC.radius.md,
       padding: 14,
-      color: isDark ? '#e6edf3' : '#111',
-      marginBottom: 14,
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      marginBottom: 16,
+      color: c.ink,
+      backgroundColor: c.card,
+      fontSize: 16,
     },
     btn: {
-      backgroundColor: '#0d9488',
-      padding: 16,
-      borderRadius: 12,
+      backgroundColor: '#fff',
+      borderRadius: HC.radius.md,
+      paddingVertical: 16,
       alignItems: 'center',
       marginTop: 4,
+      borderWidth: 1,
+      borderColor: c.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
     },
-    btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    btnText: { color: HC.tealDeep, fontWeight: '800', fontSize: 16 },
     card: {
       marginTop: 20,
-      padding: 14,
-      borderRadius: 12,
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      padding: 16,
+      borderRadius: HC.radius.lg,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
     },
-    hint: { fontSize: 13, color: isDark ? '#8b949e' : '#666', lineHeight: 18 },
+    hint: { color: c.muted, lineHeight: 20, fontSize: 13 },
   });
+};

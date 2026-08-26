@@ -6,6 +6,7 @@ export * from './reports';
 export * from './healthMetrics';
 export * from './lifestyle';
 export * from './injuries';
+export * from './workouts';
 export * from './pump';
 
 export type GlycemiaUnit = 'mmol/L' | 'mg/dL';

@@ -50,7 +50,7 @@ export default function RemindersSettingsScreen() {
         if (!ok) {
           Alert.alert(
             'Notifications blocked',
-            'Allow notifications so Health Companion can send these delightfully unhinged nudges.'
+            'Allow notifications so Health Companion can send reminders.'
           );
           const reverted = await setNudgePref(kind, false);
           setPrefs(reverted);
@@ -67,8 +67,8 @@ export default function RemindersSettingsScreen() {
     <ScrollView style={t.root} contentContainerStyle={t.content}>
       <Text style={t.title}>Reminders</Text>
       <Text style={t.sub}>
-        Local nudges on this phone — funny on purpose, never a substitute for CapAPS or your care team.
-        Morning log still lands at {morningLabel}.
+        Simple local reminders on this phone — not a substitute for CapAPS or your care team.
+        Only a few are on by default; turn on more if you want them. Morning log is at {morningLabel}.
       </Text>
 
       {!prefs ? (

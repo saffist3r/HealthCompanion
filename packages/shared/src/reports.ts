@@ -13,6 +13,11 @@ export interface DayMacrosSummary {
   mealCount: number;
 }
 
+export interface GlucoseReadingPoint {
+  timestamp: number;
+  mgDl: number;
+}
+
 export interface GlucoseDaySummary {
   date: string;
   readingCount: number;
@@ -24,6 +29,10 @@ export interface GlucoseDaySummary {
   highCount: number;
   hypoEventCount?: number;
   hypoEvents?: HypoEvent[];
+  hyperEventCount?: number;
+  hyperEvents?: HypoEvent[];
+  /** Full-day CGM samples for charts / RAG archive (may be downsampled). */
+  readings?: GlucoseReadingPoint[];
 }
 
 export interface HypoEvent {
@@ -189,6 +198,27 @@ export interface WeeklyReport {
   dayCheckIns?: NonNullable<DailyReport['dayCheckIn']>[];
   caffeineLogs?: DailyReport['caffeineLogs'];
   insights: string[];
+}
+
+/** AI-generated honest review of the last N days of tracked life data. */
+export interface LifeAssessment {
+  periodStart: string;
+  periodEnd: string;
+  dayCount: number;
+  headline: string;
+  honestSummary: string;
+  wins: string[];
+  concerns: string[];
+  patterns: string[];
+  priorities: string[];
+  glucoseVerdict?: string;
+  lifestyleVerdict?: string;
+  moodVerdict?: string;
+  source: 'gemini' | 'fallback';
+  locale?: string;
+  note?: string;
+  totals?: WeeklyReport['totals'];
+  generatedAt?: number;
 }
 
 export function toDateKey(ts: number, timeZone = 'local'): string {

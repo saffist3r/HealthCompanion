@@ -8,19 +8,20 @@ import json
 import logging
 import re
 import threading
-import time
 import wave
-from typing import Any, Callable, TypeVar
+from typing import Any
 
 from google import genai
 from google.genai import types
 
 from app.core.config import get_settings
 from app.services.gemini_insights import compact_report
+from app.services.gemini_retry import (
+    is_transient_gemini_error as _is_transient_gemini_error,
+    with_gemini_retries as _with_gemini_retries,
+)
 
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 # Prefer configured model first; fall back when a preview TTS endpoint is overloaded.
 _TTS_MODEL_FALLBACKS = (
@@ -29,53 +30,6 @@ _TTS_MODEL_FALLBACKS = (
     "gemini-3.1-flash-tts-preview",
     "gemini-2.5-flash-lite-preview-tts",
 )
-
-
-def _is_transient_gemini_error(exc: BaseException) -> bool:
-    text = f"{type(exc).__name__} {exc}".lower()
-    markers = (
-        "503",
-        "429",
-        "unavailable",
-        "high demand",
-        "resource_exhausted",
-        "resource exhausted",
-        "temporarily",
-        "try again",
-        "deadline exceeded",
-        "overloaded",
-    )
-    return any(m in text for m in markers)
-
-
-def _with_gemini_retries(
-    label: str,
-    fn: Callable[[], T],
-    *,
-    attempts: int = 5,
-    base_delay_s: float = 2.0,
-) -> T:
-    """Retry transient Gemini overload / quota spikes before failing."""
-    last: BaseException | None = None
-    for i in range(attempts):
-        try:
-            return fn()
-        except Exception as exc:  # noqa: BLE001
-            last = exc
-            if not _is_transient_gemini_error(exc) or i >= attempts - 1:
-                raise
-            delay = base_delay_s * (2**i)
-            logger.warning(
-                "%s transient Gemini error (attempt %s/%s): %s — retry in %.1fs",
-                label,
-                i + 1,
-                attempts,
-                exc,
-                delay,
-            )
-            time.sleep(delay)
-    assert last is not None
-    raise last
 
 
 def _tts_model_candidates(primary: str) -> list[str]:

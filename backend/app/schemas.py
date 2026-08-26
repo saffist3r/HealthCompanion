@@ -287,6 +287,54 @@ class InjuryPainLogIn(BaseModel):
     notes: str | None = None
 
 
+class WorkoutExercise(BaseModel):
+    name: str
+    sets: int | None = None
+    reps: str | None = None
+    durationMin: int | None = None
+    restSec: int | None = None
+    targetArea: str | None = None
+    notes: str | None = None
+
+
+class WorkoutPlanDraft(BaseModel):
+    title: str
+    focus: str | None = None
+    durationMin: int | None = None
+    summary: str | None = None
+    exercises: list[WorkoutExercise] = Field(default_factory=list)
+    basedOn: str | None = None
+    disclaimer: str | None = None
+
+
+class WorkoutGenerateIn(BaseModel):
+    notes: str | None = None
+
+
+class WorkoutPlanIn(BaseModel):
+    title: str
+    focus: str | None = None
+    durationMin: int | None = None
+    summary: str | None = None
+    exercises: list[WorkoutExercise] = Field(default_factory=list)
+    basedOn: str | None = None
+    notes: str | None = None
+    source: str = "gemini"
+
+
+class WorkoutPlanOut(BaseModel):
+    id: str
+    title: str
+    focus: str | None = None
+    durationMin: int | None = None
+    summary: str | None = None
+    exercises: list[WorkoutExercise] = Field(default_factory=list)
+    source: str = "gemini"
+    notes: str | None = None
+    basedOn: str | None = None
+    createdAt: int | None = None
+
+
 class DashboardOut(BaseModel):
     deviceId: str
     mealCount: int

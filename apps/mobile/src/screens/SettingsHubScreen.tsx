@@ -2,6 +2,9 @@ import { Text, StyleSheet, TouchableOpacity, View, useColorScheme, ScrollView, I
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppIcons } from '../ui/appIcons';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
+import { HC, themeColors } from '../theme';
 
 type Row = {
   title: string;
@@ -38,50 +41,57 @@ export default function SettingsHubScreen() {
 
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content}>
-      <Text style={t.title}>Settings</Text>
-      <Text style={t.sub}>Watch, reminders, and app connection.</Text>
+      <ScreenHero
+        eyebrow="PREFERENCES"
+        title="Settings"
+        subtitle="Watch, reminders, and app connection."
+        pills={['Watch', 'Reminders', 'API']}
+        compact
+      />
 
-      <View style={t.list}>
-        {ROWS.map((row) => (
-          <TouchableOpacity
-            key={row.screen}
-            style={t.row}
-            onPress={() => nav.navigate(row.screen)}
-            activeOpacity={0.75}
-          >
-            <View style={t.iconWrap}>
-              {row.icon === 'settings' ? (
-                <Ionicons name="settings-outline" size={22} color="#0d9488" />
-              ) : row.icon === 'notifications' ? (
-                <Ionicons name="notifications-outline" size={22} color="#0d9488" />
-              ) : (
-                <Image source={AppIcons.watch} style={t.iconImg} />
-              )}
-            </View>
-            <View style={t.rowText}>
-              <Text style={t.rowTitle}>{row.title}</Text>
-              <Text style={t.rowSub}>{row.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={isDark ? '#6e7681' : '#9ca3af'} />
-          </TouchableOpacity>
-        ))}
-      </View>
+      <FadeIn>
+        <View style={t.list}>
+          {ROWS.map((row) => (
+            <TouchableOpacity
+              key={row.screen}
+              style={t.row}
+              onPress={() => nav.navigate(row.screen)}
+              activeOpacity={0.75}
+            >
+              <View style={t.iconWrap}>
+                {row.icon === 'settings' ? (
+                  <Ionicons name="settings-outline" size={22} color={HC.teal} />
+                ) : row.icon === 'notifications' ? (
+                  <Ionicons name="notifications-outline" size={22} color={HC.teal} />
+                ) : (
+                  <Image source={AppIcons.watch} style={t.iconImg} />
+                )}
+              </View>
+              <View style={t.rowText}>
+                <Text style={t.rowTitle}>{row.title}</Text>
+                <Text style={t.rowSub}>{row.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={isDark ? '#6e7681' : '#9ca3af'} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </FadeIn>
     </ScrollView>
   );
 }
 
-const styles = (isDark: boolean) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
-    content: { padding: 16, paddingBottom: 40 },
-    title: { fontSize: 24, fontWeight: '700', color: isDark ? '#fff' : '#111' },
-    sub: { marginTop: 4, marginBottom: 20, color: isDark ? '#9aa4b2' : '#667' },
+const styles = (isDark: boolean) => {
+  const c = themeColors(isDark);
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    content: { paddingBottom: 40 },
     list: {
-      backgroundColor: isDark ? '#161b22' : '#fff',
-      borderRadius: 14,
+      backgroundColor: c.card,
+      borderRadius: HC.radius.lg,
       overflow: 'hidden',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: isDark ? '#30363d' : '#e5e7eb',
+      borderWidth: 1,
+      borderColor: c.border,
+      marginHorizontal: 16,
     },
     row: {
       flexDirection: 'row',
@@ -89,20 +99,21 @@ const styles = (isDark: boolean) =>
       paddingVertical: 14,
       paddingHorizontal: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: isDark ? '#30363d' : '#e5e7eb',
+      borderBottomColor: c.border,
       gap: 12,
     },
     iconWrap: {
       width: 44,
       height: 44,
       borderRadius: 12,
-      backgroundColor: isDark ? '#0d948820' : '#ccfbf1',
+      backgroundColor: isDark ? '#0d948820' : HC.tealWash,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
     },
     iconImg: { width: 44, height: 44, borderRadius: 12 },
     rowText: { flex: 1 },
-    rowTitle: { fontSize: 16, fontWeight: '600', color: isDark ? '#e6edf3' : '#111' },
-    rowSub: { marginTop: 2, fontSize: 13, color: isDark ? '#8b949e' : '#6b7280' },
+    rowTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
+    rowSub: { marginTop: 2, fontSize: 13, color: c.muted },
   });
+};

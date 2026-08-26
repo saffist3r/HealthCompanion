@@ -71,7 +71,12 @@ export default function CaptureMealScreen() {
       setPhotoPath(res.photoPath);
       if (res.analysis.mealTypeGuess) setMealType(res.analysis.mealTypeGuess);
     } catch (e) {
-      Alert.alert('Analysis failed', String(e));
+      Alert.alert(
+        'Analysis failed',
+        String(e).includes('busy') || String(e).includes('503') || String(e).includes('UNAVAILABLE')
+          ? 'AI is busy right now. Wait a few seconds and try again.'
+          : String(e)
+      );
     } finally {
       setBusy(false);
     }

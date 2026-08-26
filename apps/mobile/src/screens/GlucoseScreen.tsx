@@ -33,6 +33,9 @@ import {
 } from '@health-companion/shared';
 import { sendGlycemiaToWatch, sendBackgroundToWatch } from '../wearSync';
 import { SparklineChart, type ChartRangeHours } from '../components/SparklineChart';
+import ScreenHero from '../components/ui/ScreenHero';
+import { FadeIn } from '../components/ui/FadeIn';
+import { HC } from '../theme';
 import { loadBackgroundSettings } from '../backgroundSettings';
 import { syncGlucose, fetchGlucoseHistory, fetchGlycemiaEvents, type GlycemiaChartEvent } from '../api/client';
 import { pushGlucoseToCloud, flushGlucosePending, GLYCEMIA_UPDATED_EVENT } from '../glucoseCloudSync';
@@ -73,12 +76,37 @@ function formatTime(ts: number): string {
 
 async function loadLatestGlycemia(): Promise<GlycemiaReading | null> {
   try {
-    let raw = await AsyncStorage.getItem(GLYCEMIA_ASYNC_KEY);
-    if (!raw && GlycemiaStorage?.getLastGlycemia) {
-      raw = await GlycemiaStorage.getLastGlycemia();
+    let best: GlycemiaReading | null = null;
+    const asyncRaw = await AsyncStorage.getItem(GLYCEMIA_ASYNC_KEY);
+    if (asyncRaw) {
+      try {
+        best = JSON.parse(asyncRaw) as GlycemiaReading;
+      } catch {
+        /* ignore */
+      }
     }
-    if (!raw) return null;
-    return JSON.parse(raw) as GlycemiaReading;
+    // Native CapAPS extract writes SharedPreferences; prefer whichever reading is newer.
+    if (GlycemiaStorage?.getLastGlycemia) {
+      const nativeRaw = await GlycemiaStorage.getLastGlycemia();
+      if (nativeRaw) {
+        try {
+          const native = JSON.parse(nativeRaw) as GlycemiaReading;
+          if (!best || (native.timestamp || 0) >= (best.timestamp || 0)) {
+            best = native;
+            // Keep AsyncStorage in sync so cloud flush / meal capture see it
+            await AsyncStorage.setItem(GLYCEMIA_ASYNC_KEY, JSON.stringify(native));
+            try {
+              await pushGlucoseToCloud(native);
+            } catch {
+              /* queued by pushGlucoseToCloud on failure */
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return best;
   } catch {
     return null;
   }
@@ -406,10 +434,17 @@ export default function GlucoseScreen() {
       <ScrollView
         style={theme.scrollView}
         contentContainerStyle={theme.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={HC.teal} />}
       >
-        <Text style={theme.title}>Health Companion</Text>
+        <ScreenHero
+          eyebrow="CGM · CAPAPS"
+          title="Glucose"
+          subtitle="Live readings from CapAPS notifications, synced to your watch and cloud."
+          pills={['Live', 'History', 'TIR']}
+          compact
+        />
 
+        <FadeIn>
         {permissionStatus !== 'authorized' && (
           <View style={theme.card}>
             <Text style={theme.cardTitle}>Notification access</Text>
@@ -540,49 +575,47 @@ export default function GlucoseScreen() {
         )}
 
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        </FadeIn>
       </ScrollView>
   );
 }
 
 const styles = (isDark: boolean) =>
   StyleSheet.create({
-    scrollView: { flex: 1, backgroundColor: isDark ? '#0D1117' : '#f5f5f5' },
+    scrollView: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
     container: {
-      padding: 20,
-      paddingTop: 56,
       paddingBottom: 40,
     },
     title: {
       fontSize: 26,
-      fontWeight: '700',
+      fontWeight: '800',
       marginBottom: 20,
-      color: isDark ? '#fff' : '#1a1a2e',
+      color: isDark ? '#e6edf3' : '#0f172a',
+      letterSpacing: -0.4,
     },
     card: {
-      backgroundColor: isDark ? '#161B22' : '#fff',
-      borderRadius: 12,
+      backgroundColor: isDark ? '#161b22' : '#fff',
+      borderRadius: 18,
       padding: 18,
       marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 4,
-      elevation: 2,
+      marginHorizontal: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#30363d' : '#e2e8f0',
     },
     cardTitle: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: '800',
       marginBottom: 8,
-      color: isDark ? '#fff' : '#1a1a2e',
+      color: isDark ? '#e6edf3' : '#0f172a',
     },
     hint: {
       fontSize: 14,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#666',
+      color: isDark ? '#8b949e' : '#64748b',
       marginBottom: 12,
     },
     timeAgo: {
       fontSize: 13,
-      color: isDark ? 'rgba(255,255,255,0.6)' : '#888',
+      color: isDark ? '#8b949e' : '#64748b',
     },
     historyRow: {
       flexDirection: 'row',
@@ -591,18 +624,18 @@ const styles = (isDark: boolean) =>
       paddingVertical: 10,
     },
     historyValue: { fontSize: 16, fontWeight: '600' },
-    historyTime: { fontSize: 13, color: isDark ? 'rgba(255,255,255,0.6)' : '#888' },
+    historyTime: { fontSize: 13, color: isDark ? '#8b949e' : '#64748b' },
     button: {
-      backgroundColor: '#007AFF',
+      backgroundColor: '#0d9488',
       paddingVertical: 12,
       paddingHorizontal: 24,
-      borderRadius: 8,
+      borderRadius: 14,
       alignSelf: 'flex-start',
     },
     buttonText: {
       color: '#fff',
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: '700',
     },
     buttonSecondary: {
       paddingVertical: 8,
@@ -610,8 +643,9 @@ const styles = (isDark: boolean) =>
       alignSelf: 'flex-start',
     },
     buttonSecondaryText: {
-      color: '#007AFF',
+      color: '#0d9488',
       fontSize: 14,
+      fontWeight: '700',
     },
     buttonRow: {
       flexDirection: 'row',
@@ -628,7 +662,7 @@ const styles = (isDark: boolean) =>
     },
     message: {
       fontSize: 16,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#666',
+      color: isDark ? '#8b949e' : '#64748b',
       textAlign: 'center',
     },
   });

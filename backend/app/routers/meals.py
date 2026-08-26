@@ -29,7 +29,18 @@ def _http_exc_from_gemini(exc: Exception) -> HTTPException:
     if "429" in msg or "resource_exhausted" in lower or "quota" in lower:
         return HTTPException(
             status_code=429,
-            detail="Gemini quota exceeded. Try again in a minute, or enable billing / switch models in AI Studio.",
+            detail="AI is rate-limited right now. Wait a minute and try again.",
+        )
+    if (
+        "503" in msg
+        or "unavailable" in lower
+        or "high demand" in lower
+        or "overloaded" in lower
+        or "try again" in lower
+    ):
+        return HTTPException(
+            status_code=503,
+            detail="AI is busy right now. Wait a few seconds and try again.",
         )
     if "api key" in lower or "not configured" in lower:
         return HTTPException(status_code=503, detail=msg)
