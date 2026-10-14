@@ -43,6 +43,14 @@ spec:
                 name: backend
                 port:
                   number: 8000
+          # Read-only machine access (agents-hub night planner), integration-key auth
+          - path: /integrations/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
           - path: /glucose
             pathType: Prefix
             backend:
@@ -65,27 +73,6 @@ spec:
                 port:
                   number: 8000
           - path: /uploads
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /docs
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /openapi.json
-            pathType: Exact
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /redoc
             pathType: Prefix
             backend:
               service:

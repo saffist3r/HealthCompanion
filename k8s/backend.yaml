@@ -162,6 +162,14 @@ spec:
                   name: healthcompanion-secrets
                   key: REPORT_EMAIL_FROM_NAME
                   optional: true
+            - name: INTEGRATION_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: healthcompanion-secrets
+                  key: INTEGRATION_KEYS
+                  optional: true
+            - name: API_DOCS_ENABLED
+              value: "false"
             - name: GEMINI_MODEL
               valueFrom:
                 configMapKeyRef:

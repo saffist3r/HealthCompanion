@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     admin_email: str = ""
     admin_password: str = ""
     admin_name: str = "Admin"
+    # Read-only keys for /integrations/* as "name:sha256hex,..." (only hashes, never raw keys).
+    integration_keys: str = ""
+    # Swagger/ReDoc/OpenAPI schema; off in production (k8s sets API_DOCS_ENABLED=false).
+    api_docs_enabled: bool = True
 
     # Daily report email (SMTP)
     smtp_host: str = ""
