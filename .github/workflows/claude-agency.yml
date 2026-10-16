@@ -10,7 +10,8 @@
 #   @claude          answers or acts on a comment from Safwen
 #
 # Safwen approves risky specs and merges every PR. Nothing merges, tags, publishes or deploys by itself.
-# Needs the Claude GitHub app and the ANTHROPIC_API_KEY secret; without the secret every job is a no-op.
+# Needs the Claude GitHub app and a CLAUDE_CODE_OAUTH_TOKEN secret (Claude Max/Pro, from `claude setup-token`) or an
+# ANTHROPIC_API_KEY secret (API credit); the token wins when both are set. Without either, every job is a no-op.
 name: Claude agency
 
 on:
@@ -38,7 +39,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+  HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
   MODEL: claude-opus-5-5
   MAX_NEW_TICKETS: "5"
   MAX_STARTS: "2"
@@ -67,7 +68,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · TODAY: use `date -u +%F` · MAX_NEW_TICKETS=${{ env.MAX_NEW_TICKETS }} · MAX_STARTS=${{ env.MAX_STARTS }} · WIP_LIMIT=${{ env.WIP_LIMIT }}
@@ -98,7 +100,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           include_comments_by_actor: ${{ env.COMMENT_AUTHORS }}
           prompt: |
@@ -131,7 +134,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           include_comments_by_actor: ${{ env.COMMENT_AUTHORS }}
           prompt: |
@@ -162,7 +166,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · MODE: Fix · PR: ${{ github.event.pull_request.number }} · BRANCH: ${{ github.event.pull_request.head.ref }}
@@ -217,7 +222,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · PR: ${{ github.event.pull_request.number }} · BRANCH: ${{ github.event.pull_request.head.ref }} · MAY_PUSH: ${{ needs.pr-gate.outputs.ours == 'true' }}
@@ -245,7 +251,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · PR: ${{ github.event.pull_request.number }} · BRANCH: ${{ github.event.pull_request.head.ref }} · MAY_PUSH: ${{ needs.pr-gate.outputs.ours == 'true' }}
@@ -273,7 +280,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · PR: ${{ github.event.pull_request.number }}
@@ -301,7 +309,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · PR: ${{ github.event.pull_request.number }}
@@ -329,7 +338,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           prompt: |
             REPO: ${{ github.repository }} · PR: ${{ github.event.pull_request.number }}
@@ -357,7 +367,8 @@ jobs:
             git show "origin/$DEFAULT_BRANCH:.github/agency/$ROLE.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           allowed_bots: ${{ env.BOTS }}
           additional_permissions: |
             checks: read
@@ -393,7 +404,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           prompt: |
             REPO: ${{ github.repository }} · MERGED: ${{ github.sha }}
 
@@ -417,7 +429,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           include_comments_by_actor: ${{ env.COMMENT_AUTHORS }}
           additional_permissions: |
             actions: read
