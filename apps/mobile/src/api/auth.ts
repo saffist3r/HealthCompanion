@@ -55,7 +55,7 @@ export async function loginRequest(
   password: string,
   deviceId: string
 ): Promise<AuthUser> {
-  const res = await fetch(`${apiBase.replace(/\/$/, '')}/auth/login`, {
+  const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

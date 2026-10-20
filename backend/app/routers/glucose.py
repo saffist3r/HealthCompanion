@@ -12,7 +12,7 @@ from app.core.deps import ensure_device, household_device_ids, require_device_id
 from app.models import GlucoseSample, Meal, PumpLogEvent, User
 from app.routers.pump import KIND_LABELS, serialize_pump_event
 from app.schemas import GlucoseSyncIn
-from app.services.reports import to_mg_dl
+from app.services.glucose_stats import to_mg_dl
 
 router = APIRouter(prefix="/glucose", tags=["glucose"])
 
@@ -75,11 +75,11 @@ def glucose_history(
     from_ms: int | None = Query(None, alias="from"),
     to_ms: int | None = Query(None, alias="to"),
     limit: int = Query(800, ge=1, le=2000),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Return CGM samples for charting (12h / 24h / custom range)."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     if not ids:
         return {"readings": [], "from": None, "to": None, "hours": hours}
 
@@ -130,11 +130,11 @@ def glucose_chart_events(
     from_ms: int | None = Query(None, alias="from"),
     to_ms: int | None = Query(None, alias="to"),
     limit: int = Query(200, ge=1, le=500),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Meals + pump events (insulin, alerts) for overlaying on the glycemia chart."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     start, end = _window_bounds(hours, from_ms, to_ms)
     if not ids:
         return {

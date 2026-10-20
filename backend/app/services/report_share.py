@@ -24,7 +24,7 @@ def share_page_url(token: str) -> str:
 
 
 def share_pdf_url(token: str) -> str:
-    return f"{public_base_url()}/reports/share/{token}/pdf"
+    return f"{public_base_url()}/api/reports/share/{token}/pdf"
 
 
 def serialize_share(row: ReportShare) -> dict[str, Any]:
@@ -33,7 +33,7 @@ def serialize_share(row: ReportShare) -> dict[str, Any]:
         "date": row.date,
         "shareUrl": share_page_url(row.token),
         "pdfUrl": share_pdf_url(row.token),
-        "qrUrl": f"{public_base_url()}/reports/share/{row.token}/qr.png",
+        "qrUrl": f"{public_base_url()}/api/reports/share/{row.token}/qr.png",
         "createdAt": int(row.created_at.timestamp() * 1000) if row.created_at else None,
         "expiresAt": int(row.expires_at.timestamp() * 1000) if row.expires_at else None,
     }

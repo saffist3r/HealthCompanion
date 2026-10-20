@@ -1,50 +1,65 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
+from app import __version__
 from app.core.bootstrap import init_db
 from app.core.config import get_settings
-from app.routers import auth, glucose, health, meals, pump, reports, users
+from app.routers import auth, glucose, health, meals, pump, reports, uploads, users
 
 settings = get_settings()
-upload_path = Path(settings.upload_dir).resolve()
-upload_path.mkdir(parents=True, exist_ok=True)
+Path(settings.upload_dir).resolve().mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title=settings.app_name, version="0.3.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    problem = settings.jwt_secret_problem
+    if problem:
+        raise RuntimeError(f"{problem}. Generate one with: openssl rand -hex 32")
+    init_db()
+    yield
+
+
+app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list + ["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
+API_ROUTERS = [
+    auth.router,
+    users.router,
+    meals.router,
+    glucose.router,
+    pump.router,
+    health.router,
+    reports.router,
+    uploads.router,
+]
 
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(meals.router)
-app.include_router(glucose.router)
-app.include_router(pump.router)
-app.include_router(health.router)
-app.include_router(reports.router)
+for router in API_ROUTERS:
+    app.include_router(router, prefix="/api")
+    # Legacy root paths for phone builds released before the /api prefix.
+    app.include_router(router, include_in_schema=False)
 
 
-@app.on_event("startup")
-def on_startup() -> None:
-    init_db()
-
-
-@app.get("/health")
 def health_check() -> dict:
     return {
         "ok": True,
         "service": "health-companion-api",
+        "version": __version__,
         "aiProvider": "gemini",
         "geminiConfigured": settings.gemini_configured,
-        "openaiConfigured": settings.gemini_configured,
         "auth": "jwt",
     }
+
+
+app.add_api_route("/api/health", health_check, methods=["GET"])
+app.add_api_route("/health", health_check, methods=["GET"], include_in_schema=False)

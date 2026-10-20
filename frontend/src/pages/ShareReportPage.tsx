@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getApiBase } from '../api';
+import { getApiRoot } from '../api';
 import { useLocale } from '../i18n';
 
 type ShareMeta = {
@@ -25,9 +25,8 @@ export default function ShareReportPage() {
       setLoading(false);
       return;
     }
-    const base = getApiBase().replace(/\/$/, '');
     setLoading(true);
-    fetch(`${base}/reports/share/${encodeURIComponent(token)}`)
+    fetch(`${getApiRoot()}/reports/share/${encodeURIComponent(token)}`)
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -40,7 +39,7 @@ export default function ShareReportPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const pdfUrl = meta?.pdfUrl || `${getApiBase().replace(/\/$/, '')}/reports/share/${token}/pdf`;
+  const pdfUrl = meta?.pdfUrl || `${getApiRoot()}/reports/share/${token}/pdf`;
 
   return (
     <div className="share-page">

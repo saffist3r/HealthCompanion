@@ -16,6 +16,7 @@ export type ActivitySnapshot = {
   steps7d: number;
   recordCountToday: number;
   caloriesBurned?: number;
+  activeMinutes?: number;
   heartRateBpm?: number;
   energyScore?: number;
   energyScoreDate?: string;
