@@ -18,10 +18,8 @@ from app.models import (
     SportMatch,
     StressLog,
 )
-from app.services.reports import (
-    _hypo_events,
-    to_date_key,
-)
+from app.services.glucose_stats import find_hypo_events
+from app.services.reports import to_date_key
 
 
 def _mgdl(value: float, unit: str) -> float:
@@ -206,7 +204,7 @@ def _hyper_events(points: list[dict[str, Any]], *, threshold: float) -> list[dic
     inverted = [
         {"timestamp": p["timestamp"], "mgDl": threshold - (p["mgDl"] - threshold)} for p in points
     ]
-    raw = _hypo_events(inverted, threshold=threshold)
+    raw = find_hypo_events(inverted, threshold=threshold)
     out: list[dict[str, Any]] = []
     for ev in raw:
         window = [p for p in points if ev["startedAt"] <= p["timestamp"] <= ev["endedAt"]]
@@ -326,7 +324,7 @@ def enrich_glucose_episodes(
     db: Session, device_ids: list[str], points: list[dict[str, Any]]
 ) -> dict[str, Any]:
     low, high = _tir_bounds(db)
-    hypos = _hypo_events(points, threshold=low)
+    hypos = find_hypo_events(points, threshold=low)
     hypers = _hyper_events(points, threshold=high)
     for h in hypos:
         h["kind"] = "hypo"
@@ -402,7 +400,7 @@ def find_related_hypo(
     low, _ = _tir_bounds(db)
     start = eaten_at_ms - lookback_min * 60 * 1000
     points = _readings_between(db, device_ids, start, eaten_at_ms + 5 * 60 * 1000)
-    hypos = _hypo_events(points, threshold=low)
+    hypos = find_hypo_events(points, threshold=low)
     if not hypos:
         return None
     return max(hypos, key=lambda h: h["endedAt"])

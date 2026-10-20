@@ -34,8 +34,9 @@ async function headers(json = true): Promise<Record<string, string>> {
   return h;
 }
 
+/** Every backend route lives under `/api` on the configured origin. */
 async function base(): Promise<string> {
-  return getApiBaseUrl();
+  return `${await getApiBaseUrl()}/api`;
 }
 
 async function readError(res: Response): Promise<string> {
@@ -70,7 +71,6 @@ async function ensureOk(res: Response): Promise<any> {
 export async function apiHealth(): Promise<{
   ok: boolean;
   geminiConfigured?: boolean;
-  openaiConfigured?: boolean;
   aiProvider?: string;
   auth?: string;
 }> {
@@ -786,5 +786,6 @@ export async function deleteCaffeineLog(id: string) {
 export async function absoluteUploadUrl(photoUrl?: string): Promise<string | undefined> {
   if (!photoUrl) return undefined;
   if (photoUrl.startsWith('http')) return photoUrl;
-  return `${await base()}${photoUrl}`;
+  // photoUrl is already rooted at /api (signed /api/uploads/… link)
+  return `${await getApiBaseUrl()}${photoUrl}`;
 }

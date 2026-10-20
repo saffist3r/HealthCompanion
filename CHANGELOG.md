@@ -9,7 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- (none yet)
+- **CI** (`.github/workflows/ci.yml`): backend ruff + pytest + Alembic migrations on Postgres, web typecheck/build, mobile typecheck, version-sync check; **Dependabot** for pip, npm, Actions, and Docker
+- Backend test suite: glucose TIR / hypo episodes, meal warnings, auth, CORS, signed uploads, login throttle, data scope, migrations, `/health-data` routes
+- **Alembic** migrations replace the ad-hoc `ALTER TABLE` list; first boot adopts existing databases; startup serialized with a Postgres advisory lock
+- `DATA_SCOPE=owner` option to limit each user to their own devices (default `household` keeps current behaviour)
+- `scripts/sync-version.mjs` keeps `VERSION`, package.json/app.json/lockfiles, and the API version in sync
+
+### Changed
+
+- **All API routes under `/api`** (web + phone); root-level aliases kept for older phone builds
+- Meal photos served via **signed, expiring URLs** instead of public `/uploads`; uploads keep only image extensions
+- Backend and frontend containers run as **non-root** (frontend now listens on 8080)
+- Split `routers/health.py`, `services/reports.py`, and `ReportsPage.tsx` into smaller modules (no behaviour change)
+- Silent `except` blocks now log; FastAPI `lifespan` replaces deprecated startup hook
+
+### Security
+
+- API refuses to start with a missing, short (< 32 chars), or placeholder `JWT_SECRET`
+- CORS no longer allows every origin (`*` was always appended)
+- Failed sign-ins throttled per email and IP (HTTP 429)
+
+### Fixed
+
+- RAG archive export crashed (`build_rag_archive_*` never imported)
+- TTS fallback raised `NameError` instead of the real error when no audio came back
+- `docker compose` could not build the backend (wrong build context)
+- Old web builds could crash on `/meals` when the browser cache served the SPA HTML to the API call
+
+### Removed
+
+- Deprecated Node/SQLite API (`apps/api`) and the fake `openaiConfigured` health flag
 
 ## [1.5.57] - 2026-08-24
 

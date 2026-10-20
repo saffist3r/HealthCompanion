@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -32,6 +33,8 @@ Rules:
   "tomorrowTips": string[]     // 2-4 actionable tips for tomorrow
 }
 """
+
+logger = logging.getLogger(__name__)
 
 
 def generate_daily_ai_insights(
@@ -74,6 +77,7 @@ def generate_daily_ai_insights(
         parsed = _parse_json(raw)
         return _normalize(parsed, daily_report, locale=loc)
     except Exception as exc:  # noqa: BLE001
+        logger.warning("Daily insights fell back to rule-based summary: %s", exc)
         return _fallback_insights(
             daily_report,
             reason=fb["ai_unavailable"].format(exc=exc),

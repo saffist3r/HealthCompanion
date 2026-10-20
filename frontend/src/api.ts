@@ -22,6 +22,11 @@ export function getApiBase(): string {
   );
 }
 
+/** Origin + `/api`: every backend route lives under this prefix. */
+export function getApiRoot(): string {
+  return `${getApiBase().replace(/\/$/, '')}/api`;
+}
+
 export function setApiBase(url: string) {
   localStorage.setItem(API_KEY, url.replace(/\/$/, ''));
 }
@@ -69,7 +74,7 @@ export function isLoggedIn(): boolean {
 export const api = axios.create();
 
 api.interceptors.request.use((config) => {
-  config.baseURL = getApiBase();
+  config.baseURL = getApiRoot();
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   // Device id still used for phone-originated writes; web reads use JWT only

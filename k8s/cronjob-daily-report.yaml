@@ -29,6 +29,13 @@ spec:
               image: registry.saffist3r.xyz/healthcompanion-backend:VERSION_TAG
               imagePullPolicy: IfNotPresent
               command: ["python", "-m", "app.jobs.send_daily_report"]
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 10001
+                runAsGroup: 10001
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
               env:
                 - name: DATABASE_URL
                   valueFrom:

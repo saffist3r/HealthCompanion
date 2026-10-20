@@ -3,6 +3,11 @@ import type { NudgeScreen } from './pushNudges';
 
 export const navigationRef = createNavigationContainerRef();
 
+/** Untyped navigate: routes are not declared as a ParamList in this app. */
+export function navigateTo(name: string, params?: object) {
+  (navigationRef as unknown as { navigate: (name: string, params?: object) => void }).navigate(name, params);
+}
+
 export function openMorningLog() {
   openNudgeScreen('MorningLog');
 }
@@ -11,25 +16,25 @@ export function openNudgeScreen(screen?: NudgeScreen | string) {
   if (!navigationRef.isReady()) return;
   switch (screen) {
     case 'MorningLog':
-      navigationRef.navigate('MorningLog' as never);
+      navigateTo('MorningLog');
       return;
     case 'Meals':
-      navigationRef.navigate('Tabs' as never, { screen: 'Meals' } as never);
+      navigateTo('Tabs', { screen: 'Meals' });
       return;
     case 'Mental':
-      navigationRef.navigate('Tabs' as never, { screen: 'Mental' } as never);
+      navigateTo('Tabs', { screen: 'Mental' });
       return;
     case 'Glucose':
-      navigationRef.navigate('Tabs' as never, { screen: 'Glucose' } as never);
+      navigateTo('Tabs', { screen: 'Glucose' });
       return;
     case 'Activity':
-      navigationRef.navigate('Tabs' as never, { screen: 'Activity' } as never);
+      navigateTo('Tabs', { screen: 'Activity' });
       return;
     case 'Reports':
-      navigationRef.navigate('Tabs' as never, { screen: 'Reports' } as never);
+      navigateTo('Tabs', { screen: 'Reports' });
       return;
     case 'Today':
     default:
-      navigationRef.navigate('Tabs' as never, { screen: 'Today' } as never);
+      navigateTo('Tabs', { screen: 'Today' });
   }
 }

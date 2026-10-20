@@ -70,7 +70,7 @@ export default function SettingsScreen() {
       setStatus(
         h.ok
           ? `OK · auth ${h.auth || 'jwt'} · Gemini ${
-              h.geminiConfigured || h.openaiConfigured ? 'configured' : 'missing key'
+              h.geminiConfigured ? 'configured' : 'missing key'
             }`
           : 'Unreachable'
       );

@@ -32,12 +32,12 @@ The mobile app includes **Meals**, **Reports**, **Activity**, and **Settings** t
 
 ```bash
 cp backend/.env.example backend/.env
-# set GEMINI_API_KEY and JWT_SECRET (see SECURITY.md)
+# set GEMINI_API_KEY and JWT_SECRET=$(openssl rand -hex 32) (see SECURITY.md)
 
 docker compose up -d db
 cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000   # applies DB migrations on start
 
 # another terminal
 cd frontend && npm install && npm run dev

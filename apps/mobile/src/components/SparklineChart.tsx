@@ -10,6 +10,7 @@ import {
   toSparklinePoints,
   toMgDl,
   type GlycemiaReading,
+  type GlycemiaUnit,
 } from '@health-companion/shared';
 import type { GlycemiaChartEvent } from '../api/client';
 
@@ -71,7 +72,7 @@ export function SparklineChart({
 }: Props) {
   const now = Date.now();
   const windowMs = windowMsFor(rangeHours);
-  const points = toSparklinePoints(history, toMgDl, now, windowMs);
+  const points = toSparklinePoints(history, (v, u) => toMgDl(v, u as GlycemiaUnit), now, windowMs);
   const muted = isDark ? 'rgba(255,255,255,0.55)' : '#888';
   const layout = {
     width: WIDTH,

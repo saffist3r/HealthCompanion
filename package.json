@@ -1,6 +1,6 @@
 {
   "name": "health-companion",
-  "version": "1.0.0",
+  "version": "1.5.57",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -11,7 +11,6 @@
     "mobile": "npm run start --workspace=apps/mobile",
     "web": "npm run dev --prefix frontend",
     "api": "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
-    "api:legacy": "npm run dev --workspace=@health-companion/api",
     "logcat": "adb logcat *:S ReactNative:V ReactNativeJS:V RNAndroidNotificationListener:V",
     "watch": "npm run start --workspace=apps/watch",
     "build:mobile": "npm run build --workspace=apps/mobile",
