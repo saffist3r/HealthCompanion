@@ -30,7 +30,7 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
       UPLOAD_DIR: /app/uploads
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
-      # Required: the API refuses to start without a 32+ char secret (openssl rand -hex 32)
+      # Required: the API refuses to start without it (openssl rand -hex 32)
       JWT_SECRET: ${JWT_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

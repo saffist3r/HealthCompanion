@@ -71,7 +71,7 @@ All API routes live under **`/api`** (web app and phone 1.6+), routed straight t
 
 ### Upgrading from 1.5.x
 
-- **`JWT_SECRET` must be ≥ 32 characters** — `setup-secrets.sh` already generates 64 hex chars; older hand-written secrets may need rotating (users sign in again).
+- **`JWT_SECRET` must be set.** A short or placeholder value still works but logs a warning; keeping the existing key keeps everyone signed in.
 - **Schema changes now go through Alembic.** The backend runs `alembic upgrade head` on start (under a Postgres advisory lock); the first boot adopts the existing tables. New migrations: `cd backend && alembic revision --autogenerate -m "…"`.
 - Containers run as non-root (backend uid 10001, frontend uid 101). The `fix-uploads-owner` init container re-owns the uploads PVC once.
 - Deploy the backend **before** shipping a phone build that uses `/api`.

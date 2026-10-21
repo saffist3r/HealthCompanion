@@ -16,7 +16,7 @@ This repository is **public**. Treat everything you commit as visible to the wor
 ## Required secrets (self-hosting)
 
 1. **`GEMINI_API_KEY`** — meal photo analysis (Google AI Studio).
-2. **`JWT_SECRET`** — session and photo-link signing. At least 32 characters (`openssl rand -hex 32`); the API refuses to start with a missing, short, or placeholder secret.
+2. **`JWT_SECRET`** — session and photo-link signing. Use at least 32 random characters (`openssl rand -hex 32`); the API refuses to start without one and logs a warning when it is short or a placeholder.
 3. **`POSTGRES_PASSWORD` / `DATABASE_URL`** — database credentials.
 4. **`ADMIN_EMAIL` / `ADMIN_PASSWORD`** — first bootstrap admin (change after first login).
 5. **`REGISTRY_PASS`** — container registry login for `./k8s/deploy.sh` (**export in your shell; never hardcode in the repo**).

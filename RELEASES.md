@@ -18,7 +18,7 @@ Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github
 
 ### Highlights
 
-- Hardened API: required strong `JWT_SECRET`, strict CORS, signed expiring meal-photo links, failed-login throttle, non-root containers
+- Hardened API: `JWT_SECRET` required (weak values warn), strict CORS, signed expiring meal-photo links, failed-login throttle, non-root containers
 - All endpoints under `/api` (legacy root paths kept for older phone builds)
 - Alembic database migrations (adopts existing databases on first boot)
 - CI (backend tests, migrations on Postgres, web/mobile typecheck, Docker image builds) + Dependabot
