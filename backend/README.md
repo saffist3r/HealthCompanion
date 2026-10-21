@@ -66,7 +66,7 @@ Everything is under `/api` (root-level aliases remain for older phone builds and
 | `GEMINI_API_KEY` | Google AI Studio / Gemini API key |
 | `GEMINI_MODEL` | default `gemini-3.6-flash` |
 | `UPLOAD_DIR` | meal photo storage |
-| `JWT_SECRET` | **required**, ≥ 32 chars — signs sessions and photo links |
+| `JWT_SECRET` | **required** (32+ chars recommended) — signs sessions and photo links |
 | `DATA_SCOPE` | `household` (default, all users share data) or `owner` |
 | `LOGIN_MAX_FAILURES` / `LOGIN_WINDOW_SECONDS` | failed sign-in throttle (default 10 / 900 s) |
 | `UPLOAD_URL_TTL_MINUTES` | signed photo link lifetime (default 7 days) |

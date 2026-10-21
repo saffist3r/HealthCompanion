@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.0] - 2026-10-21
 
-> **Upgrade notes:** `JWT_SECRET` must be ≥ 32 characters or the API will not start. Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
+> **Upgrade notes:** `JWT_SECRET` must be set (a short one only logs a warning; existing sessions stay valid). Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
 
 ### Added
 
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- API refuses to start with a missing, short (< 32 chars), or placeholder `JWT_SECRET`
+- API refuses to start without a `JWT_SECRET` and warns when it is short or a placeholder
 - CORS no longer allows every origin (`*` was always appended)
 - Failed sign-ins throttled per email and IP (HTTP 429)
 

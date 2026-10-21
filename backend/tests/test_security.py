@@ -124,9 +124,18 @@ def test_meal_photo_upload_keeps_only_image_extensions(client: TestClient, auth_
     assert "sig=" in body["photoUrl"]
 
 
-def test_startup_refuses_placeholder_jwt_secret(client: TestClient, monkeypatch) -> None:
+def test_startup_refuses_missing_jwt_secret(client: TestClient, monkeypatch) -> None:
     from app.main import app, settings
 
-    monkeypatch.setattr(settings, "jwt_secret", "change-me-in-production")
-    with pytest.raises(RuntimeError, match="placeholder"), TestClient(app):
+    monkeypatch.setattr(settings, "jwt_secret", "")
+    with pytest.raises(RuntimeError, match="not set"), TestClient(app):
         pass
+
+
+def test_startup_only_warns_on_weak_jwt_secret(client: TestClient, monkeypatch, caplog) -> None:
+    from app.main import app, settings
+
+    monkeypatch.setattr(settings, "jwt_secret", "short-secret")
+    with TestClient(app) as c:
+        assert c.get("/api/health").status_code == 200
+    assert "at least 32 characters" in caplog.text

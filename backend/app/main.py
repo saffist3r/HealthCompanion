@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,14 +12,18 @@ from app.core.config import get_settings
 from app.routers import auth, glucose, health, meals, pump, reports, uploads, users
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 Path(settings.upload_dir).resolve().mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    if not (settings.jwt_secret or "").strip():
+        # An empty key would let anyone forge sessions and photo links.
+        raise RuntimeError("JWT_SECRET is not set. Generate one with: openssl rand -hex 32")
     problem = settings.jwt_secret_problem
     if problem:
-        raise RuntimeError(f"{problem}. Generate one with: openssl rand -hex 32")
+        logger.warning("%s — consider a stronger one (openssl rand -hex 32).", problem)
     init_db()
     yield
 
