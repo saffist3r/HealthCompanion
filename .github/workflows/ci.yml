@@ -85,3 +85,36 @@ jobs:
         with:
           node-version: "20"
       - run: node scripts/sync-version.mjs --check
+
+  images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Backend image (repo-root context)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          load: true
+          tags: hc-backend:ci
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          load: true
+          tags: hc-frontend:ci
+      - name: Backend container starts as non-root and serves /api/health
+        run: |
+          docker run -d --name api -p 8000:8000 \
+            -e DATABASE_URL=sqlite:////tmp/ci.db -e JWT_SECRET=$(openssl rand -hex 32) hc-backend:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/api/health && break; sleep 1; done
+          curl -fs localhost:8000/api/health
+          test "$(docker exec api id -u)" = "10001"
+      - name: Frontend nginx config is valid
+        run: docker run --rm --add-host backend:127.0.0.1 hc-frontend:ci nginx -t
+      - if: failure()
+        run: docker logs api || true
