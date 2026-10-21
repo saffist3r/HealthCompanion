@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- (none yet)
+
+## [1.6.0] - 2026-10-21
+
+> **Upgrade notes:** `JWT_SECRET` must be ≥ 32 characters or the API will not start. Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
+
+### Added
+
 - **CI** (`.github/workflows/ci.yml`): backend ruff + pytest + Alembic migrations on Postgres, web typecheck/build, mobile typecheck, version-sync check; **Dependabot** for pip, npm, Actions, and Docker
 - Backend test suite: glucose TIR / hypo episodes, meal warnings, auth, CORS, signed uploads, login throttle, data scope, migrations, `/health-data` routes
 - **Alembic** migrations replace the ad-hoc `ALTER TABLE` list; first boot adopts existing databases; startup serialized with a Postgres advisory lock
