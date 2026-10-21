@@ -30,9 +30,44 @@ import {
 import { ChartTooltipBox, PageHeader, Panel, Segmented, StatCard, TirRing } from '../components/ui';
 import { useLocale } from '../i18n';
 
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function shiftDate(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function yesterdayKey() {
+  return shiftDate(todayKey(), -1);
+}
+
+function formatDayLabel(iso: string, locale: string) {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export default function ReportsPage() {
   const { t, locale } = useLocale();
   const [mode, setMode] = useState<'daily' | 'weekly' | 'archive'>('daily');
+  const [selectedDate, setSelectedDate] = useState(yesterdayKey);
   const [daily, setDaily] = useState<any>(null);
   const [weekly, setWeekly] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +84,6 @@ export default function ReportsPage() {
   const [openDebrief, setOpenDebrief] = useState<DayDebriefDetail | null>(null);
   const [debriefBusy, setDebriefBusy] = useState(false);
   const [archiveDownloadBusy, setArchiveDownloadBusy] = useState(false);
-  const [directorsCopied, setDirectorsCopied] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [voiceVideoBusy, setVoiceVideoBusy] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -58,11 +92,23 @@ export default function ReportsPage() {
   const [voiceVideoUrl, setVoiceVideoUrl] = useState<string | null>(null);
   const [voiceBackground, setVoiceBackground] = useState<string | null>(null);
 
+  const today = useMemo(() => todayKey(), []);
+  const canGoNext = selectedDate < today;
+
   useEffect(() => {
     if (mode === 'archive') return;
     setLoading(true);
     setError(null);
-    const run = mode === 'daily' ? fetchDaily() : fetchWeekly();
+    if (mode === 'daily') {
+      setVoiceTranscript(null);
+      setVoiceAudioUrl(null);
+      setVoiceVideoUrl(null);
+      setVoiceBackground(null);
+      setVoiceError(null);
+      setShare(null);
+      setShareNote(null);
+    }
+    const run = mode === 'daily' ? fetchDaily(selectedDate) : fetchWeekly();
     run
       .then((data) => {
         if (mode === 'daily') setDaily(data);
@@ -70,7 +116,7 @@ export default function ReportsPage() {
       })
       .catch((e) => setError(String(e?.response?.data?.detail || e.message || e)))
       .finally(() => setLoading(false));
-  }, [mode]);
+  }, [mode, selectedDate]);
 
   const loadArchive = () => {
     setLoading(true);
@@ -177,18 +223,6 @@ export default function ReportsPage() {
       setShareNote(t('reports.linkCopied'));
     } catch {
       setShareNote(share.shareUrl);
-    }
-  };
-
-  const copyDirectorsCut = async () => {
-    const text = weekly?.directorsCut;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setDirectorsCopied(true);
-      window.setTimeout(() => setDirectorsCopied(false), 2000);
-    } catch {
-      /* fallback */
     }
   };
 
@@ -371,6 +405,61 @@ export default function ReportsPage() {
       {loading && mode !== 'archive' ? <p className="muted">Loading report…</p> : null}
       {loading && mode === 'archive' ? <p className="muted">Loading archive…</p> : null}
 
+      {mode === 'daily' ? (
+        <div className="report-day-picker">
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setSelectedDate((d) => shiftDate(d, -1))}
+            disabled={loading}
+            aria-label={t('reports.prevDay')}
+          >
+            ←
+          </button>
+          <div className="report-day-picker__main">
+            <span className="report-day-picker__label">{formatDayLabel(selectedDate, locale)}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              max={today}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && v <= today) setSelectedDate(v);
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setSelectedDate((d) => shiftDate(d, 1))}
+            disabled={loading || !canGoNext}
+            aria-label={t('reports.nextDay')}
+          >
+            →
+          </button>
+          {selectedDate !== yesterdayKey() ? (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setSelectedDate(yesterdayKey())}
+              disabled={loading}
+            >
+              Yesterday
+            </button>
+          ) : null}
+          {selectedDate !== today ? (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setSelectedDate(today)}
+              disabled={loading}
+            >
+              {t('common.today')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {mode === 'daily' && (voiceTranscript || voiceAudioUrl || voiceVideoUrl) ? (
         <Panel
           title="Reb3i — briefing (TN)"
@@ -547,6 +636,44 @@ export default function ReportsPage() {
               accent="amber"
             />
           </div>
+
+          {(daily.meals || []).length > 0 ? (
+            <Panel title={t('reports.mealsThatDay')} subtitle={t('reports.mealsThatDayHelp')}>
+              <div className="meal-list">
+                {daily.meals.map((m: any) => (
+                  <div key={m.id || `${m.mealType}-${m.eatenAt}`} className="meal-row">
+                    <div>
+                      <strong className="capitalize">{m.mealType || 'meal'}</strong>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {[
+                          m.eatenAt
+                            ? new Date(m.eatenAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : null,
+                          m.macros?.caloriesKcal != null
+                            ? `${Math.round(m.macros.caloriesKcal)} kcal`
+                            : null,
+                          m.macros?.carbsG != null ? `C ${m.macros.carbsG}g` : null,
+                          m.macros?.proteinG != null ? `P ${m.macros.proteinG}g` : null,
+                          m.macros?.fatG != null ? `F ${m.macros.fatG}g` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                      {m.aiSummary || m.notes ? (
+                        <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                          {m.aiSummary || m.notes}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="stat-badge">{m.mealType || 'meal'}</span>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          ) : null}
 
           {(daily.activity?.workouts || []).length > 0 ? (
             <Panel title={t('reports.workoutsToday')} subtitle={t('reports.syncedPhone')}>
@@ -940,31 +1067,6 @@ export default function ReportsPage() {
             />
           </div>
 
-          {weekly.directorsCut ? (
-            <Panel
-              title="Director's cut"
-              subtitle="Your week as a screenplay — spoilers included"
-              action={
-                <button type="button" className="btn secondary compact" onClick={copyDirectorsCut}>
-                  {directorsCopied ? 'Copied!' : "Copy director's cut"}
-                </button>
-              }
-            >
-              <pre
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'inherit',
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                  margin: 0,
-                  color: 'var(--text, inherit)',
-                }}
-              >
-                {weekly.directorsCut}
-              </pre>
-            </Panel>
-          ) : null}
-
           <div className="grid-2">
             <Panel title={t('reports.macrosByDay')} subtitle="Carbs vs protein vs fat (g)">
               <div className="chart-wrap tall">
@@ -1233,6 +1335,18 @@ export default function ReportsPage() {
                         background: 'var(--surface-2, #f1f5f9)',
                       }}
                     >
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          onClick={() => {
+                            setSelectedDate(d.date);
+                            setMode('daily');
+                          }}
+                        >
+                          {t('reports.openThisDay')}
+                        </button>
+                      </div>
                       <p style={{ marginTop: 0, lineHeight: 1.5 }}>{openDebrief.summary}</p>
                       {(openDebrief.highlights || []).length > 0 ? (
                         <>

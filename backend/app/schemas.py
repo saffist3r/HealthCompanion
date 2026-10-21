@@ -37,12 +37,26 @@ class MealAnalysisResult(BaseModel):
     warnings: list[DiabetesWarning] = Field(default_factory=list)
 
 
+class MealPhotoIn(BaseModel):
+    path: str
+    role: str = "other"
+    label: str | None = None
+
+
+class MealPhotoOut(BaseModel):
+    url: str
+    path: str | None = None
+    role: str = "other"
+    label: str | None = None
+
+
 class MealCreate(BaseModel):
     eatenAt: datetime | None = None
     mealType: str = "other"
     items: list[FoodItem] = Field(default_factory=list)
     macros: Macros
     photoPath: str | None = None
+    photos: list[MealPhotoIn] = Field(default_factory=list)
     notes: str | None = None
     aiSummary: str | None = None
     carbEstimateNote: str | None = None
@@ -64,6 +78,8 @@ class MealUpdate(BaseModel):
     glucoseMgDl: float | None = None
     wouldAgain: int | None = Field(default=None, ge=-1, le=1)
     wouldAgainNote: str | None = None
+    photoPath: str | None = None
+    photos: list[MealPhotoIn] | None = None
 
 
 class MealOut(BaseModel):
@@ -73,6 +89,7 @@ class MealOut(BaseModel):
     eatenAt: int
     mealType: str
     photoUrl: str | None = None
+    photos: list[MealPhotoOut] = Field(default_factory=list)
     items: list[Any]
     macros: Macros
     notes: str | None = None

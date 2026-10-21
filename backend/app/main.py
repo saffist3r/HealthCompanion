@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.bootstrap import init_db
 from app.core.config import get_settings
-from app.routers import auth, glucose, health, integrations, meals, pump, reports, users
+from app.routers import auth, glucose, health, integrations, meals, pump, reb3i_live, reports, users
 
 settings = get_settings()
 upload_path = Path(settings.upload_dir).resolve()
@@ -37,6 +37,7 @@ app.include_router(glucose.router)
 app.include_router(pump.router)
 app.include_router(health.router)
 app.include_router(reports.router)
+app.include_router(reb3i_live.router)
 app.include_router(integrations.router)
 
 

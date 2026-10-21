@@ -75,6 +75,8 @@ class Meal(Base):
     eaten_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     meal_type: Mapped[str] = mapped_column(String(32), default="other")
     photo_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # JSON list: [{ "path": "...", "role": "main"|"side"|"dessert"|"drink"|"other", "label": "..." }]
+    photos_json: Mapped[str] = mapped_column(Text, default="[]")
     items_json: Mapped[str] = mapped_column(Text, default="[]")
     macros_json: Mapped[str] = mapped_column(Text, default="{}")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

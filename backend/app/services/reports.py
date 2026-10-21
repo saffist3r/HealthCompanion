@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 from app.models import (
@@ -16,6 +17,8 @@ from app.models import (
     SportMatch,
     StressLog,
 )
+
+PARIS = ZoneInfo("Europe/Paris")
 
 
 CARE_LABELS = {
@@ -83,6 +86,36 @@ PUMP_KIND_LABELS = {
 
 def to_date_key(dt: datetime) -> str:
     return dt.astimezone().strftime("%Y-%m-%d") if dt.tzinfo else dt.strftime("%Y-%m-%d")
+
+
+def paris_date_key(dt: datetime | None = None) -> str:
+    """Calendar date in Europe/Paris (household timezone)."""
+    now = dt or datetime.now(tz=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(PARIS).strftime("%Y-%m-%d")
+
+
+def paris_yesterday_key(dt: datetime | None = None) -> str:
+    """Completed report day: yesterday in Europe/Paris."""
+    now = dt or datetime.now(tz=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    local = now.astimezone(PARIS) - timedelta(days=1)
+    return local.strftime("%Y-%m-%d")
+
+
+def paris_day_bounds(date: str) -> tuple[datetime, datetime]:
+    """UTC [start, end) covering one Europe/Paris calendar day.
+
+    Meals/glucose are stored as timestamptz UTC; naive midnight–midnight UTC
+    shifts Tunisian evenings onto the wrong report day.
+    """
+    local_start = datetime.strptime(date, "%Y-%m-%d").replace(
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=PARIS
+    )
+    local_end = local_start + timedelta(days=1)
+    return local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)
 
 
 def to_mg_dl(value: float, unit: str) -> float:
@@ -497,16 +530,19 @@ def build_daily_report(
 
 
 def _overnight_from_samples(date: str, samples: list[GlucoseSample]) -> dict[str, Any]:
-    day = datetime.strptime(date, "%Y-%m-%d")
-    start = day.replace(hour=0, minute=0, second=0, microsecond=0)
-    end = day.replace(hour=6, minute=0, second=0, microsecond=0)
     vals: list[float] = []
     for s in samples:
         if not s.timestamp:
             continue
-        ts = s.timestamp.replace(tzinfo=None) if s.timestamp.tzinfo else s.timestamp
-        if start <= ts <= end:
-            vals.append(to_mg_dl(s.value, s.unit))
+        ts = s.timestamp
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        local = ts.astimezone(PARIS)
+        if local.strftime("%Y-%m-%d") != date:
+            continue
+        if local.hour >= 6:
+            continue
+        vals.append(to_mg_dl(s.value, s.unit))
     if len(vals) < 3:
         return {
             "ready": False,
@@ -994,11 +1030,9 @@ def build_weekly_report(*, week_start: str, week_end: str, days: list[dict[str, 
         "hypoEvents": list(reversed(recent_hypos))[-30:],
         "insights": insights,
     }
-    from app.services.diabetes_insights import directors_cut_text, weekly_plot_twists
+    from app.services.diabetes_insights import weekly_plot_twists
 
-    twists = weekly_plot_twists(weekly, days)
-    weekly["plotTwists"] = twists
-    weekly["directorsCut"] = directors_cut_text(weekly, twists)
+    weekly["plotTwists"] = weekly_plot_twists(weekly, days)
     return weekly
 
 
@@ -1044,8 +1078,41 @@ def _serialize_meal_row(meal: Meal) -> dict[str, Any]:
         "items": items if isinstance(items, list) else [],
         "photoPath": meal.photo_path,
         "photoUrl": f"/uploads/{meal.photo_path}" if meal.photo_path else None,
+        "photos": _meal_photos_for_report(meal),
         "source": meal.source,
     }
+
+
+def _meal_photos_for_report(meal: Meal) -> list[dict[str, Any]]:
+    try:
+        raw = json.loads(getattr(meal, "photos_json", None) or "[]")
+        if not isinstance(raw, list):
+            raw = []
+    except json.JSONDecodeError:
+        raw = []
+    out: list[dict[str, Any]] = []
+    for e in raw:
+        if not isinstance(e, dict) or not e.get("path"):
+            continue
+        path = str(e["path"])
+        out.append(
+            {
+                "path": path,
+                "url": f"/uploads/{path}",
+                "role": e.get("role") or "other",
+                "label": e.get("label"),
+            }
+        )
+    if not out and meal.photo_path:
+        out.append(
+            {
+                "path": meal.photo_path,
+                "url": f"/uploads/{meal.photo_path}",
+                "role": "main",
+                "label": None,
+            }
+        )
+    return out
 
 
 def _sum_meal_macros(meals: list[Meal]) -> dict[str, float]:

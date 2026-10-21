@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,15 @@ import {
   Alert,
   useColorScheme,
   ActivityIndicator,
-  Animated,
+  PanResponder,
+  type LayoutChangeEvent,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { useFocusEffect } from '@react-navigation/native';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import type { DailyReport, WeeklyReport, WorkoutPlan } from '@health-companion/shared';
+import { toDateKey } from '@health-companion/shared';
 import {
   fetchDailyReport,
   fetchDailyVoiceBriefing,
@@ -28,8 +29,36 @@ import {
   type DayDebriefSummary,
 } from '../api/client';
 import ScreenHero from '../components/ui/ScreenHero';
-import { FadeIn } from '../components/ui/FadeIn';
 import { HC, themeColors } from '../theme';
+import { openReb3iLive } from '../navigation';
+
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return toDateKey(d.getTime());
+}
+
+function formatClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const s = Math.floor(seconds);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function formatDayLabel(iso: string): string {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function formatTime(ts: number): string {
   try {
     const d = new Date(ts);
@@ -40,9 +69,11 @@ function formatTime(ts: number): string {
 }
 
 export default function ReportsScreen() {
-  const navigation = useNavigation<any>();
   const isDark = useColorScheme() === 'dark';
   const [mode, setMode] = useState<'daily' | 'weekly' | 'archive'>('daily');
+  const today = useMemo(() => toDateKey(Date.now()), []);
+  const yesterday = useMemo(() => shiftDate(today, -1), [today]);
+  const [selectedDate, setSelectedDate] = useState(() => shiftDate(toDateKey(Date.now()), -1));
   const [loading, setLoading] = useState(false);
   const [daily, setDaily] = useState<DailyReport | null>(null);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
@@ -55,43 +86,33 @@ export default function ReportsScreen() {
   const [debriefBusy, setDebriefBusy] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [videoBusy, setVideoBusy] = useState(false);
+  const [voiceReady, setVoiceReady] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceBackground, setVoiceBackground] = useState<string | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);
-  const audioPlayer = useAudioPlayer(null);
+  const [seekWidth, setSeekWidth] = useState(1);
+  const audioPlayer = useAudioPlayer(null, { updateInterval: 250 });
+  const audioStatus = useAudioPlayerStatus(audioPlayer);
   const videoPlayer = useVideoPlayer(null, (p) => {
     p.loop = false;
   });
   const t = styles(isDark);
-  const promoPulse = useRef(new Animated.Value(1)).current;
-  const promoGlow = useRef(new Animated.Value(0.5)).current;
-
-  useEffect(() => {
-    const scaleLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(promoPulse, { toValue: 1.015, duration: 1800, useNativeDriver: true }),
-        Animated.timing(promoPulse, { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ])
-    );
-    const glowLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(promoGlow, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(promoGlow, { toValue: 0.45, duration: 1400, useNativeDriver: true }),
-      ])
-    );
-    scaleLoop.start();
-    glowLoop.start();
-    return () => {
-      scaleLoop.stop();
-      glowLoop.stop();
-    };
-  }, [promoGlow, promoPulse]);
+  const canGoNext = selectedDate < today;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       if (mode === 'daily') {
-        setDaily(await fetchDailyReport());
+        setVoiceTranscript(null);
+        setVoiceBackground(null);
+        setVideoUri(null);
+        setVoiceReady(false);
+        try {
+          audioPlayer.pause();
+        } catch {
+          /* ignore */
+        }
+        setDaily(await fetchDailyReport(selectedDate));
       } else if (mode === 'weekly') {
         setWeekly(await fetchWeeklyReport());
       } else if (mode === 'archive') {
@@ -102,7 +123,7 @@ export default function ReportsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [mode]);
+  }, [mode, selectedDate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,13 +163,59 @@ export default function ReportsScreen() {
       file.create();
       file.write(res.audioBase64, { encoding: 'base64' });
       audioPlayer.replace({ uri: file.uri });
+      setVoiceReady(true);
       audioPlayer.play();
     } catch (e) {
+      setVoiceReady(false);
       Alert.alert('Reb3i voice', String(e));
     } finally {
       setVoiceBusy(false);
     }
   };
+
+  const toggleVoicePlayback = () => {
+    if (!voiceReady) {
+      void playVoice();
+      return;
+    }
+    if (audioStatus.playing) {
+      audioPlayer.pause();
+    } else {
+      // Restart if finished
+      if (
+        audioStatus.duration > 0 &&
+        audioStatus.currentTime >= Math.max(0, audioStatus.duration - 0.35)
+      ) {
+        void audioPlayer.seekTo(0).then(() => audioPlayer.play());
+      } else {
+        audioPlayer.play();
+      }
+    }
+  };
+
+  const seekWidthRef = useRef(1);
+  const seekPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => {
+          const dur = audioStatus.duration || 0;
+          if (dur <= 0) return;
+          const x = e.nativeEvent.locationX;
+          const ratio = Math.max(0, Math.min(1, x / (seekWidthRef.current || 1)));
+          void audioPlayer.seekTo(ratio * dur);
+        },
+        onPanResponderMove: (e) => {
+          const dur = audioStatus.duration || 0;
+          if (dur <= 0) return;
+          const x = e.nativeEvent.locationX;
+          const ratio = Math.max(0, Math.min(1, x / (seekWidthRef.current || 1)));
+          void audioPlayer.seekTo(ratio * dur);
+        },
+      }),
+    [audioPlayer, audioStatus.duration]
+  );
 
   const playVideo = async () => {
     if (!daily?.date) return;
@@ -187,39 +254,10 @@ export default function ReportsScreen() {
         compact
       />
 
-      <FadeIn>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => navigation.navigate('LifeReview')}
-        style={{ marginBottom: 16, marginHorizontal: 16 }}
-      >
-        <Animated.View style={{ transform: [{ scale: promoPulse }] }}>
-          <LinearGradient
-            colors={HC.heroGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={t.lifePromo}
-          >
-            <View style={t.lifePromoRow}>
-              <View style={{ flex: 1 }}>
-                <View style={t.lifePromoEyebrowRow}>
-                  <Animated.View style={[t.lifePromoDot, { opacity: promoGlow }]} />
-                  <Text style={t.lifePromoEyebrow}>7-DAY HONEST READ</Text>
-                </View>
-                <Text style={t.lifePromoTitle}>Life review</Text>
-                <Text style={t.lifePromoSub}>
-                  An unfiltered AI assessment of your week — glucose, food, mood, sport.
-                </Text>
-                <Text style={t.lifePromoCta}>Open review →</Text>
-              </View>
-              <View style={t.lifePromoBadge}>
-                <Text style={t.lifePromoBadgeText}>7d</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Animated.View>
+      <TouchableOpacity style={t.liveBtn} onPress={openReb3iLive} activeOpacity={0.9}>
+        <Text style={t.liveBtnTitle}>Talk with Reb3i</Text>
+        <Text style={t.liveBtnSub}>Live Darija — hold to talk or Gemini-style hands-free orb</Text>
       </TouchableOpacity>
-      </FadeIn>
 
       <View style={t.tabs}>
         <TouchableOpacity
@@ -242,24 +280,118 @@ export default function ReportsScreen() {
         </TouchableOpacity>
       </View>
 
+      {mode === 'daily' ? (
+        <View style={t.dayPicker}>
+          <TouchableOpacity
+            style={t.dayNavBtn}
+            onPress={() => setSelectedDate((d) => shiftDate(d, -1))}
+            disabled={loading}
+          >
+            <Text style={t.dayNavText}>←</Text>
+          </TouchableOpacity>
+          <View style={t.dayPickerMain}>
+            <Text style={t.dayPickerLabel}>{formatDayLabel(selectedDate)}</Text>
+            <Text style={t.dayPickerIso}>
+              {selectedDate}
+              {selectedDate === yesterday ? ' · yesterday' : selectedDate === today ? ' · today' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[t.dayNavBtn, !canGoNext && t.dayNavBtnDisabled]}
+            onPress={() => setSelectedDate((d) => shiftDate(d, 1))}
+            disabled={loading || !canGoNext}
+          >
+            <Text style={t.dayNavText}>→</Text>
+          </TouchableOpacity>
+          {selectedDate !== yesterday ? (
+            <TouchableOpacity style={t.todayBtn} onPress={() => setSelectedDate(yesterday)}>
+              <Text style={t.todayBtnText}>Yesterday</Text>
+            </TouchableOpacity>
+          ) : null}
+          {selectedDate !== today ? (
+            <TouchableOpacity style={t.todayBtn} onPress={() => setSelectedDate(today)}>
+              <Text style={t.todayBtnText}>Today</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
       {loading && !daily && !weekly && !archive ? (
         <ActivityIndicator style={{ marginTop: 24 }} color={HC.teal} />
       ) : null}
 
       {mode === 'daily' && daily ? (
         <View style={t.card}>
-          <Text style={t.cardTitle}>{daily.date}</Text>
+          <Text style={t.cardTitle}>{formatDayLabel(daily.date)}</Text>
+          <Text style={t.meta}>What happened this day (Europe/Paris)</Text>
           <TouchableOpacity
             style={[t.voiceBtn, voiceBusy && t.voiceBtnBusy]}
-            onPress={playVoice}
+            onPress={toggleVoicePlayback}
             disabled={voiceBusy || videoBusy}
           >
             {voiceBusy ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={t.voiceBtnText}>Reb3i — voice (TN)</Text>
+              <Text style={t.voiceBtnText}>
+                {!voiceReady
+                  ? 'Reb3i — voice (TN)'
+                  : audioStatus.playing
+                    ? 'Pause'
+                    : 'Play'}
+              </Text>
             )}
           </TouchableOpacity>
+          {voiceReady ? (
+            <View style={t.seekBlock}>
+              <View
+                onLayout={(e: LayoutChangeEvent) => {
+                  const w = e.nativeEvent.layout.width;
+                  seekWidthRef.current = w;
+                  setSeekWidth(w);
+                }}
+                {...seekPan.panHandlers}
+                style={t.seekTrack}
+                accessibilityRole="adjustable"
+                accessibilityLabel="Voice position"
+              >
+                <View
+                  pointerEvents="none"
+                  style={[
+                    t.seekFill,
+                    {
+                      width:
+                        (audioStatus.duration > 0
+                          ? audioStatus.currentTime / audioStatus.duration
+                          : 0) * seekWidth,
+                    },
+                  ]}
+                />
+                <View
+                  pointerEvents="none"
+                  style={[
+                    t.seekThumb,
+                    {
+                      left: Math.max(
+                        0,
+                        Math.min(
+                          seekWidth - 16,
+                          (audioStatus.duration > 0
+                            ? audioStatus.currentTime / audioStatus.duration
+                            : 0) *
+                            seekWidth -
+                            8
+                        )
+                      ),
+                    },
+                  ]}
+                />
+              </View>
+              <View style={t.seekTimes}>
+                <Text style={t.seekTime}>{formatClock(audioStatus.currentTime)}</Text>
+                <Text style={t.seekTime}>{formatClock(audioStatus.duration)}</Text>
+              </View>
+            </View>
+          ) : null}
           <TouchableOpacity
             style={[t.videoBtn, videoBusy && t.voiceBtnBusy]}
             onPress={playVideo}
@@ -295,6 +427,21 @@ export default function ReportsScreen() {
             Meals: {daily.nutrition.mealCount} · {Math.round(daily.nutrition.macros.caloriesKcal || 0)}{' '}
             kcal · Carbs {daily.nutrition.macros.carbsG}g · Protein {daily.nutrition.macros.proteinG}g
           </Text>
+          {((daily as any).meals || []).length > 0 ? (
+            <View style={t.subCard}>
+              <Text style={t.subTitle}>Meals that day</Text>
+              {((daily as any).meals as any[]).map((m, i) => (
+                <Text key={m.id || i} style={t.meta}>
+                  {(m.mealType || 'meal').toString()}
+                  {m.eatenAt ? ` · ${formatTime(m.eatenAt)}` : ''}
+                  {m.macros?.caloriesKcal != null
+                    ? ` · ${Math.round(m.macros.caloriesKcal)} kcal`
+                    : ''}
+                  {m.macros?.carbsG != null ? ` · C ${m.macros.carbsG}g` : ''}
+                </Text>
+              ))}
+            </View>
+          ) : null}
           <Text style={t.line}>
             Glucose avg:{' '}
             {daily.glucose.avgMgDl != null ? `${daily.glucose.avgMgDl} mg/dL` : '—'} · TIR{' '}
@@ -373,17 +520,24 @@ export default function ReportsScreen() {
           ) : (
             archive.debriefs.map((d) => (
               <View key={d.id}>
-                <TouchableOpacity
-                  style={t.archiveRow}
-                  onPress={() => openArchiveDebrief(d.date)}
-                  disabled={debriefBusy}
-                >
-                  <View style={{ flex: 1 }}>
+                <View style={t.archiveRow}>
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
+                    onPress={() => openArchiveDebrief(d.date)}
+                    disabled={debriefBusy}
+                  >
                     <Text style={t.value}>{d.date}</Text>
                     <Text style={t.meta}>{d.headline || 'Day overview'}</Text>
-                  </View>
-                  <Text style={t.meta}>{d.source}</Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedDate(d.date);
+                      setMode('daily');
+                    }}
+                  >
+                    <Text style={t.openDayLink}>Open day</Text>
+                  </TouchableOpacity>
+                </View>
                 {openDebriefDate === d.date && openDebrief ? (
                   <View style={t.subCard}>
                     <Text style={t.line}>{openDebrief.summary}</Text>
@@ -423,36 +577,49 @@ const styles = (isDark: boolean) => {
     content: { paddingBottom: 40 },
     title: { fontSize: 24, fontWeight: '700', color: c.ink },
     sub: { marginTop: 4, marginBottom: 16, color: c.muted },
-    lifePromo: { borderRadius: HC.radius.xl, padding: 18, overflow: 'hidden' },
-    lifePromoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    lifePromoEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-    lifePromoDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: HC.tealBright,
+    liveBtn: {
+      marginHorizontal: 16,
+      marginBottom: 14,
+      borderRadius: HC.radius.lg,
+      padding: 16,
+      backgroundColor: HC.violet,
     },
-    lifePromoEyebrow: {
-      color: 'rgba(255,255,255,0.72)',
-      fontSize: 10,
-      fontWeight: '800',
-      letterSpacing: 1.2,
-    },
-    lifePromoTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 6 },
-    lifePromoSub: { color: 'rgba(255,255,255,0.88)', fontSize: 13, lineHeight: 19, marginBottom: 10 },
-    lifePromoCta: { color: HC.tealBright, fontWeight: '800', fontSize: 14 },
-    lifePromoBadge: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: 'rgba(255,255,255,0.12)',
+    liveBtnTitle: { color: '#fff', fontWeight: '800', fontSize: 17 },
+    liveBtnSub: { color: 'rgba(255,255,255,0.85)', marginTop: 4, fontSize: 13, lineHeight: 18 },
+    tabs: { flexDirection: 'row', gap: 8, marginBottom: 12, marginHorizontal: 16 },
+    dayPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      padding: 12,
+      borderRadius: HC.radius.lg,
+      backgroundColor: c.card,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.2)',
+      borderColor: c.border,
+    },
+    dayNavBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
     },
-    lifePromoBadgeText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-    tabs: { flexDirection: 'row', gap: 8, marginBottom: 12, marginHorizontal: 16 },
+    dayNavBtnDisabled: { opacity: 0.35 },
+    dayNavText: { color: c.ink, fontSize: 18, fontWeight: '800' },
+    dayPickerMain: { flex: 1 },
+    dayPickerLabel: { color: c.ink, fontWeight: '800', fontSize: 15 },
+    dayPickerIso: { color: c.muted, fontSize: 12, marginTop: 2 },
+    todayBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: HC.teal,
+    },
+    todayBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    openDayLink: { color: HC.teal, fontWeight: '800', fontSize: 13 },
     tab: {
       flex: 1,
       padding: 12,
@@ -498,6 +665,39 @@ const styles = (isDark: boolean) => {
       alignItems: 'center',
       marginBottom: 4,
     },
+    seekBlock: { marginTop: 6, marginBottom: 8 },
+    seekTrack: {
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    seekFill: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      backgroundColor: HC.teal,
+      opacity: 0.85,
+      borderRadius: 14,
+    },
+    seekThumb: {
+      position: 'absolute',
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: '#fff',
+      borderWidth: 2,
+      borderColor: HC.teal,
+      top: 6,
+    },
+    seekTimes: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 4,
+    },
+    seekTime: { color: c.muted, fontSize: 11, fontVariant: ['tabular-nums'] },
     videoBtn: {
       backgroundColor: HC.violet,
       borderRadius: HC.radius.md,

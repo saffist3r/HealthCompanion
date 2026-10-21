@@ -53,6 +53,7 @@ def init_db() -> None:
         ("meals", "would_again", "INTEGER", "INTEGER"),
         ("meals", "would_again_note", "TEXT", "TEXT"),
         ("meals", "related_hypo_started_at", "BIGINT", "INTEGER"),
+        ("meals", "photos_json", "TEXT DEFAULT '[]'", "TEXT DEFAULT '[]'"),
         ("body_profile", "cannula_changed_at", "TIMESTAMPTZ", "DATETIME"),
         ("body_profile", "sensor_started_at", "TIMESTAMPTZ", "DATETIME"),
     ]

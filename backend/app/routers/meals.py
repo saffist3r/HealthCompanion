@@ -14,13 +14,16 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import ensure_device, household_device_ids, require_device_id, require_user
 from app.models import Meal, User
-from app.schemas import MealAnalysisResult, MealCreate, MealOut, MealUpdate, Macros
+from app.schemas import MealAnalysisResult, MealCreate, MealOut, MealPhotoIn, MealPhotoOut, MealUpdate, Macros
 from app.services.diabetes_insights import find_related_hypo, post_meal_story, similar_meals
 from app.services.gemini_meal import analyze_meal_photo
 from app.services.reports import to_date_key
 from app.services.warnings import evaluate_meal_warnings, resolved_calories_kcal
 
 router = APIRouter(prefix="/meals", tags=["meals"])
+
+_ALLOWED_PHOTO_ROLES = {"main", "side", "dessert", "drink", "other"}
+_MAX_MEAL_PHOTOS = 8
 
 
 def _http_exc_from_gemini(exc: Exception) -> HTTPException:
@@ -53,6 +56,83 @@ def _upload_dir() -> Path:
     return path
 
 
+def _normalize_photo_role(role: str | None) -> str:
+    r = (role or "other").strip().lower()
+    return r if r in _ALLOWED_PHOTO_ROLES else "other"
+
+
+def _photo_entries_from_body(
+    photos: list[MealPhotoIn] | None,
+    photo_path: str | None,
+) -> list[dict]:
+    """Build stored photo list; primary is role=main or the first entry."""
+    entries: list[dict] = []
+    seen: set[str] = set()
+    for p in photos or []:
+        path = (p.path or "").strip()
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        label = (p.label or "").strip() or None
+        entries.append(
+            {
+                "path": path,
+                "role": _normalize_photo_role(p.role),
+                "label": label,
+            }
+        )
+        if len(entries) >= _MAX_MEAL_PHOTOS:
+            break
+    if photo_path:
+        path = photo_path.strip()
+        if path and path not in seen:
+            entries.insert(0, {"path": path, "role": "main", "label": None})
+            seen.add(path)
+        elif path and entries and not any(e["role"] == "main" for e in entries):
+            for e in entries:
+                if e["path"] == path:
+                    e["role"] = "main"
+                    break
+    if entries and not any(e["role"] == "main" for e in entries):
+        entries[0]["role"] = "main"
+    return entries[:_MAX_MEAL_PHOTOS]
+
+
+def _primary_photo_path(entries: list[dict], fallback: str | None = None) -> str | None:
+    for e in entries:
+        if e.get("role") == "main" and e.get("path"):
+            return str(e["path"])
+    if entries and entries[0].get("path"):
+        return str(entries[0]["path"])
+    return fallback
+
+
+def _serialize_photos(meal: Meal) -> list[MealPhotoOut]:
+    entries: list[dict] = []
+    try:
+        raw = json.loads(getattr(meal, "photos_json", None) or "[]")
+        if isinstance(raw, list):
+            entries = [e for e in raw if isinstance(e, dict) and e.get("path")]
+    except json.JSONDecodeError:
+        entries = []
+    if not entries and meal.photo_path:
+        entries = [{"path": meal.photo_path, "role": "main", "label": None}]
+    out: list[MealPhotoOut] = []
+    for e in entries:
+        path = str(e.get("path") or "").strip()
+        if not path:
+            continue
+        out.append(
+            MealPhotoOut(
+                url=f"/uploads/{path}",
+                path=path,
+                role=_normalize_photo_role(e.get("role")),
+                label=(str(e["label"]).strip() if e.get("label") else None),
+            )
+        )
+    return out
+
+
 def serialize_meal(
     meal: Meal,
     *,
@@ -77,13 +157,16 @@ def serialize_meal(
     if db is not None and include_similar:
         ids = device_ids if device_ids is not None else household_device_ids(db)
         similar = similar_meals(db, device_ids=ids, meal=meal)
+    photos = _serialize_photos(meal)
+    primary = meal.photo_path or (photos[0].path if photos else None)
     return MealOut(
         id=meal.id,
         deviceId=meal.device_id,
         createdAt=int(meal.created_at.timestamp() * 1000) if meal.created_at else 0,
         eatenAt=int(meal.eaten_at.timestamp() * 1000),
         mealType=meal.meal_type,
-        photoUrl=f"/uploads/{meal.photo_path}" if meal.photo_path else None,
+        photoUrl=f"/uploads/{primary}" if primary else None,
+        photos=photos,
         items=json.loads(meal.items_json or "[]"),
         macros=macros,
         notes=meal.notes,
@@ -144,6 +227,33 @@ async def analyze(
     }
 
 
+@router.post("/upload-photo")
+async def upload_photo(
+    photo: UploadFile = File(...),
+    user: User = Depends(require_user),
+    device_id: str = Depends(require_device_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Store an extra meal photo without running AI analysis."""
+    ensure_device(db, device_id, owner_user_id=user.id)
+    settings = get_settings()
+    data = await photo.read()
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=400, detail="Photo too large")
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty photo")
+
+    ext = Path(photo.filename or "meal.jpg").suffix or ".jpg"
+    filename = f"{int(datetime.now().timestamp() * 1000)}-{uuid.uuid4().hex[:8]}{ext}"
+    dest = _upload_dir() / filename
+    dest.write_bytes(data)
+    return {
+        "photoPath": filename,
+        "photoUrl": f"/uploads/{filename}",
+    }
+
+
 @router.post("", response_model=MealOut, status_code=201)
 def create_meal(
     body: MealCreate,
@@ -161,12 +271,15 @@ def create_meal(
         glucose_mg_dl=body.glucoseMgDl,
         meal_type=body.mealType,
     )
+    photo_entries = _photo_entries_from_body(body.photos, body.photoPath)
+    primary = _primary_photo_path(photo_entries, body.photoPath)
     meal = Meal(
         id=str(uuid.uuid4()),
         device_id=device_id,
         eaten_at=eaten_at,
         meal_type=body.mealType,
-        photo_path=body.photoPath,
+        photo_path=primary,
+        photos_json=json.dumps(photo_entries),
         items_json=json.dumps([i.model_dump() for i in body.items]),
         macros_json=macros.model_dump_json(),
         notes=body.notes,
@@ -282,6 +395,11 @@ def update_meal(
         meal.would_again = int(body.wouldAgain)
     if body.wouldAgainNote is not None:
         meal.would_again_note = body.wouldAgainNote.strip() or None
+
+    if body.photos is not None or body.photoPath is not None:
+        photo_entries = _photo_entries_from_body(body.photos, body.photoPath)
+        meal.photos_json = json.dumps(photo_entries)
+        meal.photo_path = _primary_photo_path(photo_entries, body.photoPath)
 
     macros_changed = False
     if body.macros is not None:

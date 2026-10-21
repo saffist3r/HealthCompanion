@@ -102,12 +102,29 @@ export async function analyzeMealPhoto(params: {
   return ensureOk(res);
 }
 
+/** Upload an extra meal photo without AI analysis. */
+export async function uploadMealPhoto(uri: string): Promise<{ photoPath: string; photoUrl: string }> {
+  const form = new FormData();
+  form.append('photo', {
+    uri,
+    name: 'meal.jpg',
+    type: 'image/jpeg',
+  } as unknown as Blob);
+  const res = await fetch(`${await base()}/meals/upload-photo`, {
+    method: 'POST',
+    headers: await headers(false),
+    body: form,
+  });
+  return ensureOk(res);
+}
+
 export async function saveMeal(input: {
   eatenAt?: number;
   mealType: MealType;
   items: FoodItem[];
   macros: Macros;
   photoPath?: string;
+  photos?: Array<{ path: string; role?: string; label?: string }>;
   notes?: string;
   aiSummary?: string;
   carbEstimateNote?: string;

@@ -329,6 +329,78 @@ export async function generateLifeAssessment(days = 7) {
   return data as LifeAssessment;
 }
 
+export type UnderstandingSeverity = 'high' | 'medium' | 'low';
+export type UnderstandingCategory =
+  | 'estimation'
+  | 'timing'
+  | 'stress'
+  | 'logging'
+  | 'glucose'
+  | 'lifestyle';
+
+export type UnderstandingFinding = {
+  id: string;
+  severity: UnderstandingSeverity;
+  category: UnderstandingCategory;
+  title: string;
+  detail: string;
+  evidence: string[];
+  exampleIds?: string[];
+};
+
+export type MedicalCheckStatus = 'established' | 'plausible' | 'weak' | 'not_supported';
+
+export type UnderstandingScienceSource = {
+  title: string;
+  url: string;
+  publisher?: string;
+};
+
+export type UnderstandingMedicalCheck = {
+  patternId: string;
+  claim?: string;
+  category?: string;
+  observed?: Record<string, unknown>;
+  status: MedicalCheckStatus;
+  confidence: 'high' | 'medium' | 'low';
+  title: string;
+  explanation: string;
+  scienceBrief?: string;
+  sources?: UnderstandingScienceSource[];
+  caveat?: string;
+};
+
+export type UnderstandingAnalysis = {
+  headline: string;
+  executiveSummary: string;
+  findings: UnderstandingFinding[];
+  medicalChecks?: UnderstandingMedicalCheck[];
+  correlations: string[];
+  whatToWatch: string[];
+  dataGaps: string[];
+  source: 'gemini' | 'fallback';
+  locale?: string;
+  note?: string;
+};
+
+export type UnderstandingReport = {
+  periodStart: string;
+  periodEnd: string;
+  dayCount: number;
+  totals?: Record<string, unknown>;
+  signals: Record<string, unknown>;
+  analysis: UnderstandingAnalysis;
+  generatedAt?: number;
+};
+
+export async function generateUnderstanding(days = 14) {
+  const { data } = await api.post('/reports/understanding', null, {
+    params: { days },
+    timeout: 300_000,
+  });
+  return data as UnderstandingReport;
+}
+
 export async function downloadRagArchive(format: 'json' | 'zip' = 'zip', limit = 200) {
   try {
     const { data, headers } = await api.get('/reports/rag-archive/export', {

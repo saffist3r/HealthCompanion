@@ -9,6 +9,11 @@ data:
   DATABASE_NAME: "healthcompanion"
   DATABASE_USER: "healthcompanion"
   GEMINI_MODEL: "gemini-3.6-flash"
+  # Ollama MedGemma via host proxy (Tailscale → ovh-medgemma). See k8s/README.
+  MEDGEMMA_BASE_URL: "http://192.168.49.1:11434"
+  MEDGEMMA_MODEL: "medgemma:4b"
+  MEDGEMMA_TIMEOUT_S: "90"
+  MEDGEMMA_MAX_CHECKS: "4"
   UPLOAD_DIR: "/app/uploads"
   DAILY_CARB_TARGET_G: "180"
   CORS_ORIGINS: "https://healthcompanion.saffist3r.xyz"

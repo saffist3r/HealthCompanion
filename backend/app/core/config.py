@@ -12,7 +12,14 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.6-flash"
     gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
     gemini_tts_voice: str = "Charon"
+    gemini_live_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     gemini_veo_model: str = "veo-3.1-fast-generate-preview"
+    # Self-hosted MedGemma (Ollama) for Understanding science briefs — e.g. http://100.x.x.x:11434
+    medgemma_base_url: str = ""
+    medgemma_model: str = "medgemma:4b"
+    # Hard cap per Understanding request (CPU MedGemma is slow)
+    medgemma_timeout_s: int = 90
+    medgemma_max_checks: int = 4
     upload_dir: str = "uploads"
     max_upload_mb: int = 8
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
@@ -51,6 +58,10 @@ class Settings(BaseSettings):
     def gemini_configured(self) -> bool:
         key = (self.gemini_api_key or "").strip()
         return bool(key) and not key.startswith("your-")
+
+    @property
+    def medgemma_configured(self) -> bool:
+        return bool((self.medgemma_base_url or "").strip())
 
     @property
     def smtp_configured(self) -> bool:

@@ -341,8 +341,14 @@ def enrich_glucose_episodes(
 
 
 def overnight_blurb(db: Session, device_ids: list[str], date: str) -> dict[str, Any]:
-    start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    end = start + timedelta(hours=6)
+    from app.services.reports import PARIS, paris_day_bounds
+
+    day_start, day_end = paris_day_bounds(date)
+    # Overnight window: Paris local 00:00–06:00 within that calendar day
+    local_midnight = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=PARIS)
+    overnight_end = (local_midnight + timedelta(hours=6)).astimezone(timezone.utc)
+    start = day_start
+    end = min(overnight_end, day_end)
     points = _readings_between(
         db, device_ids, int(start.timestamp() * 1000), int(end.timestamp() * 1000)
     )
@@ -448,25 +454,6 @@ def weekly_plot_twists(weekly: dict[str, Any], days: list[dict[str, Any]]) -> li
     if not twists:
         twists.append("Quiet week on paper. Suspicious. Check the raw footage (Reports).")
     return twists[:6]
-
-
-def directors_cut_text(weekly: dict[str, Any], twists: list[str]) -> str:
-    totals = weekly.get("totals") or {}
-    lines = [
-        "HEALTH COMPANION — WEEKLY DIRECTOR'S CUT",
-        f"Week {weekly.get('weekStart')} → {weekly.get('weekEnd')}",
-        "",
-        "THE PLOT TWISTS",
-        *[f"• {t}" for t in twists],
-        "",
-        "BOX OFFICE",
-        f"• Meals: {totals.get('mealCount') or (weekly.get('nutrition') or {}).get('mealCount') or '—'}",
-        f"• Steps: {totals.get('totalSteps') or '—'}",
-        f"• Avg TIR: {(weekly.get('glucose') or {}).get('avgTimeInRangePct') or '—'}%",
-        "",
-        "Not medical advice. Just your data with better dialogue.",
-    ]
-    return "\n".join(lines)
 
 
 def device_care_payload(profile: BodyProfile | None) -> dict[str, Any]:

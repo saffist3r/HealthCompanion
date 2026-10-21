@@ -6,7 +6,6 @@ import { useLocale } from './i18n';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import MealsPage from './pages/MealsPage';
-import LifeReviewPage from './pages/LifeReviewPage';
 import ReportsPage from './pages/ReportsPage';
 import ShareReportPage from './pages/ShareReportPage';
 import SportsPage from './pages/SportsPage';
@@ -14,6 +13,7 @@ import InjuriesPage from './pages/InjuriesPage';
 import MentalPage from './pages/MentalPage';
 import MorningPage from './pages/MorningPage';
 import SettingsPage from './pages/SettingsPage';
+import UnderstandingPage from './pages/UnderstandingPage';
 import UsersPage from './pages/UsersPage';
 
 function Protected({ children }: { children: ReactNode }) {
@@ -34,7 +34,7 @@ function AppShell() {
     { to: '/morning', label: t('nav.morning') },
     { to: '/injuries', label: t('nav.injuries') },
     { to: '/reports', label: t('nav.reports') },
-    { to: '/life-review', label: t('nav.lifeReview'), special: true },
+    { to: '/understanding', label: t('nav.understanding'), special: true },
     ...(user?.role === 'admin' ? [{ to: '/users', label: t('nav.users') }] : []),
     { to: '/settings', label: t('nav.settings') },
   ];
@@ -94,7 +94,9 @@ function AppShell() {
           <Route path="/morning" element={<MorningPage />} />
           <Route path="/injuries" element={<InjuriesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/life-review" element={<LifeReviewPage />} />
+          <Route path="/understanding" element={<UnderstandingPage />} />
+          {/* Life Review superseded by Understanding */}
+          <Route path="/life-review" element={<Navigate to="/understanding" replace />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

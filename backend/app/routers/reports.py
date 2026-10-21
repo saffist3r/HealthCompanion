@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,7 +35,12 @@ from app.services.day_debriefs import (
 from app.services.email_smtp import smtp_configured
 from app.i18n import household_locale
 from app.services.gemini_life_assessment import generate_life_assessment
+from app.services.gemini_understanding import generate_understanding_analysis
 from app.services.life_assessment import build_life_assessment_context, rolling_date_keys
+from app.services.understanding_signals import (
+    build_understanding_signals,
+    understanding_date_keys,
+)
 from app.services.report_pdf import build_daily_pdf
 from app.services.report_share import (
     build_qr_png,
@@ -49,11 +54,21 @@ from app.services.reports import (
     build_weekly_report,
     list_date_keys,
     monday_of,
+    paris_day_bounds,
+    paris_yesterday_key,
     to_date_key,
 )
 from app.services.workouts import serialize_workout_plan
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def _report_day(date: str | None) -> str:
+    """Default daily report day is yesterday (Paris) — the completed day."""
+    day = (date or "").strip() or paris_yesterday_key()
+    if len(day) != 10:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return day
 
 
 def _pick_activity(rows: list[ActivityDay]) -> ActivityDay | None:
@@ -100,11 +115,10 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             glucose_targets=glucose_targets,
         )
 
-    start = datetime.strptime(date, "%Y-%m-%d")
-    end = datetime.combine(start.date(), time(23, 59, 59, 999999))
+    start, end = paris_day_bounds(date)
     meals = (
         db.query(Meal)
-        .filter(Meal.device_id.in_(device_ids), Meal.eaten_at >= start, Meal.eaten_at <= end)
+        .filter(Meal.device_id.in_(device_ids), Meal.eaten_at >= start, Meal.eaten_at < end)
         .order_by(Meal.eaten_at.asc())
         .all()
     )
@@ -113,7 +127,7 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         .filter(
             GlucoseSample.device_id.in_(device_ids),
             GlucoseSample.timestamp >= start,
-            GlucoseSample.timestamp <= end,
+            GlucoseSample.timestamp < end,
         )
         .order_by(GlucoseSample.timestamp.asc())
         .all()
@@ -158,7 +172,7 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         .filter(
             PumpLogEvent.device_id.in_(device_ids),
             PumpLogEvent.timestamp >= start,
-            PumpLogEvent.timestamp <= end,
+            PumpLogEvent.timestamp < end,
         )
         .order_by(PumpLogEvent.timestamp.asc())
         .all()
@@ -203,14 +217,13 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             serialize_injury(inj, latest_pain=latest, today_pain=today_p)
         )
 
-    day_start = datetime.strptime(date, "%Y-%m-%d")
-    day_end = datetime.combine(day_start.date(), time(23, 59, 59, 999999))
+    day_start, day_end = start, end
     workout_rows = (
         db.query(WorkoutPlan)
         .filter(
             WorkoutPlan.device_id.in_(device_ids),
             WorkoutPlan.created_at >= day_start,
-            WorkoutPlan.created_at <= day_end,
+            WorkoutPlan.created_at < day_end,
         )
         .order_by(WorkoutPlan.created_at.desc())
         .all()
@@ -242,7 +255,7 @@ def daily_report(
     _: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    day = date or to_date_key(datetime.now())
+    day = _report_day(date)
     return _load_daily(db, household_device_ids(db), day)
 
 
@@ -261,9 +274,7 @@ async def daily_report_voice(
     if not get_settings().gemini_configured:
         raise HTTPException(status_code=503, detail="Gemini is not configured on the server")
 
-    day = date or to_date_key(datetime.now())
-    if len(day) != 10:
-        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    day = _report_day(date)
     daily = _load_daily(db, household_device_ids(db), day)
     try:
         # Gemini + TTS are sync; keep the event loop free for /health probes.
@@ -289,9 +300,7 @@ async def daily_report_voice_video(
     if not get_settings().gemini_configured:
         raise HTTPException(status_code=503, detail="Gemini is not configured on the server")
 
-    day = date or to_date_key(datetime.now())
-    if len(day) != 10:
-        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    day = _report_day(date)
     daily = _load_daily(db, household_device_ids(db), day)
     try:
         return await asyncio.to_thread(generate_daily_voice_video, daily)
@@ -308,7 +317,7 @@ def daily_report_pdf(
     db: Session = Depends(get_db),
 ) -> Response:
     """Downloadable PDF with Gemini AI insights for the selected day."""
-    day = date or to_date_key(datetime.now())
+    day = _report_day(date)
     locale = household_locale(db)
     daily = _load_daily(db, household_device_ids(db), day)
     ai, _ = archive_daily_debrief(db, daily, display_locale=locale)
@@ -331,7 +340,7 @@ def daily_report_share(
     db: Session = Depends(get_db),
 ) -> dict:
     """Create or refresh a public share link + QR for the daily report."""
-    day = date or to_date_key(datetime.now())
+    day = _report_day(date)
     share = get_or_create_share(db, date=day, user_id=user.id)
     return serialize_share(share)
 
@@ -511,6 +520,37 @@ def life_assessment(
     }
 
 
+@router.post("/understanding")
+def understanding_analysis(
+    days: int = Query(14, ge=1, le=30),
+    end: str | None = Query(None, description="Last day of window (YYYY-MM-DD), default today"),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Forensic pattern analysis: estimation, bolus timing, stress↔glucose, logging gaps."""
+    if end and (len(end) != 10):
+        raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
+    period_start, period_end, keys = understanding_date_keys(end_date=end, days=days)
+    ids = household_device_ids(db)
+    daily_days = [_load_daily(db, ids, d) for d in keys]
+    signals = build_understanding_signals(db, device_ids=ids, daily_days=daily_days)
+    locale = household_locale(db)
+    # Release DB connection before long Gemini/MedGemma work (avoids pool starvation / startup locks)
+    db.close()
+    # Don't send full daysSlim twice in the HTTP body — Gemini gets it; client gets summaries
+    analysis_signals = {k: v for k, v in signals.items() if k != "daysSlim"}
+    ai = generate_understanding_analysis(signals, locale=locale)
+    return {
+        "periodStart": period_start,
+        "periodEnd": period_end,
+        "dayCount": len(keys),
+        "totals": signals.get("periodStats"),
+        "signals": analysis_signals,
+        "analysis": ai,
+        "generatedAt": int(datetime.now().timestamp() * 1000),
+    }
+
+
 @router.get("/weekly")
 def weekly_report(
     date: str | None = Query(None),
@@ -626,7 +666,6 @@ def dashboard(
         "mealLogStreak": meal_log_streak(db, ids),
         "deviceCare": device_care_payload(profile),
         "plotTwists": weekly.get("plotTwists") or [],
-        "directorsCut": weekly.get("directorsCut"),
         "recentMeals": [serialize_meal(m).model_dump() for m in recent],
         "dailyReport": daily,
         "weeklyReport": weekly,

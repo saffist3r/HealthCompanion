@@ -1,5 +1,11 @@
-/** Animated SVG hero — 7-day arc + orbiting data nodes */
-export default function LifeReviewHeroVisual({ active }: { active?: boolean }) {
+/** Animated SVG hero — orbiting data nodes; label shows window (e.g. 14d) */
+export default function LifeReviewHeroVisual({
+  active,
+  label = '7d',
+}: {
+  active?: boolean;
+  label?: string;
+}) {
   return (
     <svg
       viewBox="0 0 320 280"
@@ -48,7 +54,7 @@ export default function LifeReviewHeroVisual({ active }: { active?: boolean }) {
         <circle cx="160" cy="140" r="36" fill="rgba(255,255,255,0.12)" />
         <circle cx="160" cy="140" r="22" fill="rgba(94,234,212,0.35)" />
         <text x="160" y="147" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700">
-          7d
+          {label}
         </text>
       </g>
       <path

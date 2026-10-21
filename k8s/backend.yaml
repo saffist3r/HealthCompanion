@@ -175,6 +175,30 @@ spec:
                 configMapKeyRef:
                   name: healthcompanion-config
                   key: GEMINI_MODEL
+            - name: MEDGEMMA_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: healthcompanion-config
+                  key: MEDGEMMA_BASE_URL
+                  optional: true
+            - name: MEDGEMMA_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: healthcompanion-config
+                  key: MEDGEMMA_MODEL
+                  optional: true
+            - name: MEDGEMMA_TIMEOUT_S
+              valueFrom:
+                configMapKeyRef:
+                  name: healthcompanion-config
+                  key: MEDGEMMA_TIMEOUT_S
+                  optional: true
+            - name: MEDGEMMA_MAX_CHECKS
+              valueFrom:
+                configMapKeyRef:
+                  name: healthcompanion-config
+                  key: MEDGEMMA_MAX_CHECKS
+                  optional: true
             - name: UPLOAD_DIR
               valueFrom:
                 configMapKeyRef:

@@ -310,15 +310,47 @@ def upsert_activity(
         row = ActivityDay(id=str(uuid.uuid4()), device_id=device_id, date=body.date)
         db.add(row)
 
-    row.steps = body.steps
-    row.active_minutes = body.activeMinutes
-    row.calories_burned = body.caloriesBurned
+    # Prefer higher totals so a partial sync cannot wipe a fuller Samsung read.
+    incoming_steps = int(body.steps or 0)
+    row.steps = max(incoming_steps, int(row.steps or 0))
+
+    if body.activeMinutes is not None:
+        row.active_minutes = max(int(body.activeMinutes or 0), int(row.active_minutes or 0))
+
+    if body.caloriesBurned is not None:
+        prev_cal = float(row.calories_burned or 0)
+        row.calories_burned = max(float(body.caloriesBurned), prev_cal)
+
     if body.energyScore is not None:
         row.energy_score = body.energyScore
         _upsert_samsung_energy_stress(
             db, device_id=device_id, date=body.date, energy_score=body.energyScore
         )
-    row.workouts_json = json.dumps(body.workouts or [])
+
+    incoming_workouts = body.workouts or []
+    try:
+        existing_workouts = json.loads(row.workouts_json or "[]")
+        if not isinstance(existing_workouts, list):
+            existing_workouts = []
+    except Exception:
+        existing_workouts = []
+
+    def _workout_minutes(items: list) -> int:
+        total = 0
+        for w in items:
+            if isinstance(w, dict):
+                try:
+                    total += int(w.get("durationMin") or 0)
+                except Exception:
+                    pass
+        return total
+
+    if incoming_workouts:
+        if _workout_minutes(incoming_workouts) >= _workout_minutes(existing_workouts):
+            row.workouts_json = json.dumps(incoming_workouts)
+    elif not existing_workouts:
+        row.workouts_json = json.dumps([])
+
     row.synced_at = datetime.now().astimezone()
     row.source = body.source
     db.commit()
