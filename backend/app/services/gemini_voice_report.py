@@ -18,6 +18,8 @@ from app.core.config import get_settings
 from app.services.gemini_insights import compact_report
 from app.services.gemini_retry import (
     is_transient_gemini_error as _is_transient_gemini_error,
+)
+from app.services.gemini_retry import (
     with_gemini_retries as _with_gemini_retries,
 )
 
@@ -224,11 +226,12 @@ def _tts_once(client: Any, *, model: str, prompt: str, voice: str) -> bytes:
         if pcm[:4] == b"RIFF":
             return pcm
         return _pcm_to_wav(pcm)
-    except Exception as gen_exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         # Only try Interactions when the model itself responded but shape differed.
-        if _is_transient_gemini_error(gen_exc):
+        if _is_transient_gemini_error(exc):
             raise
-        logger.warning("generate_content TTS (%s) failed (%s); trying interactions", model, gen_exc)
+        logger.warning("generate_content TTS (%s) failed (%s); trying interactions", model, exc)
+        gen_error = exc
 
     interaction = client.interactions.create(
         model=model,
@@ -239,7 +242,7 @@ def _tts_once(client: Any, *, model: str, prompt: str, voice: str) -> bytes:
     audio = getattr(interaction, "output_audio", None)
     data_b64 = getattr(audio, "data", None) if audio is not None else None
     if not data_b64:
-        raise RuntimeError(f"TTS model {model} returned no audio ({gen_exc})")
+        raise RuntimeError(f"TTS model {model} returned no audio ({gen_error})")
     pcm = base64.b64decode(data_b64)
     if pcm[:4] == b"RIFF":
         return pcm

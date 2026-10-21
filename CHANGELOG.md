@@ -11,6 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.6.0] - 2026-10-21
+
+> **Upgrade notes:** `JWT_SECRET` must be set (a short one only logs a warning; existing sessions stay valid). Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
+
+Builds on 1.5.81 (Understanding, MedGemma briefs, Reb3i live chat, multi-photo meals, pain check-in, evening-brief integration) and keeps `/docs` off in production.
+
+### Added
+
+- **CI** (`.github/workflows/ci.yml`): backend ruff + pytest + Alembic migrations on Postgres, web typecheck/build, mobile typecheck, version-sync check; **Dependabot** for pip, npm, Actions, and Docker
+- Backend test suite: glucose TIR / hypo episodes, meal warnings, auth, CORS, signed uploads, login throttle, data scope, migrations, `/health-data` routes
+- **Alembic** migrations replace the ad-hoc `ALTER TABLE` list; first boot adopts existing databases; startup serialized with a Postgres advisory lock (`0002` adds `meals.photos_json` for multi-photo meals)
+- `DATA_SCOPE=owner` option to limit each user to their own devices (default `household` keeps current behaviour)
+- `scripts/sync-version.mjs` keeps `VERSION`, package.json/app.json/lockfiles, and the API version in sync
+
+### Changed
+
+- **All API routes under `/api`** (web + phone); root-level aliases kept for older phone builds
+- Meal photos served via **signed, expiring URLs** instead of public `/uploads`; uploads keep only image extensions
+- Backend and frontend containers run as **non-root** (frontend now listens on 8080)
+- Split `routers/health.py`, `services/reports.py`, and `ReportsPage.tsx` into smaller modules (no behaviour change)
+- Silent `except` blocks now log; FastAPI `lifespan` replaces deprecated startup hook
+
+### Security
+
+- API refuses to start without a `JWT_SECRET` and warns when it is short or a placeholder
+- CORS no longer allows every origin (`*` was always appended)
+- Failed sign-ins throttled per email and IP (HTTP 429)
+
+### Fixed
+
+- RAG archive export crashed (`build_rag_archive_*` never imported)
+- TTS fallback raised `NameError` instead of the real error when no audio came back
+- `docker compose` could not build the backend (wrong build context)
+- Old web builds could crash on `/meals` when the browser cache served the SPA HTML to the API call
+
+### Removed
+
+- Deprecated Node/SQLite API (`apps/api`) and the fake `openaiConfigured` health flag
+
 ## [1.5.81] - 2026-10-14
 
 ### Added

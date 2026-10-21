@@ -2,23 +2,26 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from datetime import datetime, time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import ensure_device, household_device_ids, require_device_id, require_user
 from app.models import Meal, User
-from app.schemas import MealAnalysisResult, MealCreate, MealOut, MealPhotoIn, MealPhotoOut, MealUpdate, Macros
+from app.schemas import Macros, MealCreate, MealOut, MealPhotoIn, MealPhotoOut, MealUpdate
 from app.services.diabetes_insights import find_related_hypo, post_meal_story, similar_meals
 from app.services.gemini_meal import analyze_meal_photo
 from app.services.reports import to_date_key
+from app.services.upload_urls import signed_upload_url
 from app.services.warnings import evaluate_meal_warnings, resolved_calories_kcal
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 
@@ -48,6 +51,10 @@ def _http_exc_from_gemini(exc: Exception) -> HTTPException:
     if "api key" in lower or "not configured" in lower:
         return HTTPException(status_code=503, detail=msg)
     return HTTPException(status_code=500, detail=msg)
+
+
+# Uploaded files are served back to browsers; never keep an extension that renders as HTML/JS.
+ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
 
 def _upload_dir() -> Path:
@@ -124,7 +131,7 @@ def _serialize_photos(meal: Meal) -> list[MealPhotoOut]:
             continue
         out.append(
             MealPhotoOut(
-                url=f"/uploads/{path}",
+                url=signed_upload_url(path),
                 path=path,
                 role=_normalize_photo_role(e.get("role")),
                 label=(str(e["label"]).strip() if e.get("label") else None),
@@ -165,7 +172,7 @@ def serialize_meal(
         createdAt=int(meal.created_at.timestamp() * 1000) if meal.created_at else 0,
         eatenAt=int(meal.eaten_at.timestamp() * 1000),
         mealType=meal.meal_type,
-        photoUrl=f"/uploads/{primary}" if primary else None,
+        photoUrl=signed_upload_url(primary),
         photos=photos,
         items=json.loads(meal.items_json or "[]"),
         macros=macros,
@@ -201,7 +208,9 @@ async def analyze(
     if len(data) > max_bytes:
         raise HTTPException(status_code=400, detail="Photo too large")
 
-    ext = Path(photo.filename or "meal.jpg").suffix or ".jpg"
+    ext = Path(photo.filename or "meal.jpg").suffix.lower()
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        ext = ".jpg"
     filename = f"{int(datetime.now().timestamp() * 1000)}-{uuid.uuid4().hex[:8]}{ext}"
     dest = _upload_dir() / filename
     dest.write_bytes(data)
@@ -218,12 +227,13 @@ async def analyze(
             notes=notes,
         )
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Meal photo analysis failed")
         raise _http_exc_from_gemini(exc) from exc
 
     return {
         "analysis": analysis.model_dump(),
         "photoPath": filename,
-        "photoUrl": f"/uploads/{filename}",
+        "photoUrl": signed_upload_url(filename),
     }
 
 
@@ -244,13 +254,15 @@ async def upload_photo(
     if not data:
         raise HTTPException(status_code=400, detail="Empty photo")
 
-    ext = Path(photo.filename or "meal.jpg").suffix or ".jpg"
+    ext = Path(photo.filename or "meal.jpg").suffix.lower()
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        ext = ".jpg"
     filename = f"{int(datetime.now().timestamp() * 1000)}-{uuid.uuid4().hex[:8]}{ext}"
     dest = _upload_dir() / filename
     dest.write_bytes(data)
     return {
         "photoPath": filename,
-        "photoUrl": f"/uploads/{filename}",
+        "photoUrl": signed_upload_url(filename),
     }
 
 
@@ -289,7 +301,7 @@ def create_meal(
         suggestions_json=json.dumps(body.suggestions),
         source=body.source,
     )
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     eaten_ms = int(eaten_at.timestamp() * 1000)
     if (body.mealType or "").lower() == "resucrage":
         hypo = find_related_hypo(db, ids, eaten_ms)
@@ -305,10 +317,10 @@ def create_meal(
 def list_meals(
     date: str | None = Query(None),
     limit: int = Query(50, le=200),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(Meal)
     if ids:
         q = q.filter(Meal.device_id.in_(ids))
@@ -323,10 +335,10 @@ def list_meals(
 @router.get("/{meal_id}")
 def get_meal(
     meal_id: str,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(Meal).filter(Meal.id == meal_id)
     if ids:
         q = q.filter(Meal.device_id.in_(ids))
@@ -343,10 +355,10 @@ def get_meal(
 @router.get("/{meal_id}/glucose-story")
 def meal_glucose_story(
     meal_id: str,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(Meal).filter(Meal.id == meal_id)
     if ids:
         q = q.filter(Meal.device_id.in_(ids))
@@ -364,10 +376,10 @@ def meal_glucose_story(
 def update_meal(
     meal_id: str,
     body: MealUpdate,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> MealOut:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(Meal).filter(Meal.id == meal_id)
     if ids:
         q = q.filter(Meal.device_id.in_(ids))
@@ -436,10 +448,10 @@ def update_meal(
 @router.delete("/{meal_id}")
 def delete_meal(
     meal_id: str,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(Meal).filter(Meal.id == meal_id)
     if ids:
         q = q.filter(Meal.device_id.in_(ids))

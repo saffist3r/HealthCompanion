@@ -27,8 +27,15 @@ class Settings(BaseSettings):
     high_meal_carb_g: float = 45.0
     very_high_meal_carb_g: float = 75.0
 
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = ""
     jwt_expire_minutes: int = 60 * 24 * 14  # 14 days
+    # Signed /uploads URLs (meal photos) stay valid this long
+    upload_url_ttl_minutes: int = 60 * 24 * 7
+    # Failed logins allowed per email / client IP inside the window before 429
+    login_max_failures: int = 10
+    login_window_seconds: int = 15 * 60
+    # "household": every user sees all devices' data. "owner": users see only devices they own.
+    data_scope: str = "household"
     admin_email: str = ""
     admin_password: str = ""
     admin_name: str = "Admin"
@@ -49,6 +56,18 @@ class Settings(BaseSettings):
     # Public site URL used for share links / QR codes (override via PUBLIC_URL env)
     public_url: str = "http://localhost:5173"
     report_share_ttl_days: int = 30
+
+    @property
+    def jwt_secret_problem(self) -> str | None:
+        """Why the JWT secret is unsafe to sign tokens with, or None when it is fine."""
+        secret = (self.jwt_secret or "").strip()
+        if not secret:
+            return "JWT_SECRET is not set"
+        if secret.lower().startswith("change-me") or secret == "CHANGE_ME_LONG_RANDOM":
+            return "JWT_SECRET is still the placeholder value"
+        if len(secret) < 32:
+            return "JWT_SECRET must be at least 32 characters"
+        return None
 
     @property
     def cors_origins_list(self) -> list[str]:

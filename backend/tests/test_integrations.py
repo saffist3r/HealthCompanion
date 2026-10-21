@@ -1,24 +1,17 @@
 """Integration-key auth and data minimisation for /integrations/evening-brief.
 
-Run from backend/: python -m unittest discover -s tests
+Run from backend/: python -m pytest tests/test_integrations.py
 """
 
 from __future__ import annotations
 
-import hashlib
 import os
-import secrets
-import tempfile
 import unittest
 import uuid
 from datetime import datetime, timezone
 
-_TMP = tempfile.mkdtemp(prefix="hc-integrations-test-")
-_KEY = "hc_test_" + secrets.token_hex(16)
-os.environ["DATABASE_URL"] = f"sqlite:///{_TMP}/test.db"
-os.environ["UPLOAD_DIR"] = f"{_TMP}/uploads"
-os.environ["API_DOCS_ENABLED"] = "false"
-os.environ["INTEGRATION_KEYS"] = f"agents-hub:{hashlib.sha256(_KEY.encode()).hexdigest()}"
+# conftest.py sets DATABASE_URL, API_DOCS_ENABLED=false and INTEGRATION_KEYS from this key.
+_KEY = os.environ["TEST_INTEGRATION_KEY"]
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -51,7 +44,7 @@ class EveningBriefTest(unittest.TestCase):
             db.add(Device(id="dev-1"))
             db.flush()
             # Overnight + a hypo episode at 10:00 UTC.
-            for i, (h, m, v) in enumerate(
+            for h, m, v in (
                 [(1, 0, 120), (2, 0, 110), (3, 0, 105), (8, 0, 150), (10, 0, 62), (10, 5, 58), (12, 0, 140)]
             ):
                 db.add(GlucoseSample(id=str(uuid.uuid4()), device_id="dev-1", value=v, unit="mg/dL", timestamp=_utc(h, m)))

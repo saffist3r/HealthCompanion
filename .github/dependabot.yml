@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      web-minor:
+        update-types: [minor, patch]
+
+  # Root workspace (mobile app + shared packages). Expo/React Native majors
+  # must move together via `npx expo install --fix`, so only minor/patch here.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      mobile-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: monthly
