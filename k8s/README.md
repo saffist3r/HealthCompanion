@@ -62,12 +62,19 @@ Bump `VERSION` before each release.
 | Namespace | `healthcompanion` |
 | Postgres | StatefulSet `postgres` + PVC |
 | Backend | `backend` (FastAPI :8000) + uploads PVC |
-| Frontend | `frontend` (nginx :80) |
+| Frontend | `frontend` (unprivileged nginx :8080, Service :80) |
 | Ingress | `healthcompanion-ingress` |
 | TLS | `healthcompanion-tls` |
 | Images | `$REGISTRY/healthcompanion-{backend,frontend}:<VERSION>` |
 
-API paths (`/auth`, `/glucose`, `/pump`, `/health-data`, `/uploads`, `/health`, `/ws`, `/integrations/`) go to the backend; `/docs`, `/redoc` and `/openapi.json` are disabled in production (`API_DOCS_ENABLED=false`). SPA pages that share prefixes (`/reports`, `/meals`, `/users`) go to the frontend; nginx serves the app for browser HTML and proxies API calls to the backend. `/` catch-all goes to the SPA.
+All API routes live under **`/api`** (web app and phone 1.6+), routed straight to the backend. The older root-level API paths (`/auth`, `/glucose`, `/pump`, `/health-data`, `/reports/…`, `/uploads`, `/health`) still reach the backend so phone builds released before `/api` keep working; remove them from `ingress.yaml` and `frontend/nginx.conf` once every phone is updated. `/ws` (Reb3i live) and `/integrations/` (read-only integration key) also go to the backend; `/docs`, `/redoc` and `/openapi.json` are disabled in production (`API_DOCS_ENABLED=false`). `/` catch-all goes to the SPA.
+
+### Upgrading from 1.5.x
+
+- **`JWT_SECRET` must be set.** A short or placeholder value still works but logs a warning; keeping the existing key keeps everyone signed in.
+- **Schema changes now go through Alembic.** The backend runs `alembic upgrade head` on start (under a Postgres advisory lock); the first boot adopts the existing tables. New migrations: `cd backend && alembic revision --autogenerate -m "…"`.
+- Containers run as non-root (backend uid 10001, frontend uid 101). The `fix-uploads-owner` init container re-owns the uploads PVC once.
+- Deploy the backend **before** shipping a phone build that uses `/api`.
 
 ## Mobile
 

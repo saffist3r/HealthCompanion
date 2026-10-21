@@ -28,7 +28,7 @@ import {
   syncAllNudges,
   checkMissedGlucose,
 } from './src/pushNudges';
-import { navigationRef, openNudgeScreen, openPainLog } from './src/navigation';
+import { navigateTo, navigationRef, openNudgeScreen, openPainLog } from './src/navigation';
 import DashboardScreen from './src/screens/DashboardScreen';
 import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
@@ -180,7 +180,6 @@ function MainTabs() {
           headerShown: false,
           tabBarActiveTintColor: '#0d9488',
           tabBarInactiveTintColor: isDark ? '#8b949e' : '#9ca3af',
-          tabBarShowIcon: false,
           tabBarIconStyle: { display: 'none', height: 0, width: 0 },
           tabBarLabelPosition: 'below-icon',
           tabBarItemStyle: {
@@ -291,7 +290,7 @@ function MainTabs() {
         }}
         onCaptureMeal={() => {
           if (navigationRef.isReady()) {
-            navigationRef.navigate('Meals' as never, { screen: 'CaptureMeal' } as never);
+            navigateTo('Meals', { screen: 'CaptureMeal' });
           }
         }}
       />

@@ -6,7 +6,7 @@ A Wear OS watch face plus Android phone companion and optional self-hosted web/A
 
 **Latest tagged release:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [Releases](RELEASES.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
-> **Current deploy (`1.5.81`):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini) with **multi-photo meals**, **Understanding** (forensic signals + charts + GMI + batched MedGemma science briefs), RAG archive, Reb3i Darija voice (briefings + **live chat** with Gemini-style hands-free orb) + video, Samsung Health / Health Connect activity, injury + batch pain check-in, pump sync, JWT auth, read-only integration key for the agents-hub night planner, Paris-day reports, FR/EN i18n. Deploy notes in [`k8s/`](k8s/README.md).
+> **Current deploy (`1.6.0`):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini) with **multi-photo meals**, **Understanding** (forensic signals + charts + GMI + batched MedGemma science briefs), RAG archive, Reb3i Darija voice (briefings + **live chat** with Gemini-style hands-free orb) + video, Samsung Health / Health Connect activity, injury + batch pain check-in, pump sync, JWT auth, read-only integration key for the agents-hub night planner, Paris-day reports, FR/EN i18n. 1.6.0 adds `/api` routing, signed photo links, Alembic migrations, and CI. Deploy notes in [`k8s/`](k8s/README.md).
 
 Glycemia values sync from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
 
@@ -32,12 +32,12 @@ The mobile app includes **Meals**, **Reports**, **Activity**, and **Settings** t
 
 ```bash
 cp backend/.env.example backend/.env
-# set GEMINI_API_KEY and JWT_SECRET (see SECURITY.md)
+# set GEMINI_API_KEY and JWT_SECRET=$(openssl rand -hex 32) (see SECURITY.md)
 
 docker compose up -d db
 cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000   # applies DB migrations on start
 
 # another terminal
 cd frontend && npm install && npm run dev

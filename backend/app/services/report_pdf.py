@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
+    Image as RLImage,
+)
+from reportlab.platypus import (
     ListFlowable,
     ListItem,
     Paragraph,
@@ -18,10 +22,12 @@ from reportlab.platypus import (
     Spacer,
     Table,
     TableStyle,
-    Image as RLImage,
 )
+
 from app.core.config import get_settings
 from app.i18n.report_strings import pdf_strings
+
+logger = logging.getLogger(__name__)
 
 TEAL = colors.HexColor("#0d9488")
 INK = colors.HexColor("#0f172a")
@@ -319,6 +325,7 @@ def _share_qr_block(
         side = 28 * mm
         qr_img = RLImage(io.BytesIO(png), width=side, height=side)
     except Exception:
+        logger.warning("Report PDF: QR code render failed", exc_info=True)
         qr_img = Paragraph("—", styles["tableMuted"])
 
     copy = Paragraph(
@@ -501,6 +508,7 @@ def _meal_thumb(photo_path: str | None, max_side: float = 26 * mm) -> Any:
             scale = min(max_side / max(w, 1), max_side / max(h, 1))
             return RLImage(buf, width=w * scale, height=h * scale)
     except Exception:
+        logger.warning("Report PDF: meal photo %s could not be embedded", photo_path, exc_info=True)
         return Paragraph("—", styles["tableMuted"])
 
 
