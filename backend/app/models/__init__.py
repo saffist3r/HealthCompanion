@@ -321,6 +321,23 @@ class ReportShare(Base):
     )
 
 
+class CareShare(Base):
+    """Revocable read-only link to a multi-day summary for the nurse or doctor."""
+
+    __tablename__ = "care_shares"
+
+    token: Mapped[str] = mapped_column(String(48), primary_key=True)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    days: Mapped[int] = mapped_column(Integer, default=14)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+
+
 class DayDebrief(Base):
     """Archived daily AI debrief + structured agent briefing (RAG-ready)."""
 

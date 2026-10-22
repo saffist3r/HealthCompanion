@@ -11,6 +11,7 @@ from app.core.bootstrap import init_db
 from app.core.config import get_settings
 from app.routers import (
     auth,
+    care,
     glucose,
     health,
     integrations,
@@ -73,6 +74,9 @@ for router in API_ROUTERS:
     app.include_router(router, prefix="/api")
     # Legacy root paths for phone builds released before the /api prefix.
     app.include_router(router, include_in_schema=False)
+
+# Web-only routes: no legacy root alias (/care/<token> is a frontend page).
+app.include_router(care.router, prefix="/api")
 
 
 def health_check() -> dict:
