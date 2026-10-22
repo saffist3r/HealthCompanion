@@ -4,6 +4,9 @@ const DEVICE_KEY = 'hc_device_id';
 const API_KEY = 'hc_api_url';
 const TOKEN_KEY = 'hc_access_token';
 const USER_KEY = 'hc_user';
+const REFRESHED_AT_KEY = 'hc_token_refreshed_at';
+/** Renew at most this often; the token itself lasts much longer. */
+const REFRESH_EVERY_MS = 12 * 60 * 60 * 1000;
 
 export type AuthUser = {
   id: string;
@@ -60,11 +63,13 @@ export function getStoredUser(): AuthUser | null {
 export function setSession(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(REFRESHED_AT_KEY, String(Date.now()));
 }
 
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(REFRESHED_AT_KEY);
 }
 
 export function isLoggedIn(): boolean {
@@ -99,6 +104,22 @@ export async function login(email: string, password: string) {
   const { data } = await api.post('/auth/login', { email, password });
   setSession(data.accessToken, data.user);
   return data.user as AuthUser;
+}
+
+/**
+ * Trade the stored token for a fresh one so the session slides forward while the site is used.
+ * Network errors are ignored; a 401 (token already dead) signs out via the interceptor.
+ */
+export async function refreshSession() {
+  if (!getToken()) return;
+  const last = Number(localStorage.getItem(REFRESHED_AT_KEY) || 0);
+  if (Date.now() - last < REFRESH_EVERY_MS) return;
+  try {
+    const { data } = await api.post('/auth/refresh');
+    setSession(data.accessToken, data.user);
+  } catch {
+    /* offline or server down: keep the current token */
+  }
 }
 
 export async function fetchMe() {
