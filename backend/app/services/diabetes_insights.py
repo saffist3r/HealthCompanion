@@ -18,10 +18,8 @@ from app.models import (
     SportMatch,
     StressLog,
 )
-from app.services.reports import (
-    _hypo_events,
-    to_date_key,
-)
+from app.services.glucose_stats import find_hypo_events
+from app.services.reports import to_date_key
 
 
 def _mgdl(value: float, unit: str) -> float:
@@ -206,7 +204,7 @@ def _hyper_events(points: list[dict[str, Any]], *, threshold: float) -> list[dic
     inverted = [
         {"timestamp": p["timestamp"], "mgDl": threshold - (p["mgDl"] - threshold)} for p in points
     ]
-    raw = _hypo_events(inverted, threshold=threshold)
+    raw = find_hypo_events(inverted, threshold=threshold)
     out: list[dict[str, Any]] = []
     for ev in raw:
         window = [p for p in points if ev["startedAt"] <= p["timestamp"] <= ev["endedAt"]]
@@ -326,7 +324,7 @@ def enrich_glucose_episodes(
     db: Session, device_ids: list[str], points: list[dict[str, Any]]
 ) -> dict[str, Any]:
     low, high = _tir_bounds(db)
-    hypos = _hypo_events(points, threshold=low)
+    hypos = find_hypo_events(points, threshold=low)
     hypers = _hyper_events(points, threshold=high)
     for h in hypos:
         h["kind"] = "hypo"
@@ -341,8 +339,14 @@ def enrich_glucose_episodes(
 
 
 def overnight_blurb(db: Session, device_ids: list[str], date: str) -> dict[str, Any]:
-    start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    end = start + timedelta(hours=6)
+    from app.services.reports import PARIS, paris_day_bounds
+
+    day_start, day_end = paris_day_bounds(date)
+    # Overnight window: Paris local 00:00–06:00 within that calendar day
+    local_midnight = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=PARIS)
+    overnight_end = (local_midnight + timedelta(hours=6)).astimezone(timezone.utc)
+    start = day_start
+    end = min(overnight_end, day_end)
     points = _readings_between(
         db, device_ids, int(start.timestamp() * 1000), int(end.timestamp() * 1000)
     )
@@ -402,7 +406,7 @@ def find_related_hypo(
     low, _ = _tir_bounds(db)
     start = eaten_at_ms - lookback_min * 60 * 1000
     points = _readings_between(db, device_ids, start, eaten_at_ms + 5 * 60 * 1000)
-    hypos = _hypo_events(points, threshold=low)
+    hypos = find_hypo_events(points, threshold=low)
     if not hypos:
         return None
     return max(hypos, key=lambda h: h["endedAt"])
@@ -448,25 +452,6 @@ def weekly_plot_twists(weekly: dict[str, Any], days: list[dict[str, Any]]) -> li
     if not twists:
         twists.append("Quiet week on paper. Suspicious. Check the raw footage (Reports).")
     return twists[:6]
-
-
-def directors_cut_text(weekly: dict[str, Any], twists: list[str]) -> str:
-    totals = weekly.get("totals") or {}
-    lines = [
-        "HEALTH COMPANION — WEEKLY DIRECTOR'S CUT",
-        f"Week {weekly.get('weekStart')} → {weekly.get('weekEnd')}",
-        "",
-        "THE PLOT TWISTS",
-        *[f"• {t}" for t in twists],
-        "",
-        "BOX OFFICE",
-        f"• Meals: {totals.get('mealCount') or (weekly.get('nutrition') or {}).get('mealCount') or '—'}",
-        f"• Steps: {totals.get('totalSteps') or '—'}",
-        f"• Avg TIR: {(weekly.get('glucose') or {}).get('avgTimeInRangePct') or '—'}%",
-        "",
-        "Not medical advice. Just your data with better dialogue.",
-    ]
-    return "\n".join(lines)
 
 
 def device_care_payload(profile: BodyProfile | None) -> dict[str, Any]:

@@ -39,7 +39,15 @@ def send_email(
     if not smtp_configured():
         raise RuntimeError("SMTP is not configured (SMTP_HOST / SMTP_USER / SMTP_PASSWORD / REPORT_EMAIL_TO)")
 
-    to_list = [a.strip() for a in (to_addrs or [settings.report_email_to]) if a and a.strip()]
+    if to_addrs is not None:
+        raw_recipients = list(to_addrs)
+    else:
+        raw_recipients = [settings.report_email_to]
+    to_list: list[str] = []
+    for entry in raw_recipients:
+        if not entry:
+            continue
+        to_list.extend(a.strip() for a in str(entry).replace(";", ",").split(",") if a.strip())
     if not to_list:
         raise RuntimeError("No report recipients configured")
 

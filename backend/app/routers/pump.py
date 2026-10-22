@@ -198,7 +198,7 @@ def cleanup_duplicates_endpoint(
     db: Session = Depends(get_db),
 ) -> dict:
     """One-shot collapse of redundant CapAPS insulin / alert rows."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     removed = 0
     if ids:
         for device_id in ids:
@@ -212,10 +212,10 @@ def cleanup_duplicates_endpoint(
 def list_pump_events(
     date: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     q = db.query(PumpLogEvent)
     if ids:
         q = q.filter(PumpLogEvent.device_id.in_(ids))

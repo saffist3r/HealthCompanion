@@ -208,7 +208,6 @@ main() {
   verify
   log_phase "Deploy complete"
   log_info "URL: ${PUBLIC_URL}"
-  log_info "API docs: ${PUBLIC_URL}/docs"
   log_info "Mobile Settings → API base URL: ${PUBLIC_URL}"
 }
 

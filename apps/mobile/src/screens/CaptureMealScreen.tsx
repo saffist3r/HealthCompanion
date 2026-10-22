@@ -13,28 +13,49 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { MealAnalysisResult, MealType, GlycemiaReading } from '@health-companion/shared';
-import { toMgDl } from '@health-companion/shared';
-import { analyzeMealPhoto, saveMeal } from '../api/client';
+import type {
+  MealAnalysisResult,
+  MealPhotoRole,
+  MealType,
+  GlycemiaReading,
+} from '@health-companion/shared';
+import {
+  MEAL_PHOTO_ROLE_OPTIONS,
+  mealPhotoRoleLabel,
+  toMgDl,
+} from '@health-companion/shared';
+import { analyzeMealPhoto, saveMeal, uploadMealPhoto } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 import { onMealLogged } from '../pushNudges';
 import { startPreBolusTimer } from '../preBolus';
 
 const GLYCEMIA_KEY = '@health_companion/latest_glycemia';
+const MAX_PHOTOS = 6;
+
+type DraftPhoto = {
+  id: string;
+  uri: string;
+  role: MealPhotoRole;
+  photoPath?: string;
+};
 
 export default function CaptureMealScreen() {
   const isDark = useColorScheme() === 'dark';
   const nav = useNavigation();
-  const [uri, setUri] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [analysis, setAnalysis] = useState<MealAnalysisResult | null>(null);
-  const [photoPath, setPhotoPath] = useState<string | undefined>();
   const [mealType, setMealType] = useState<MealType>('lunch');
 
   const t = styles(isDark);
+  const analyzeUri = photos.find((p) => p.role === 'main')?.uri || photos[0]?.uri;
 
   const pick = async (fromCamera: boolean) => {
+    if (photos.length >= MAX_PHOTOS) {
+      Alert.alert('Limit reached', `You can add up to ${MAX_PHOTOS} photos per meal.`);
+      return;
+    }
     const perm = fromCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -44,16 +65,54 @@ export default function CaptureMealScreen() {
     }
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true })
-      : await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true });
-    if (!result.canceled && result.assets[0]?.uri) {
-      setUri(result.assets[0].uri);
-      setAnalysis(null);
-      setPhotoPath(undefined);
-    }
+      : await ImagePicker.launchImageLibraryAsync({
+          quality: 0.7,
+          allowsEditing: true,
+          allowsMultipleSelection: true,
+          selectionLimit: MAX_PHOTOS - photos.length,
+        });
+    if (result.canceled || !result.assets?.length) return;
+
+    setPhotos((prev) => {
+      const next = [...prev];
+      for (const asset of result.assets) {
+        if (!asset.uri || next.length >= MAX_PHOTOS) break;
+        const role: MealPhotoRole =
+          next.length === 0 ? 'main' : next.length === 1 ? 'dessert' : 'other';
+        next.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          uri: asset.uri,
+          role,
+        });
+      }
+      return next;
+    });
+    setAnalysis(null);
+  };
+
+  const setRole = (id: string, role: MealPhotoRole) => {
+    setPhotos((prev) => {
+      let next = prev.map((p) => (p.id === id ? { ...p, role } : p));
+      if (role === 'main') {
+        next = next.map((p) => (p.id === id ? p : p.role === 'main' ? { ...p, role: 'other' } : p));
+      }
+      return next;
+    });
+  };
+
+  const removePhoto = (id: string) => {
+    setPhotos((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      if (next.length && !next.some((p) => p.role === 'main')) {
+        next[0] = { ...next[0], role: 'main' };
+      }
+      return next;
+    });
+    setAnalysis(null);
   };
 
   const analyze = async () => {
-    if (!uri) return;
+    if (!analyzeUri) return;
     setBusy(true);
     try {
       let glucoseMgDl: number | null = null;
@@ -66,9 +125,19 @@ export default function CaptureMealScreen() {
       } catch {
         /* ignore */
       }
-      const res = await analyzeMealPhoto({ uri, notes, glucoseMgDl });
+      const res = await analyzeMealPhoto({ uri: analyzeUri, notes, glucoseMgDl });
       setAnalysis(res.analysis);
-      setPhotoPath(res.photoPath);
+      setPhotos((prev) => {
+        const idx = prev.findIndex((p) => p.uri === analyzeUri);
+        if (idx < 0) return prev;
+        return prev.map((p, i) =>
+          i === idx
+            ? { ...p, photoPath: res.photoPath, role: 'main' as const }
+            : p.role === 'main'
+              ? { ...p, role: 'other' as const }
+              : p
+        );
+      });
       if (res.analysis.mealTypeGuess) setMealType(res.analysis.mealTypeGuess);
     } catch (e) {
       Alert.alert(
@@ -86,11 +155,32 @@ export default function CaptureMealScreen() {
     if (!analysis) return;
     setBusy(true);
     try {
+      const uploaded: DraftPhoto[] = [];
+      for (const p of photos) {
+        if (p.photoPath) {
+          uploaded.push(p);
+          continue;
+        }
+        const up = await uploadMealPhoto(p.uri);
+        uploaded.push({ ...p, photoPath: up.photoPath });
+      }
+      setPhotos(uploaded);
+
+      const photoPayload = uploaded
+        .filter((p) => p.photoPath)
+        .map((p) => ({
+          path: p.photoPath!,
+          role: p.role,
+        }));
+      const primary =
+        photoPayload.find((p) => p.role === 'main')?.path || photoPayload[0]?.path;
+
       await saveMeal({
         mealType,
         items: analysis.items,
         macros: analysis.macros,
-        photoPath,
+        photoPath: primary,
+        photos: photoPayload,
         notes: notes || undefined,
         aiSummary: analysis.summary,
         carbEstimateNote: analysis.carbEstimateNote,
@@ -129,7 +219,9 @@ export default function CaptureMealScreen() {
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content}>
       <Text style={t.title}>Analyze meal</Text>
-      <Text style={t.sub}>AI estimates carbs & macros — always verify with labels when possible.</Text>
+      <Text style={t.sub}>
+        Add photos of the main dish, dessert, drinks… AI analyzes the main photo for carbs.
+      </Text>
 
       <View style={t.row}>
         <TouchableOpacity style={t.btn} onPress={() => pick(true)}>
@@ -140,7 +232,41 @@ export default function CaptureMealScreen() {
         </TouchableOpacity>
       </View>
 
-      {uri ? <Image source={{ uri }} style={t.preview} /> : null}
+      {photos.length > 0 ? (
+        <View style={t.photoList}>
+          {photos.map((p) => (
+            <View key={p.id} style={t.photoCard}>
+              <Image source={{ uri: p.uri }} style={t.thumb} />
+              <View style={t.photoMeta}>
+                <Text style={t.photoRole}>{mealPhotoRoleLabel(p.role)}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={t.roleRow}>
+                    {MEAL_PHOTO_ROLE_OPTIONS.map((opt) => (
+                      <TouchableOpacity
+                        key={opt.id}
+                        style={[t.roleChip, p.role === opt.id && t.roleChipOn]}
+                        onPress={() => setRole(p.id, opt.id)}
+                      >
+                        <Text style={[t.roleChipText, p.role === opt.id && t.roleChipTextOn]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+                <TouchableOpacity onPress={() => removePhoto(p.id)}>
+                  <Text style={t.remove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          {photos.length < MAX_PHOTOS ? (
+            <TouchableOpacity style={t.addMore} onPress={() => pick(false)}>
+              <Text style={t.addMoreText}>+ Add another photo</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
 
       <TextInput
         style={t.input}
@@ -152,14 +278,14 @@ export default function CaptureMealScreen() {
       />
 
       <TouchableOpacity
-        style={[t.primary, (!uri || busy) && { opacity: 0.5 }]}
-        disabled={!uri || busy}
+        style={[t.primary, (!analyzeUri || busy) && { opacity: 0.5 }]}
+        disabled={!analyzeUri || busy}
         onPress={analyze}
       >
         {busy && !analysis ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={t.primaryText}>Analyze with AI</Text>
+          <Text style={t.primaryText}>Analyze main photo with AI</Text>
         )}
       </TouchableOpacity>
 
@@ -222,7 +348,14 @@ export default function CaptureMealScreen() {
           ) : null}
 
           <TouchableOpacity style={t.primary} onPress={save} disabled={busy}>
-            <Text style={t.primaryText}>Save to food log</Text>
+            {busy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={t.primaryText}>
+                Save to food log
+                {photos.length > 1 ? ` (${photos.length} photos)` : ''}
+              </Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={t.preBolusBtn} onPress={preBolus} disabled={busy}>
@@ -257,7 +390,43 @@ const styles = (isDark: boolean) =>
     },
     btnText: { color: '#fff', fontWeight: '700' },
     btnTextDark: { color: isDark ? '#e6edf3' : '#111', fontWeight: '700' },
-    preview: { width: '100%', height: 220, borderRadius: 12, marginBottom: 12 },
+    photoList: { gap: 10, marginBottom: 12 },
+    photoCard: {
+      flexDirection: 'row',
+      gap: 10,
+      backgroundColor: isDark ? '#161b22' : '#fff',
+      borderRadius: 12,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: isDark ? '#30363d' : '#e5e7eb',
+    },
+    thumb: { width: 88, height: 88, borderRadius: 10 },
+    photoMeta: { flex: 1, gap: 6, justifyContent: 'center' },
+    photoRole: {
+      fontWeight: '700',
+      color: isDark ? '#e6edf3' : '#111',
+      fontSize: 14,
+    },
+    roleRow: { flexDirection: 'row', gap: 6 },
+    roleChip: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: isDark ? '#21262d' : '#eef2f6',
+    },
+    roleChipOn: { backgroundColor: '#0d9488' },
+    roleChipText: { fontSize: 12, color: isDark ? '#c9d1d9' : '#333' },
+    roleChipTextOn: { color: '#fff', fontWeight: '700' },
+    remove: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
+    addMore: {
+      padding: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: isDark ? '#30363d' : '#cbd5e1',
+      alignItems: 'center',
+    },
+    addMoreText: { color: isDark ? '#7ee787' : '#0f766e', fontWeight: '700' },
     input: {
       borderWidth: 1,
       borderColor: isDark ? '#30363d' : '#ddd',

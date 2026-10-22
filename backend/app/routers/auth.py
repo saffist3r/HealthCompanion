@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import uuid
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import ensure_device, optional_device_id, require_user
 from app.models import User
-from app.services.auth_tokens import create_access_token, hash_password, verify_password
+from app.services import login_throttle
+from app.services.auth_tokens import create_access_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -46,15 +45,26 @@ def serialize_user(user: User) -> dict:
 @router.post("/login", response_model=TokenOut)
 def login(
     body: LoginIn,
+    request: Request,
     db: Session = Depends(get_db),
     device_id: str | None = Depends(optional_device_id),
 ) -> TokenOut:
     email = body.email.strip().lower()
     if "@" not in email or " " in email:
         raise HTTPException(status_code=400, detail="Invalid email")
+    client_ip = request.client.host if request.client else None
+    wait = login_throttle.retry_after_seconds(email, client_ip)
+    if wait is not None:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed sign-in attempts. Try again later.",
+            headers={"Retry-After": str(wait)},
+        )
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.active or not verify_password(body.password, user.password_hash):
+        login_throttle.record_failure(email, client_ip)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    login_throttle.record_success(email)
 
     if device_id:
         ensure_device(db, device_id, owner_user_id=user.id)

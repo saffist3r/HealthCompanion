@@ -1,49 +1,49 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 
-from sqlalchemy import inspect, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Connection, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.database import SessionLocal, engine, init_db as _create_tables
+from app.core.database import SessionLocal, engine
 from app.models import User
 from app.services.auth_tokens import hash_password
 from app.services.body_profile import ensure_body_defaults
 
-
-def _ensure_device_owner_column() -> None:
-    insp = inspect(engine)
-    if "devices" not in insp.get_table_names():
-        return
-    cols = {c["name"] for c in insp.get_columns("devices")}
-    if "owner_user_id" in cols:
-        return
-    dialect = engine.dialect.name
-    with engine.begin() as conn:
-        if dialect == "sqlite":
-            conn.execute(text("ALTER TABLE devices ADD COLUMN owner_user_id VARCHAR(36)"))
-        else:
-            conn.execute(text("ALTER TABLE devices ADD COLUMN owner_user_id VARCHAR(36)"))
-            conn.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_devices_owner_user_id ON devices (owner_user_id)")
-            )
+ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
+# Arbitrary constant identifying the startup advisory lock.
+_STARTUP_LOCK_ID = 726_431_001
 
 
-def _ensure_sport_match_columns() -> None:
-    insp = inspect(engine)
-    if "sport_matches" not in insp.get_table_names():
+def run_migrations(conn: Connection) -> None:
+    """Bring the schema to the latest Alembic revision."""
+    cfg = Config(str(ALEMBIC_INI))
+    cfg.attributes["configure_logger"] = False
+    cfg.attributes["connection"] = conn
+    command.upgrade(cfg, "head")
+    conn.commit()
+
+
+@contextmanager
+def _startup_lock(conn: Connection) -> Iterator[None]:
+    """Serialize startup (migrations + seeding) when several workers boot at once."""
+    if conn.dialect.name != "postgresql":
+        yield
         return
-    cols = {c["name"] for c in insp.get_columns("sport_matches")}
-    with engine.begin() as conn:
-        if "intensity" not in cols:
-            conn.execute(text("ALTER TABLE sport_matches ADD COLUMN intensity VARCHAR(16)"))
-        dialect = engine.dialect.name
-        if dialect == "postgresql":
-            try:
-                conn.execute(text("ALTER TABLE sport_matches ALTER COLUMN sport TYPE VARCHAR(64)"))
-            except Exception:
-                pass
+    conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": _STARTUP_LOCK_ID})
+    conn.commit()
+    try:
+        yield
+    finally:
+        conn.rollback()
+        conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": _STARTUP_LOCK_ID})
+        conn.commit()
 
 
 def bootstrap_admin(db: Session | None = None) -> None:
@@ -78,12 +78,11 @@ def bootstrap_admin(db: Session | None = None) -> None:
 
 
 def init_db() -> None:
-    _create_tables()
-    _ensure_device_owner_column()
-    _ensure_sport_match_columns()
-    bootstrap_admin()
-    session = SessionLocal()
-    try:
-        ensure_body_defaults(session)
-    finally:
-        session.close()
+    with engine.connect() as conn, _startup_lock(conn):
+        run_migrations(conn)
+        bootstrap_admin()
+        session = SessionLocal()
+        try:
+            ensure_body_defaults(session)
+        finally:
+            session.close()

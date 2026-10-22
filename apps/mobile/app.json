@@ -2,7 +2,7 @@
   "expo": {
     "name": "Health Companion",
     "slug": "health-companion",
-    "version": "1.0.0",
+    "version": "1.6.0",
     "scheme": "healthcompanion",
     "orientation": "portrait",
     "icon": "./assets/health-companion-logo.png",
@@ -25,7 +25,9 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.saffist3r.healthcompanion",
+      "versionCode": 70,
       "permissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
@@ -69,7 +71,12 @@
           "cameraPermission": "Allow Health Companion to photograph meals for nutrition analysis."
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Health Companion to talk live with Reb3i about your diabetes day."
+        }
+      ],
       "expo-video"
     ]
   }

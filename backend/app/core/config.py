@@ -12,7 +12,14 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.6-flash"
     gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
     gemini_tts_voice: str = "Charon"
+    gemini_live_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     gemini_veo_model: str = "veo-3.1-fast-generate-preview"
+    # Self-hosted MedGemma (Ollama) for Understanding science briefs — e.g. http://100.x.x.x:11434
+    medgemma_base_url: str = ""
+    medgemma_model: str = "medgemma:4b"
+    # Hard cap per Understanding request (CPU MedGemma is slow)
+    medgemma_timeout_s: int = 90
+    medgemma_max_checks: int = 4
     upload_dir: str = "uploads"
     max_upload_mb: int = 8
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
@@ -20,11 +27,22 @@ class Settings(BaseSettings):
     high_meal_carb_g: float = 45.0
     very_high_meal_carb_g: float = 75.0
 
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = ""
     jwt_expire_minutes: int = 60 * 24 * 14  # 14 days
+    # Signed /uploads URLs (meal photos) stay valid this long
+    upload_url_ttl_minutes: int = 60 * 24 * 7
+    # Failed logins allowed per email / client IP inside the window before 429
+    login_max_failures: int = 10
+    login_window_seconds: int = 15 * 60
+    # "household": every user sees all devices' data. "owner": users see only devices they own.
+    data_scope: str = "household"
     admin_email: str = ""
     admin_password: str = ""
     admin_name: str = "Admin"
+    # Read-only keys for /integrations/* as "name:sha256hex,..." (only hashes, never raw keys).
+    integration_keys: str = ""
+    # Swagger/ReDoc/OpenAPI schema; off in production (k8s sets API_DOCS_ENABLED=false).
+    api_docs_enabled: bool = True
 
     # Daily report email (SMTP)
     smtp_host: str = ""
@@ -40,6 +58,18 @@ class Settings(BaseSettings):
     report_share_ttl_days: int = 30
 
     @property
+    def jwt_secret_problem(self) -> str | None:
+        """Why the JWT secret is unsafe to sign tokens with, or None when it is fine."""
+        secret = (self.jwt_secret or "").strip()
+        if not secret:
+            return "JWT_SECRET is not set"
+        if secret.lower().startswith("change-me") or secret == "CHANGE_ME_LONG_RANDOM":
+            return "JWT_SECRET is still the placeholder value"
+        if len(secret) < 32:
+            return "JWT_SECRET must be at least 32 characters"
+        return None
+
+    @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
@@ -47,6 +77,10 @@ class Settings(BaseSettings):
     def gemini_configured(self) -> bool:
         key = (self.gemini_api_key or "").strip()
         return bool(key) and not key.startswith("your-")
+
+    @property
+    def medgemma_configured(self) -> bool:
+        return bool((self.medgemma_base_url or "").strip())
 
     @property
     def smtp_configured(self) -> bool:

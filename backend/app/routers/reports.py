@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+import logging
+from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,10 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import household_device_ids, require_user
+from app.i18n import household_locale
 from app.models import (
     ActivityDay,
-    CareVisit,
     CaffeineLog,
+    CareVisit,
     DayCheckIn,
     GlucoseSample,
     Injury,
@@ -33,9 +35,14 @@ from app.services.day_debriefs import (
     serialize_day_debrief,
 )
 from app.services.email_smtp import smtp_configured
-from app.i18n import household_locale
 from app.services.gemini_life_assessment import generate_life_assessment
+from app.services.gemini_understanding import generate_understanding_analysis
 from app.services.life_assessment import build_life_assessment_context, rolling_date_keys
+from app.services.rag_export import build_rag_archive_json, build_rag_archive_zip
+from app.services.understanding_signals import (
+    build_understanding_signals,
+    understanding_date_keys,
+)
 from app.services.report_pdf import build_daily_pdf
 from app.services.report_share import (
     build_qr_png,
@@ -49,11 +56,23 @@ from app.services.reports import (
     build_weekly_report,
     list_date_keys,
     monday_of,
+    paris_day_bounds,
+    paris_yesterday_key,
     to_date_key,
 )
 from app.services.workouts import serialize_workout_plan
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def _report_day(date: str | None) -> str:
+    """Default daily report day is yesterday (Paris) — the completed day."""
+    day = (date or "").strip() or paris_yesterday_key()
+    if len(day) != 10:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return day
 
 
 def _pick_activity(rows: list[ActivityDay]) -> ActivityDay | None:
@@ -100,11 +119,10 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             glucose_targets=glucose_targets,
         )
 
-    start = datetime.strptime(date, "%Y-%m-%d")
-    end = datetime.combine(start.date(), time(23, 59, 59, 999999))
+    start, end = paris_day_bounds(date)
     meals = (
         db.query(Meal)
-        .filter(Meal.device_id.in_(device_ids), Meal.eaten_at >= start, Meal.eaten_at <= end)
+        .filter(Meal.device_id.in_(device_ids), Meal.eaten_at >= start, Meal.eaten_at < end)
         .order_by(Meal.eaten_at.asc())
         .all()
     )
@@ -113,7 +131,7 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         .filter(
             GlucoseSample.device_id.in_(device_ids),
             GlucoseSample.timestamp >= start,
-            GlucoseSample.timestamp <= end,
+            GlucoseSample.timestamp < end,
         )
         .order_by(GlucoseSample.timestamp.asc())
         .all()
@@ -158,7 +176,7 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
         .filter(
             PumpLogEvent.device_id.in_(device_ids),
             PumpLogEvent.timestamp >= start,
-            PumpLogEvent.timestamp <= end,
+            PumpLogEvent.timestamp < end,
         )
         .order_by(PumpLogEvent.timestamp.asc())
         .all()
@@ -203,14 +221,13 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
             serialize_injury(inj, latest_pain=latest, today_pain=today_p)
         )
 
-    day_start = datetime.strptime(date, "%Y-%m-%d")
-    day_end = datetime.combine(day_start.date(), time(23, 59, 59, 999999))
+    day_start, day_end = start, end
     workout_rows = (
         db.query(WorkoutPlan)
         .filter(
             WorkoutPlan.device_id.in_(device_ids),
             WorkoutPlan.created_at >= day_start,
-            WorkoutPlan.created_at <= day_end,
+            WorkoutPlan.created_at < day_end,
         )
         .order_by(WorkoutPlan.created_at.desc())
         .all()
@@ -239,17 +256,17 @@ def _load_daily(db: Session, device_ids: list[str], date: str) -> dict:
 @router.get("/daily")
 def daily_report(
     date: str | None = Query(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    day = date or to_date_key(datetime.now())
-    return _load_daily(db, household_device_ids(db), day)
+    day = _report_day(date)
+    return _load_daily(db, household_device_ids(db, user), day)
 
 
 @router.post("/daily/voice")
 async def daily_report_voice(
     date: str | None = Query(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Tunisian Darija Gemini voice briefing (Reb3i → Saff; script + TTS)."""
@@ -261,23 +278,22 @@ async def daily_report_voice(
     if not get_settings().gemini_configured:
         raise HTTPException(status_code=503, detail="Gemini is not configured on the server")
 
-    day = date or to_date_key(datetime.now())
-    if len(day) != 10:
-        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
-    daily = _load_daily(db, household_device_ids(db), day)
+    day = _report_day(date)
+    daily = _load_daily(db, household_device_ids(db, user), day)
     try:
         # Gemini + TTS are sync; keep the event loop free for /health probes.
         return await asyncio.to_thread(generate_daily_voice_briefing, daily)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Voice briefing failed")
         raise HTTPException(status_code=502, detail=f"Voice briefing failed: {exc}") from exc
 
 
 @router.post("/daily/voice-video")
 async def daily_report_voice_video(
     date: str | None = Query(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Reb3i talking video: stock still (Ken Burns + audio pulse) + Darija TTS."""
@@ -289,15 +305,14 @@ async def daily_report_voice_video(
     if not get_settings().gemini_configured:
         raise HTTPException(status_code=503, detail="Gemini is not configured on the server")
 
-    day = date or to_date_key(datetime.now())
-    if len(day) != 10:
-        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
-    daily = _load_daily(db, household_device_ids(db), day)
+    day = _report_day(date)
+    daily = _load_daily(db, household_device_ids(db, user), day)
     try:
         return await asyncio.to_thread(generate_daily_voice_video, daily)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Voice video failed")
         raise HTTPException(status_code=502, detail=f"Voice video failed: {exc}") from exc
 
 
@@ -308,9 +323,9 @@ def daily_report_pdf(
     db: Session = Depends(get_db),
 ) -> Response:
     """Downloadable PDF with Gemini AI insights for the selected day."""
-    day = date or to_date_key(datetime.now())
+    day = _report_day(date)
     locale = household_locale(db)
-    daily = _load_daily(db, household_device_ids(db), day)
+    daily = _load_daily(db, household_device_ids(db, user), day)
     ai, _ = archive_daily_debrief(db, daily, display_locale=locale)
     share = get_or_create_share(db, date=day, user_id=user.id)
     pdf = build_daily_pdf(
@@ -331,7 +346,7 @@ def daily_report_share(
     db: Session = Depends(get_db),
 ) -> dict:
     """Create or refresh a public share link + QR for the daily report."""
-    day = date or to_date_key(datetime.now())
+    day = _report_day(date)
     share = get_or_create_share(db, date=day, user_id=user.id)
     return serialize_share(share)
 
@@ -352,7 +367,8 @@ def shared_report_pdf(token: str, db: Session = Depends(get_db)) -> Response:
     if not share:
         raise HTTPException(status_code=404, detail="Share link not found or expired")
     locale = household_locale(db)
-    daily = _load_daily(db, household_device_ids(db), share.date)
+    creator = db.get(User, share.created_by_user_id) if share.created_by_user_id else None
+    daily = _load_daily(db, household_device_ids(db, creator), share.date)
     ai, _ = archive_daily_debrief(db, daily, display_locale=locale)
     pdf = build_daily_pdf(
         daily=daily, ai=ai, share_url=share_page_url(share.token), locale=locale
@@ -385,7 +401,7 @@ def shared_report_qr(token: str, db: Session = Depends(get_db)) -> Response:
 @router.post("/daily/email")
 def daily_report_email(
     date: str | None = Query(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Email today's (or selected day's) AI PDF report to REPORT_EMAIL_TO."""
@@ -394,13 +410,14 @@ def daily_report_email(
     try:
         return send_daily_report_email(db, date=date)
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Daily report email failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/debriefs")
 def list_debriefs(
     limit: int = Query(30, ge=1, le=200),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """List archived day debriefs (newest first)."""
@@ -411,7 +428,7 @@ def list_debriefs(
 @router.get("/debriefs/{date}")
 def get_debrief(
     date: str,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Full archived debrief for a calendar date."""
@@ -426,11 +443,11 @@ def get_debrief(
 @router.get("/rag-archive")
 def rag_archive(
     limit: int = Query(30, ge=1, le=200),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Unified RAG archive: daily debrief facts + saved workout plans."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     debrief_rows = list_day_debriefs(db, limit=limit)
     debriefs = [serialize_day_debrief(r, full=False) for r in debrief_rows]
     workout_plans: list[dict] = []
@@ -450,11 +467,11 @@ def rag_archive(
 def export_rag_archive(
     limit: int = Query(200, ge=1, le=200),
     format: Literal["json", "zip"] = Query("zip"),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> Response:
     """Bulk download: JSON (RAG) or ZIP (JSON + all archived PDFs)."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     rows = list_day_debriefs(db, limit=limit)
     if not rows:
         raise HTTPException(status_code=404, detail="No archived debriefs to export")
@@ -489,14 +506,14 @@ def export_rag_archive(
 def life_assessment(
     days: int = Query(7, ge=3, le=14),
     end: str | None = Query(None, description="Last day of window (YYYY-MM-DD), default today"),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Honest AI review of the last N days of tracked health & lifestyle data."""
     if end and (len(end) != 10):
         raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
     period_start, period_end, keys = rolling_date_keys(end_date=end, days=days)
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     daily_days = [_load_daily(db, ids, d) for d in keys]
     context = build_life_assessment_context(daily_days)
     locale = household_locale(db)
@@ -511,28 +528,59 @@ def life_assessment(
     }
 
 
+@router.post("/understanding")
+def understanding_analysis(
+    days: int = Query(14, ge=1, le=30),
+    end: str | None = Query(None, description="Last day of window (YYYY-MM-DD), default today"),
+    _: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Forensic pattern analysis: estimation, bolus timing, stress↔glucose, logging gaps."""
+    if end and (len(end) != 10):
+        raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
+    period_start, period_end, keys = understanding_date_keys(end_date=end, days=days)
+    ids = household_device_ids(db)
+    daily_days = [_load_daily(db, ids, d) for d in keys]
+    signals = build_understanding_signals(db, device_ids=ids, daily_days=daily_days)
+    locale = household_locale(db)
+    # Release DB connection before long Gemini/MedGemma work (avoids pool starvation / startup locks)
+    db.close()
+    # Don't send full daysSlim twice in the HTTP body — Gemini gets it; client gets summaries
+    analysis_signals = {k: v for k, v in signals.items() if k != "daysSlim"}
+    ai = generate_understanding_analysis(signals, locale=locale)
+    return {
+        "periodStart": period_start,
+        "periodEnd": period_end,
+        "dayCount": len(keys),
+        "totals": signals.get("periodStats"),
+        "signals": analysis_signals,
+        "analysis": ai,
+        "generatedAt": int(datetime.now().timestamp() * 1000),
+    }
+
+
 @router.get("/weekly")
 def weekly_report(
     date: str | None = Query(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     anchor = date or to_date_key(datetime.now())
     week_start = monday_of(anchor)
     end = datetime.strptime(week_start, "%Y-%m-%d") + timedelta(days=6)
     week_end = end.strftime("%Y-%m-%d")
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     days = [_load_daily(db, ids, d) for d in list_date_keys(week_start, week_end)]
     return build_weekly_report(week_start=week_start, week_end=week_end, days=days)
 
 
 @router.get("/dashboard")
 def dashboard(
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated household view for the React web dashboard."""
-    ids = household_device_ids(db)
+    ids = household_device_ids(db, user)
     today = to_date_key(datetime.now())
     daily = _load_daily(db, ids, today)
     week_start = monday_of(today)
@@ -585,6 +633,7 @@ def dashboard(
                 ended_at_ms=int(ev["endedAt"]),
             )
         except Exception:
+            logger.warning("Episode context failed for event at %s", ev.get("startedAt"), exc_info=True)
             ev["context"] = None
 
     return {
@@ -626,7 +675,6 @@ def dashboard(
         "mealLogStreak": meal_log_streak(db, ids),
         "deviceCare": device_care_payload(profile),
         "plotTwists": weekly.get("plotTwists") or [],
-        "directorsCut": weekly.get("directorsCut"),
         "recentMeals": [serialize_meal(m).model_dump() for m in recent],
         "dailyReport": daily,
         "weeklyReport": weekly,

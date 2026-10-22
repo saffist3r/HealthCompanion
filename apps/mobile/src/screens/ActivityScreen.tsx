@@ -48,6 +48,7 @@ import {
   type ActivitySnapshot,
   type HealthConnectStatus,
 } from '../healthConnect';
+import { syncRecentActivityToCloud } from '../activityCloudSync';
 import {
   connectSamsungHealth,
   isSamsungHealthAvailable,
@@ -87,9 +88,14 @@ export default function ActivityScreen() {
         }
         return false;
       }
+      const workoutMin = (data.workouts || []).reduce(
+        (s, w) => s + (Number(w.durationMin) || 0),
+        0
+      );
       await syncActivity({
         date: data.date,
         steps: data.steps,
+        activeMinutes: data.activeMinutes ?? (workoutMin || undefined),
         caloriesBurned: data.caloriesBurned,
         workouts: data.workouts,
         source: data.stepsSource || 'health_connect',
@@ -108,6 +114,9 @@ export default function ActivityScreen() {
           'Synced to reports',
           [
             data.steps > 0 ? `Sent ${data.steps.toLocaleString()} steps${via}` : null,
+            workoutMin > 0
+              ? `${data.workouts.length} workout(s) · ${workoutMin} min`
+              : null,
             data.energyScore != null
               ? `Energy Score ${Math.round(data.energyScore)}${
                   data.energyScoreDate ? ` (${data.energyScoreDate})` : ''
@@ -355,6 +364,34 @@ export default function ActivityScreen() {
             <Text style={t.btnTextDark}>Sync today to reports</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={t.btnSecondary}
+            onPress={async () => {
+              if (!(await getAccessToken())) {
+                Alert.alert('Sign in required', 'Sign in first.');
+                return;
+              }
+              setBusy(true);
+              try {
+                const result = await syncRecentActivityToCloud(7);
+                Alert.alert(
+                  'Past week synced',
+                  result.synced > 0
+                    ? `Updated ${result.synced} day(s) · ${result.totalWorkoutMin} min workouts total. Check Reports for Aug 27.`
+                    : 'No activity found to sync.'
+                );
+                await refresh();
+              } catch (e) {
+                Alert.alert('Sync failed', String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={busy}
+          >
+            <Text style={t.btnTextDark}>Re-sync past week (fix workouts)</Text>
+          </TouchableOpacity>
+
           <View style={t.card}>
             <Text style={t.label}>Suggest workout</Text>
             <Text style={t.meta}>
@@ -485,7 +522,21 @@ export default function ActivityScreen() {
 
           {injuries.length > 0 ? (
             <View style={t.card}>
-              <Text style={t.label}>Open injuries</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={[t.label, { marginBottom: 0 }]}>Open injuries</Text>
+                <TouchableOpacity
+                  onPress={() => DeviceEventEmitter.emit('open-pain-log', {})}
+                >
+                  <Text style={{ color: '#0d9488', fontWeight: '800' }}>Log all pain</Text>
+                </TouchableOpacity>
+              </View>
               {injuries.map((inj) => (
                 <View key={inj.id} style={t.row}>
                   <View style={{ flex: 1 }}>
@@ -501,6 +552,14 @@ export default function ActivityScreen() {
                       Since {inj.startedOn}
                       {inj.exerciseNotes ? ` · ${inj.exerciseNotes.slice(0, 60)}` : ''}
                     </Text>
+                    <TouchableOpacity
+                      style={{ marginTop: 6 }}
+                      onPress={() =>
+                        DeviceEventEmitter.emit('open-pain-log', { injuryId: inj.id })
+                      }
+                    >
+                      <Text style={{ color: '#0d9488', fontWeight: '700' }}>Log pain</Text>
+                    </TouchableOpacity>
                   </View>
                   <TouchableOpacity
                     onPress={async () => {

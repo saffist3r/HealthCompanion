@@ -11,6 +11,208 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none yet)
 
+## [1.6.0] - 2026-10-21
+
+> **Upgrade notes:** `JWT_SECRET` must be set (a short one only logs a warning; existing sessions stay valid). Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
+
+Builds on 1.5.81 (Understanding, MedGemma briefs, Reb3i live chat, multi-photo meals, pain check-in, evening-brief integration) and keeps `/docs` off in production.
+
+### Added
+
+- **CI** (`.github/workflows/ci.yml`): backend ruff + pytest + Alembic migrations on Postgres, web typecheck/build, mobile typecheck, version-sync check; **Dependabot** for pip, npm, Actions, and Docker
+- Backend test suite: glucose TIR / hypo episodes, meal warnings, auth, CORS, signed uploads, login throttle, data scope, migrations, `/health-data` routes
+- **Alembic** migrations replace the ad-hoc `ALTER TABLE` list; first boot adopts existing databases; startup serialized with a Postgres advisory lock (`0002` adds `meals.photos_json` for multi-photo meals)
+- `DATA_SCOPE=owner` option to limit each user to their own devices (default `household` keeps current behaviour)
+- `scripts/sync-version.mjs` keeps `VERSION`, package.json/app.json/lockfiles, and the API version in sync
+
+### Changed
+
+- **All API routes under `/api`** (web + phone); root-level aliases kept for older phone builds
+- Meal photos served via **signed, expiring URLs** instead of public `/uploads`; uploads keep only image extensions
+- Backend and frontend containers run as **non-root** (frontend now listens on 8080)
+- Split `routers/health.py`, `services/reports.py`, and `ReportsPage.tsx` into smaller modules (no behaviour change)
+- Silent `except` blocks now log; FastAPI `lifespan` replaces deprecated startup hook
+
+### Security
+
+- API refuses to start without a `JWT_SECRET` and warns when it is short or a placeholder
+- CORS no longer allows every origin (`*` was always appended)
+- Failed sign-ins throttled per email and IP (HTTP 429)
+
+### Fixed
+
+- RAG archive export crashed (`build_rag_archive_*` never imported)
+- TTS fallback raised `NameError` instead of the real error when no audio came back
+- `docker compose` could not build the backend (wrong build context)
+- Old web builds could crash on `/meals` when the browser cache served the SPA HTML to the API call
+
+### Removed
+
+- Deprecated Node/SQLite API (`apps/api`) and the fake `openaiConfigured` health flag
+
+## [1.5.81] - 2026-10-14
+
+### Added
+
+- **Integration endpoint for the agents-hub night planner** — read-only `GET /integrations/evening-brief` (yesterday + today so far: glucose summary, hypo/hyper events, overnight, steps/Energy Score/workouts, sport matches, check-in, caffeine, calorie balance, insights, open injuries with pain). Authenticated with separate integration keys stored only as SHA-256 hashes (`INTEGRATION_KEYS="name:sha256hex,…"`); no raw glucose readings, meals/photos, pump/insulin events or care-visit notes. Ingress routes `/integrations/` to the backend
+
+### Security
+
+- **API docs off in production** — `/docs`, `/redoc` and `/openapi.json` are disabled via `API_DOCS_ENABLED=false` (k8s) and no longer routed by the ingress or frontend nginx; still on by default for local dev
+
+## [1.5.80] - 2026-09-24
+
+### Fixed
+
+- **Understanding timeout / rollout hang** — one batched MedGemma call (90s cap) instead of per-check CPU calls; release DB session before Gemini/MedGemma so long runs don’t block deploys
+
+## [1.5.79] - 2026-09-24
+
+### Fixed
+
+- **Understanding timeout** — MedGemma science briefs use one batched Ollama call (max 4 patterns, 90s cap) instead of one CPU call per medical check
+
+## [1.5.78] - 2026-09-24
+
+### Added
+
+- **MedGemma science briefs** — Understanding medical checks call self-hosted Ollama MedGemma (`MEDGEMMA_BASE_URL`) when configured; curated article links kept as fallback
+
+## [1.5.77] - 2026-09-24
+
+### Added
+
+- **Understanding science notes** — Gemini physiology briefs (MedGemma-style) on medical checks, plus curated ADA/CDC/NIDDK/PubMed article links
+
+## [1.5.76] - 2026-09-24
+
+### Changed
+
+- **Life Review retired** — Understanding is the starred insight surface; `/life-review` redirects there; mobile Life Review entry removed from Reports
+
+## [1.5.75] - 2026-09-24
+
+### Fixed
+
+- **Understanding timeout** — one batched CGM load (no per-meal queries); leaner Gemini payload/retries; client timeout raised to 5 min
+
+## [1.5.74] - 2026-09-24
+
+### Changed
+
+- **Understanding** — uses all app signals (sport, steps, caffeine, mood/ADHD, injuries, care, weight) with medical link checks; Life Review–style hero UI + charts
+
+## [1.5.73] - 2026-09-24
+
+### Added
+
+- **Understanding** — mean glucose + estimated A1c (GMI from CGM mean) in the big-picture stats strip
+
+## [1.5.72] - 2026-09-24
+
+### Changed
+
+- **Understanding** — charted meal / bolus / stress examples; 1-day window; Gemini medical checks on linked patterns (established vs plausible)
+
+## [1.5.71] - 2026-09-24
+
+### Added
+
+- **Understanding** (web) — forensic pattern analysis over 7/14/30 days: carb estimation flags, bolus timing vs meals, stress↔glucose links, logging gaps; deterministic signals + Gemini synthesis (`POST /reports/understanding`)
+
+## [1.5.70] - 2026-09-20
+
+### Fixed
+
+- **Reb3i Live latency / choppy reply** — wait for each streamed audio slice to actually finish (was cutting after ~180ms); shorter end-of-speech silence (~550ms)
+
+## [1.5.69] - 2026-09-20
+
+### Changed
+
+- **Reb3i Live latency** — stream reply audio in ~125–250ms slices (start playing ASAP); smaller voice uploads; leaner Live context; faster ffmpeg
+
+## [1.5.68] - 2026-09-20
+
+### Changed
+
+- **Reb3i Live voice rework** — simple turn-taking only: you talk → he replies → you talk. Mic off while he plays (no duplex). Manual Live activity markers; stricter hands-free VAD. Hold-to-talk unchanged.
+
+## [1.5.67] - 2026-09-20
+
+### Fixed
+
+- **Reb3i Live conversation continuity** — answers what you just said and builds on his last reply; stops re-dumping TIR/meals every turn (dossier is reference-only after greeting)
+
+## [1.5.66] - 2026-09-20
+
+### Changed
+
+- **Reb3i Live VAD** — higher speech threshold + 400ms sustain (ignores breath); mic stays open while Reb3i plays; barge-in only on clear loud speech
+
+## [1.5.65] - 2026-09-20
+
+### Fixed
+
+- **Reb3i Live crash on speech** — hands-free orb mixed native/JS Animated drivers; metering spikes when you talk shut the app down
+
+## [1.5.64] - 2026-09-19
+
+### Changed
+
+- **Reb3i Live hands-free UI** — Gemini-style orb with live voice-level rings + “Hearing you” meter; Hands-free mode selected separately, mic only starts when you tap the orb
+
+## [1.5.63] - 2026-09-19
+
+### Changed
+
+- **Reb3i Live grounded in real logs** — full dossier (today + yesterday meals/carbs, glucose timeline + events, pump insulin/alerts, stress, caffeine, injuries, sport, 7-day TIR rollup, recent debrief headlines); greeting cites concrete numbers
+
+## [1.5.62] - 2026-09-19
+
+### Added
+
+- **Reb3i Drive mode** — hands-free continuous voice detection (speak → pause → auto-send); mic pauses while Reb3i replies; screen stay-awake
+
+## [1.5.61] - 2026-09-19
+
+### Added
+
+- **Reb3i Live** — hold-to-talk Darija voice chat (Gemini Live / native audio) about your diabetes day; Reports → Talk with Reb3i; WebSocket `/ws/reb3i-live` with today’s + yesterday’s health context (no dosing advice)
+
+## [1.5.60] - 2026-09-03
+
+### Fixed
+
+- **Daily report day bounds** — meals/glucose/pump use Europe/Paris calendar days (was UTC midnight, which shifted evenings onto the wrong day)
+- **Default daily report** — Reports opens on **yesterday** (completed day), matching morning email
+- **Reb3i greeting** — ban/sanitize `عصابة` (and variants); force normal أهلا / عسلامة openers; bump voice cache
+
+### Added
+
+- **Voice player controls** (mobile) — play/pause + scrubber to jump within the Reb3i briefing
+
+## [1.5.59] - 2026-08-31
+
+### Added
+
+- **Full-screen pain check-in** — rate every open injury on one screen and save all at once (presets + slider; “Set all to…” for speed)
+
+### Removed
+
+- **Director’s cut** weekly share/copy text (backend + web + mobile)
+
+## [1.5.58] - 2026-08-31
+
+### Added
+
+- **Multi-photo meals** — log several pictures per meal (main, side, dessert, drink) on mobile; gallery on meal detail (mobile + web); `POST /meals/upload-photo` for extras without re-running AI
+
+### Fixed
+
+- Samsung Health workouts under-counted (e.g. Aug 27 showed ~90 min vs ~3–4 h): read exercise sessions + `TOTAL_DURATION` from Samsung, backfill past week, prefer fuller sync on upsert
+- Activity sync no longer overwrites higher steps/calories/workout totals with a partial later sync
+
 ## [1.5.57] - 2026-08-24
 
 ### Added

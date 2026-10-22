@@ -1,5 +1,6 @@
 # Public URL: https://healthcompanion.saffist3r.xyz
-# API routes are at the root (/meals, /reports, …); SPA is /.
+# API routes live under /api (web + phone 1.6+). The root-level API paths below
+# (/auth, /reports/, /glucose, …) remain for phone builds released before /api.
 # Split into two Ingress objects so Traefik assigns a higher router priority
 # to API paths than the SPA catch-all (avoids intermittent 405 from nginx).
 #
@@ -28,6 +29,13 @@ spec:
     - host: healthcompanion.saffist3r.xyz
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
           - path: /auth
             pathType: Prefix
             backend:
@@ -37,6 +45,14 @@ spec:
                   number: 8000
           # Trailing slash: /reports/daily… → API; bare /reports → SPA
           - path: /reports/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          # Read-only machine access (agents-hub night planner), integration-key auth
+          - path: /integrations/
             pathType: Prefix
             backend:
               service:
@@ -71,21 +87,7 @@ spec:
                 name: backend
                 port:
                   number: 8000
-          - path: /docs
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /openapi.json
-            pathType: Exact
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /redoc
+          - path: /ws
             pathType: Prefix
             backend:
               service:

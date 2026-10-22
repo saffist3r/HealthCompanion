@@ -10,6 +10,8 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.WritableArray
+import com.facebook.react.bridge.WritableMap
 import com.samsung.android.sdk.health.data.HealthDataService
 import com.samsung.android.sdk.health.data.HealthDataStore
 import com.samsung.android.sdk.health.data.error.AuthorizationException
@@ -24,6 +26,8 @@ import com.samsung.android.sdk.health.data.request.LocalDateFilter
 import com.samsung.android.sdk.health.data.request.LocalTimeFilter
 import com.samsung.android.sdk.health.data.request.LocalTimeGroup
 import com.samsung.android.sdk.health.data.request.LocalTimeGroupUnit
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
@@ -121,12 +125,24 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun getTodayActivity(promise: Promise) {
+        getActivityForDate(LocalDate.now().toString(), promise)
+    }
+
+    @ReactMethod
+    fun getActivityForDate(dateKey: String, promise: Promise) {
         executor.execute {
             try {
                 if (!isSamsungHealthInstalled()) {
                     promise.reject("UNAVAILABLE", "Samsung Health is not installed")
                     return@execute
                 }
+                val day = try {
+                    LocalDate.parse(dateKey.trim())
+                } catch (_: Exception) {
+                    promise.reject("BAD_DATE", "date must be YYYY-MM-DD")
+                    return@execute
+                }
+
                 val store = HealthDataService.getStore(reactContext)
                 val already = store.getGrantedPermissionsAsync(corePermissions())
                     .get(20, TimeUnit.SECONDS)
@@ -135,44 +151,70 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
                     return@execute
                 }
 
-                val steps = readTodaySteps(store)
-                val calories = readTodayCalories(store)
+                val steps = readStepsForDay(store, day)
+                val calories = readCaloriesForDay(store, day)
+                val exercise = readExercisesForDay(store, day)
 
                 val map = Arguments.createMap()
                 map.putBoolean("available", true)
                 map.putInt("steps", steps.toInt().coerceAtLeast(0))
-                map.putString("date", LocalDate.now().toString())
+                map.putString("date", day.toString())
                 map.putString("source", "samsung_health")
                 if (calories != null) {
                     map.putDouble("caloriesBurned", calories)
                 }
+                map.putArray("workouts", exercise.workouts)
+                map.putInt("activeMinutes", exercise.totalMinutes)
+                map.putInt("workoutCount", exercise.workouts.size())
 
                 val energyGranted = hasPermission(store, DataTypes.ENERGY_SCORE)
                 map.putBoolean("energyScoreGranted", energyGranted)
-                val energy = readEnergyScore(store)
-                if (energy != null) {
-                    map.putDouble("energyScore", energy.first)
-                    map.putString("energyScoreDate", energy.second.toString())
-                } else if (!energyGranted) {
-                    map.putString(
-                        "energyScoreNote",
-                        "Energy Score permission not granted. Tap Connect Samsung Health again and allow Energy Score.",
-                    )
+                // Energy Score is a daily score — only attach when reading today (or nearest day).
+                if (day == LocalDate.now()) {
+                    val energy = readEnergyScore(store)
+                    if (energy != null) {
+                        map.putDouble("energyScore", energy.first)
+                        map.putString("energyScoreDate", energy.second.toString())
+                    } else if (!energyGranted) {
+                        map.putString(
+                            "energyScoreNote",
+                            "Energy Score permission not granted. Tap Connect Samsung Health again and allow Energy Score.",
+                        )
+                    }
                 }
 
-                Log.i(TAG, "Today activity steps=$steps calories=$calories energy=${energy?.first}")
+                Log.i(
+                    TAG,
+                    "Activity $day steps=$steps calories=$calories " +
+                        "workouts=${exercise.workouts.size()} activeMin=${exercise.totalMinutes} " +
+                        "aggMin=${exercise.aggregateMinutes}"
+                )
                 promise.resolve(map)
             } catch (e: Exception) {
-                Log.e(TAG, "getTodayActivity failed", e)
+                Log.e(TAG, "getActivityForDate failed", e)
                 promise.reject(errorCode(e), friendlyMessage(e), e)
             }
         }
     }
 
-    private fun readTodaySteps(store: HealthDataStore): Long {
-        val start = LocalDate.now().atStartOfDay()
-        val end = LocalDateTime.now()
-        val filter = LocalTimeFilter.of(start, end)
+    private data class ExerciseRead(
+        val workouts: WritableArray,
+        val totalMinutes: Int,
+        val aggregateMinutes: Int,
+    )
+
+    private fun dayFilter(day: LocalDate): LocalTimeFilter {
+        val start = day.atStartOfDay()
+        val end = if (day == LocalDate.now()) {
+            LocalDateTime.now()
+        } else {
+            day.plusDays(1).atStartOfDay()
+        }
+        return LocalTimeFilter.of(start, end)
+    }
+
+    private fun readStepsForDay(store: HealthDataStore, day: LocalDate): Long {
+        val filter = dayFilter(day)
 
         // Prefer hourly buckets then sum — matches Samsung Health pedometer total more reliably.
         try {
@@ -203,11 +245,9 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
         return steps
     }
 
-    private fun readTodayCalories(store: HealthDataStore): Double? {
+    private fun readCaloriesForDay(store: HealthDataStore, day: LocalDate): Double? {
         return try {
-            val start = LocalDate.now().atStartOfDay()
-            val end = LocalDateTime.now()
-            val filter = LocalTimeFilter.of(start, end)
+            val filter = dayFilter(day)
             val request = DataType.ActivitySummaryType.TOTAL_ACTIVE_CALORIES_BURNED.requestBuilder
                 .setLocalTimeFilter(filter)
                 .build()
@@ -220,6 +260,192 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             Log.w(TAG, "Calories unavailable: ${e.message}")
             null
+        }
+    }
+
+    private fun readExercisesForDay(store: HealthDataStore, day: LocalDate): ExerciseRead {
+        val filter = dayFilter(day)
+        val workouts = Arguments.createArray()
+        var sessionMinutes = 0
+
+        // TOTAL_DURATION uses LocalDateFilter (not LocalTimeFilter). Value is Float minutes.
+        val aggregateMinutes = try {
+            val dateFilter = LocalDateFilter.of(day, day, true, true)
+            val agg = DataType.ExerciseType.TOTAL_DURATION.requestBuilder
+                .setLocalDateFilter(dateFilter)
+                .build()
+            val response = store.aggregateDataAsync(agg).get(30, TimeUnit.SECONDS)
+            var total = 0
+            for (item in response.dataList) {
+                total += when (val v = item.value) {
+                    is Float -> floatToMinutes(v)
+                    is Double -> floatToMinutes(v.toFloat())
+                    else -> durationToMinutes(v)
+                }
+            }
+            total
+        } catch (e: Exception) {
+            Log.w(TAG, "Exercise TOTAL_DURATION failed: ${e.message}")
+            0
+        }
+
+        try {
+            val request = DataTypes.EXERCISE.readDataRequestBuilder
+                .setLocalTimeFilter(filter)
+                .build()
+            val response = store.readDataAsync(request).get(30, TimeUnit.SECONDS)
+            for (point in response.dataList) {
+                val customTitle = try {
+                    point.getValue(DataType.ExerciseType.CUSTOM_TITLE)?.toString()?.trim()
+                } catch (_: Exception) {
+                    null
+                }
+                val exerciseType = try {
+                    point.getValue(DataType.ExerciseType.EXERCISE_TYPE)
+                } catch (_: Exception) {
+                    null
+                }
+                val typeLabel = exerciseType?.toString()?.replace('_', ' ')?.lowercase()
+                    ?.replaceFirstChar { it.titlecase() }
+                    ?: "Workout"
+                val baseName = when {
+                    !customTitle.isNullOrBlank() -> customTitle
+                    else -> typeLabel
+                }
+
+                val sessions = try {
+                    point.getValue(DataType.ExerciseType.SESSIONS)
+                } catch (_: Exception) {
+                    null
+                }
+
+                if (!sessions.isNullOrEmpty()) {
+                    for (session in sessions) {
+                        val mins = durationToMinutes(session.duration).coerceAtLeast(
+                            wallClockMinutes(session.startTime, session.endTime)
+                        )
+                        if (mins <= 0) continue
+                        val sessionType = session.exerciseType?.name
+                            ?.replace('_', ' ')
+                            ?.lowercase()
+                            ?.replaceFirstChar { it.titlecase() }
+                        val calories = session.calories?.toDouble()
+                        sessionMinutes += mins
+                        workouts.pushMap(
+                            workoutMap(
+                                name = sessionType?.takeIf { it.isNotBlank() } ?: baseName,
+                                durationMin = mins,
+                                calories = calories,
+                            )
+                        )
+                    }
+                } else {
+                    val mins = wallClockMinutes(point.startTime, point.endTime)
+                    if (mins > 0) {
+                        sessionMinutes += mins
+                        workouts.pushMap(workoutMap(baseName, mins, null))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Exercise read failed: ${e.message}")
+        }
+
+        // If aggregate total is clearly higher than session sum (common when some
+        // auto-detected sessions lack detail), add a catch-up row so reports match Samsung.
+        val totalMinutes = maxOf(sessionMinutes, aggregateMinutes)
+        if (aggregateMinutes > sessionMinutes + 5) {
+            val gap = aggregateMinutes - sessionMinutes
+            workouts.pushMap(
+                workoutMap(
+                    name = "Other exercise",
+                    durationMin = gap,
+                    calories = null,
+                )
+            )
+            Log.i(TAG, "Exercise aggregate $aggregateMinutes > sessions $sessionMinutes; added ${gap}m gap")
+        }
+
+        return ExerciseRead(
+            workouts = workouts,
+            totalMinutes = totalMinutes,
+            aggregateMinutes = aggregateMinutes,
+        )
+    }
+
+    private fun workoutMap(name: String, durationMin: Int, calories: Double?): WritableMap {
+        val m = Arguments.createMap()
+        m.putString("name", name.ifBlank { "Workout" })
+        m.putInt("durationMin", durationMin)
+        if (calories != null && calories > 0) {
+            m.putDouble("calories", calories)
+        }
+        return m
+    }
+
+    private fun wallClockMinutes(start: Any?, end: Any?): Int {
+        if (start == null || end == null) return 0
+        return try {
+            when {
+                start is Instant && end is Instant ->
+                    Duration.between(start, end).toMinutes().toInt().coerceAtLeast(0)
+                start is LocalDateTime && end is LocalDateTime ->
+                    Duration.between(start, end).toMinutes().toInt().coerceAtLeast(0)
+                else -> {
+                    val sm = instantMillis(start) ?: return 0
+                    val em = instantMillis(end) ?: return 0
+                    ((em - sm) / 60000L).toInt().coerceAtLeast(0)
+                }
+            }
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    private fun instantMillis(value: Any): Long? {
+        return when (value) {
+            is Instant -> value.toEpochMilli()
+            is Long -> value
+            is Number -> value.toLong()
+            else -> null
+        }
+    }
+
+    private fun floatToMinutes(value: Float): Int {
+        if (value <= 0f) return 0
+        // TOTAL_DURATION is documented as duration; SDKs sometimes return seconds as Float.
+        return if (value > 24f * 60f) (value / 60f).toInt().coerceAtLeast(0)
+        else value.toInt().coerceAtLeast(0)
+    }
+
+    private fun durationToMinutes(value: Any?): Int {
+        if (value == null) return 0
+        return try {
+            when (value) {
+                is Duration -> value.toMinutes().toInt().coerceAtLeast(0)
+                is Long -> {
+                    // SDK may return millis or minutes — treat large values as millis.
+                    if (value > 24L * 60L) (value / 60000L).toInt().coerceAtLeast(0)
+                    else value.toInt().coerceAtLeast(0)
+                }
+                is Int -> {
+                    if (value > 24 * 60) (value / 60000).coerceAtLeast(0)
+                    else value.coerceAtLeast(0)
+                }
+                is Number -> durationToMinutes(value.toLong())
+                else -> {
+                    // Reflective Duration-like
+                    try {
+                        val mins = value.javaClass.getMethod("toMinutes").invoke(value) as? Long
+                        mins?.toInt()?.coerceAtLeast(0) ?: 0
+                    } catch (_: Exception) {
+                        0
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "durationToMinutes failed for ${value::class.java.name}: ${e.message}")
+            0
         }
     }
 

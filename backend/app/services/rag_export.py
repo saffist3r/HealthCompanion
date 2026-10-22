@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import zipfile
 from datetime import datetime, timezone
 from typing import Any
@@ -13,6 +14,7 @@ from app.services.day_debriefs import list_day_debriefs, serialize_day_debrief
 from app.services.report_pdf import build_daily_pdf
 from app.services.workouts import serialize_workout_plan
 
+logger = logging.getLogger(__name__)
 
 def _debrief_ai(row: DayDebrief) -> dict[str, Any]:
     detail = serialize_day_debrief(row, full=True)
@@ -91,5 +93,6 @@ def build_rag_archive_zip(
                 pdf = build_daily_pdf(daily=daily, ai=ai, share_url=None, locale=locale)
                 zf.writestr(f"pdfs/health-companion-{day}.pdf", pdf)
             except Exception:
+                logger.exception("RAG archive: skipping PDF for %s", day)
                 continue
     return buf.getvalue()

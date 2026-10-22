@@ -18,6 +18,8 @@ from app.core.config import get_settings
 from app.services.gemini_insights import compact_report
 from app.services.gemini_retry import (
     is_transient_gemini_error as _is_transient_gemini_error,
+)
+from app.services.gemini_retry import (
     with_gemini_retries as _with_gemini_retries,
 )
 
@@ -60,6 +62,9 @@ Personality (friendly, not over-the-top):
 - Joke themes OK: carbs, sleep, caffeine, café, padel/sport, pump/CGM chaos, steps, meals.
 - Never mock hypos cruelly — if glucose was rough, be caring first, then maybe one soft joke.
 - Structure: short greeting → 2–3 real data beats with natural reactions → warm close.
+- Greeting MUST be a normal Tunisian hello only: أهلا صف / أهلا خويا / صباح الخير / عسلامة صف.
+  NEVER open with عصابة, يا عصابة, العصبة, gang slang, or any insult-adjacent word.
+  "عصابة" is forbidden anywhere in the transcript (it sounds like a bad word / gang, not hello).
 - Avoid dry clinical summaries, but do not bury the numbers under endless banter.
 
 Voice & language:
@@ -76,6 +81,7 @@ Hard safety rules:
 - Only use numbers and facts from the provided day JSON. Do not invent readings or meals.
 - If data is sparse, gently joke about missing data instead of fabricating.
 - Remind briefly this is lifestyle chatter between mates, not a doctor.
+- Forbidden words (never write them): عصابة, عصابتي, العصبة, gang.
 
 Return JSON only:
 {
@@ -89,13 +95,14 @@ TTS_STYLE = (
     "You are a chill mate of Saff (صف) — warm and lightly witty, not overly affectionate or hyper. "
     "Pronounce the listener's name as Saff / صف, never Safi and never ساف. "
     "Pronounce your own name as Reb3i / ربعي, never ربيعي. "
+    "Open with a clear friendly hello (أهلا / عسلامة) — never say عصابة or anything that sounds like gang slang. "
     "Steady clear Maghrebi-flavored male delivery, natural pace, clear numbers, soft smile — no squeaky laughs. "
     "If the word calories appears in Latin letters, say it in French: calories."
 )
 
 _cache_lock = threading.Lock()
 _voice_cache: dict[str, dict[str, Any]] = {}
-_CACHE_VERSION = "v5-reb3i-male-chill"
+_CACHE_VERSION = "v6-reb3i-no-isaba"
 
 
 
@@ -126,7 +133,7 @@ def _parse_transcript(raw: str) -> str:
 
 
 def _sanitize_transcript(transcript: str) -> str:
-    """Fix common model slips: wrong Arabic names, bad calories spellings."""
+    """Fix common model slips: wrong Arabic names, bad calories spellings, banned greetings."""
     text = transcript
     # Wrong listener spellings → صف
     text = text.replace("صافي", "صف")
@@ -136,6 +143,9 @@ def _sanitize_transcript(transcript: str) -> str:
     # Latin Safi / Safy → Saff
     text = re.sub(r"\bSafy\b", "Saff", text, flags=re.IGNORECASE)
     text = re.sub(r"\bSafi\b", "Saff", text, flags=re.IGNORECASE)
+    # Banned gang slang greeting → normal hello
+    for bad in ("يا عصابة", "ياالعصابة", "يا العصابة", "العصابة", "عصابتي", "العصبة", "عصابة"):
+        text = text.replace(bad, "أهلا")
     # Common mangled Arabic spellings of calories → سعرات
     for bad in (
         "كالوريز",
@@ -147,7 +157,9 @@ def _sanitize_transcript(transcript: str) -> str:
         "الكالوريات",
     ):
         text = text.replace(bad, "سعرات")
-    return text
+    # Collapse accidental "أهلا أهلا" from replacements
+    text = re.sub(r"(أهلا\s*){2,}", "أهلا ", text)
+    return text.strip()
 
 
 def generate_tunisian_daily_script(daily_report: dict[str, Any]) -> dict[str, Any]:
@@ -214,11 +226,12 @@ def _tts_once(client: Any, *, model: str, prompt: str, voice: str) -> bytes:
         if pcm[:4] == b"RIFF":
             return pcm
         return _pcm_to_wav(pcm)
-    except Exception as gen_exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         # Only try Interactions when the model itself responded but shape differed.
-        if _is_transient_gemini_error(gen_exc):
+        if _is_transient_gemini_error(exc):
             raise
-        logger.warning("generate_content TTS (%s) failed (%s); trying interactions", model, gen_exc)
+        logger.warning("generate_content TTS (%s) failed (%s); trying interactions", model, exc)
+        gen_error = exc
 
     interaction = client.interactions.create(
         model=model,
@@ -229,7 +242,7 @@ def _tts_once(client: Any, *, model: str, prompt: str, voice: str) -> bytes:
     audio = getattr(interaction, "output_audio", None)
     data_b64 = getattr(audio, "data", None) if audio is not None else None
     if not data_b64:
-        raise RuntimeError(f"TTS model {model} returned no audio ({gen_exc})")
+        raise RuntimeError(f"TTS model {model} returned no audio ({gen_error})")
     pcm = base64.b64decode(data_b64)
     if pcm[:4] == b"RIFF":
         return pcm

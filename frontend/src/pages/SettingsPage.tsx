@@ -162,7 +162,7 @@ export default function SettingsPage() {
       setStatus(
         h.ok
           ? `Connected · auth ${h.auth || 'unknown'} · Gemini ${
-              h.geminiConfigured || h.openaiConfigured ? 'ready' : 'key missing'
+              h.geminiConfigured ? 'ready' : 'key missing'
             }`
           : t('settings.unreachable')
       );

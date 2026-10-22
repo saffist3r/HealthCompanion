@@ -2,6 +2,21 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { deleteMeal, fetchMeal, getApiBase, updateMeal } from '../api';
 import { useLocale } from '../i18n';
 
+function photoRoleLabel(role: string | null | undefined): string {
+  switch ((role || '').toLowerCase()) {
+    case 'main':
+      return 'Main';
+    case 'side':
+      return 'Side';
+    case 'dessert':
+      return 'Dessert';
+    case 'drink':
+      return 'Drink';
+    default:
+      return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Photo';
+  }
+}
+
 const MEAL_TYPES = [
   { value: 'breakfast' },
   { value: 'lunch' },
@@ -16,6 +31,7 @@ type MealDetail = {
   mealType?: string;
   eatenAt?: number;
   photoUrl?: string | null;
+  photos?: Array<{ url: string; role?: string; label?: string | null; path?: string }>;
   macros?: {
     caloriesKcal?: number;
     carbsG?: number;
@@ -148,7 +164,13 @@ export default function MealDetailModal({
   const glucoseStory = view.glucoseStory;
   const similarMeals = view.similarMeals || [];
   const base = getApiBase().replace(/\/$/, '');
-  const photo = meal.photoUrl ? `${base}${meal.photoUrl}` : null;
+  const gallery =
+    view.photos && view.photos.length > 0
+      ? view.photos
+      : meal.photoUrl
+        ? [{ url: meal.photoUrl, role: 'main' as const }]
+        : [];
+  const photo = gallery[0] ? `${base}${gallery[0].url}` : meal.photoUrl ? `${base}${meal.photoUrl}` : null;
   const macros = meal.macros || {};
   const kcal = Math.round(macros.caloriesKcal || 0);
   const items = meal.items || [];
@@ -252,7 +274,20 @@ export default function MealDetailModal({
           </div>
         </div>
 
-        {photo ? (
+        {gallery.length > 1 ? (
+          <div className="meal-detail-gallery">
+            {gallery.map((p, i) => (
+              <figure key={`${p.url}-${i}`} className="meal-detail-gallery-item">
+                <img
+                  src={`${base}${p.url}`}
+                  alt={p.label || photoRoleLabel(p.role)}
+                  className="meal-detail-photo"
+                />
+                <figcaption>{p.label || photoRoleLabel(p.role)}</figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : photo ? (
           <div className="meal-detail-photo-wrap">
             <img src={photo} alt={t(mealTypeKey(meal.mealType) as any)} className="meal-detail-photo" />
           </div>

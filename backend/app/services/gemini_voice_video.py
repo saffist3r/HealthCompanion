@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 BACKGROUND_KEYS = ("beach", "padel", "cafe")
 
 _VIDEO_CACHE: dict[str, dict[str, Any]] = {}
-_CACHE_VERSION = "v3-still-loop-lite"
+_CACHE_VERSION = "v4-still-loop-no-isaba"
 
 # Keep encode light for the 1Gi backend pod (zoompan@1080p OOMs / exit -9).
 _W = 720

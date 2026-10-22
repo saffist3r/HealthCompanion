@@ -9,6 +9,7 @@ import {
   parsePumpLogFromNotificationParts,
   isCapAPSFxPackage,
   MAX_GLYCEMIA_HISTORY,
+  type GlycemiaReading,
 } from '@health-companion/shared';
 
 import App from './App';
@@ -150,7 +151,7 @@ const headlessNotificationListener = async (payload: {
   }
 };
 
-async function loadHistoryForSync(): Promise<{ value: number; unit: string; timestamp: number }[]> {
+async function loadHistoryForSync(): Promise<GlycemiaReading[]> {
   try {
     const raw = await AsyncStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
