@@ -8,3 +8,698 @@ index 1274a12..72906c5 100644
      implementation 'com.google.code.gson:gson:2.8.6'
 +    implementation 'com.google.android.gms:play-services-wearable:18.1.0'
  }
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
+index 350e4c2..cb5040d 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
+@@ -6,17 +6,62 @@ import android.content.Context;
+ import android.service.notification.NotificationListenerService;
+ import android.service.notification.StatusBarNotification;
+ import android.util.Log;
++import android.util.Pair;
++import android.os.Bundle;
+ import android.app.Notification;
++import android.widget.RemoteViews;
+ import com.google.gson.Gson;
++import com.google.android.gms.wearable.PutDataMapRequest;
++import com.google.android.gms.wearable.Wearable;
+ 
+ import com.facebook.react.HeadlessJsTaskService;
+ 
++import java.lang.reflect.Method;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Set;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++
++import android.view.View;
++import android.view.ViewGroup;
++import android.widget.FrameLayout;
++import android.widget.TextView;
++
+ public class RNAndroidNotificationListener extends NotificationListenerService {
+     private static final String TAG = "RNAndroidNotificationListener";
++    private static final String PREFS_NAME = "health_companion";
++    private static final String KEY_GLYCEMIA = "last_glycemia";
++    private static final String KEY_CAPAPS_DEBUG = "capaps_debug";
++    private static final String GLYCEMIA_PATH = "/health_companion/glycemia";
++    private static final ExecutorService CAPAPS_EXECUTOR = Executors.newSingleThreadExecutor();
++
++    @Override
++    public void onListenerConnected() {
++        super.onListenerConnected();
++        Log.i(TAG, "CapAPS: listener connected — scanning active notifications");
++        try {
++            StatusBarNotification[] active = getActiveNotifications();
++            if (active == null) return;
++            for (StatusBarNotification sbn : active) {
++                if (sbn != null && sbn.getPackageName() != null
++                        && sbn.getPackageName().startsWith("com.camdiab")) {
++                    tryExtractCapAPSGlycemia(sbn);
++                }
++            }
++        } catch (Exception e) {
++            Log.e(TAG, "CapAPS: scan active failed", e);
++        }
++    }
+ 
+     @Override
+     public void onNotificationPosted(StatusBarNotification sbn) {       
+-        Notification statusBarNotification = sbn.getNotification();
++        if (sbn != null && sbn.getPackageName() != null && sbn.getPackageName().startsWith("com.camdiab")) {
++            Log.i(TAG, "CapAPS: notification posted from " + sbn.getPackageName());
++            tryExtractCapAPSGlycemia(sbn);
++        }
++
++        Notification statusBarNotification = sbn != null ? sbn.getNotification() : null;
+ 
+         if (statusBarNotification == null || statusBarNotification.extras == null) {
+             Log.d(TAG, "The notification received has no data");
+@@ -39,6 +84,474 @@ public class RNAndroidNotificationListener extends NotificationListenerService {
+         context.startService(serviceIntent);
+     }
+ 
++    private static boolean sHiddenApiBypassAttempted = false;
++
++    private static void tryBypassHiddenApiRestrictions() {
++        if (sHiddenApiBypassAttempted) return;
++        sHiddenApiBypassAttempted = true;
++        try {
++            Method forName = Class.class.getDeclaredMethod("forName", String.class);
++            Method getDeclaredMethod = Class.class.getDeclaredMethod("getDeclaredMethod", String.class, Class[].class);
++            Class<?> vmRuntimeClass = (Class<?>) forName.invoke(null, "dalvik.system.VMRuntime");
++            Method getRuntime = (Method) getDeclaredMethod.invoke(vmRuntimeClass, "getRuntime", new Class<?>[0]);
++            Method setHiddenApiExemptions = (Method) getDeclaredMethod.invoke(vmRuntimeClass, "setHiddenApiExemptions", new Class<?>[]{String[].class});
++            Object runtime = getRuntime.invoke(null);
++            setHiddenApiExemptions.invoke(runtime, (Object) new String[]{"L"});
++            Log.d(TAG, "CapAPS: hidden API bypass applied");
++        } catch (Exception e) {
++            Log.d(TAG, "CapAPS: hidden API bypass failed: " + e.getMessage());
++        }
++    }
++
++    private void tryExtractCapAPSGlycemia(StatusBarNotification sbn) {
++        Notification notif = sbn.getNotification();
++        if (notif == null) {
++            Log.e(TAG, "CapAPS: notification object null");
++            return;
++        }
++
++        tryBypassHiddenApiRestrictions();
++
++        Float value = null;
++        String unit = null;
++        String source = null;
++
++        Log.i(TAG, "CapAPS: contentView=" + (notif.contentView != null)
++                + " big=" + (notif.bigContentView != null)
++                + " headsUp=" + (notif.headsUpContentView != null)
++                + " titleNull=" + (notif.extras.getCharSequence(Notification.EXTRA_TITLE) == null)
++                + " textNull=" + (notif.extras.getCharSequence(Notification.EXTRA_TEXT) == null));
++
++        // 1. Try RemoteViews reflection (contentView, bigContentView, headsUpContentView)
++        RemoteViews[] allViews = { notif.contentView, notif.bigContentView, notif.headsUpContentView };
++        for (RemoteViews contentView : allViews) {
++            if (contentView == null) continue;
++            ArrayList<RemoteViewAction> actions = getRemoteViewActionsRecursive(contentView, 0);
++            Log.i(TAG, "CapAPS: got " + actions.size() + " actions from RemoteViews");
++            Pair<Float, String> parsed = parseGlycemiaFromActions(actions, sbn.getPackageName());
++            if (parsed != null) {
++                value = parsed.first;
++                unit = parsed.second;
++                source = "remoteviews-actions";
++                break;
++            }
++        }
++
++        // 2. Try inflating RemoteViews and extracting TextView text
++        if (value == null) {
++            for (RemoteViews rv : allViews) {
++                if (rv == null) continue;
++                String inflatedText = extractTextFromRemoteViews(rv, sbn.getPackageName());
++                Log.i(TAG, "CapAPS: inflatedText len=" + inflatedText.length()
++                        + " sample=" + (inflatedText.length() > 120 ? inflatedText.substring(0, 120) : inflatedText));
++                if (!inflatedText.isEmpty()) {
++                    Pair<Float, String> parsed = parseGlycemiaFromText(inflatedText, sbn.getPackageName());
++                    if (parsed != null) {
++                        value = parsed.first;
++                        unit = parsed.second;
++                        source = "remoteviews-inflate";
++                        break;
++                    }
++                }
++            }
++        }
++
++        // 3. Fallback: parse from notification extras and tickerText
++        if (value == null) {
++            String fallbackText = buildFallbackText(notif);
++            Log.i(TAG, "CapAPS fallbackText=" + (fallbackText.length() > 300 ? fallbackText.substring(0, 300) + "..." : fallbackText));
++            saveDebug("fallbackText=" + (fallbackText.length() > 200 ? fallbackText.substring(0, 200) + "..." : fallbackText));
++            if (!fallbackText.isEmpty()) {
++                Pair<Float, String> parsed = parseGlycemiaFromText(fallbackText, sbn.getPackageName());
++                if (parsed != null) {
++                    value = parsed.first;
++                    unit = parsed.second;
++                    source = "extras-fallback";
++                }
++            }
++        }
++
++        if (value == null) {
++            Log.e(TAG, "CapAPS: no glycemia parsed from notification");
++            return;
++        }
++        if (unit == null) unit = sbn.getPackageName().contains("mgdl") ? "mg/dL" : "mmol/L";
++
++        final float finalValue = value;
++        final String finalUnit = unit;
++        final String finalSource = source != null ? source : "unknown";
++        final long postedAt = sbn.getPostTime() > 0 ? sbn.getPostTime() : System.currentTimeMillis();
++        CAPAPS_EXECUTOR.execute(() -> {
++            try {
++                String json = "{\"value\":" + finalValue + ",\"unit\":\"" + finalUnit
++                        + "\",\"timestamp\":" + postedAt + ",\"source\":\"" + finalSource + "\"}";
++                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_GLYCEMIA, json).apply();
++                PutDataMapRequest req = PutDataMapRequest.create(GLYCEMIA_PATH);
++                req.getDataMap().putDouble("value", finalValue);
++                req.getDataMap().putString("unit", finalUnit);
++                req.getDataMap().putLong("timestamp", postedAt);
++                Wearable.getDataClient(getApplicationContext()).putDataItem(req.asPutDataRequest());
++                saveDebug("OK " + finalValue + " " + finalUnit + " via " + finalSource);
++                Log.i(TAG, "CapAPS glycemia: " + finalValue + " " + finalUnit + " via " + finalSource);
++            } catch (Exception e) {
++                Log.e(TAG, "CapAPS sync failed", e);
++            }
++        });
++    }
++
++    private String extractTextFromRemoteViews(RemoteViews rv, String packageName) {
++        if (rv == null) return "";
++        try {
++            Context ctx = getApplicationContext();
++            // Never load CamAPS code into our process (CONTEXT_INCLUDE_CODE): since CamAPS 1.4(194)
++            // its protection runtime starts a thread that crashes us. RemoteViews.apply resolves the
++            // sender's resources on its own, the same way System UI does.
++            FrameLayout parent = new FrameLayout(ctx);
++            View v = rv.apply(ctx, parent);
++            StringBuilder sb = new StringBuilder();
++            collectTextViewText(v, sb);
++            return sb.toString().trim();
++        } catch (Exception e) {
++            Log.d(TAG, "CapAPS inflate failed: " + e.getClass().getSimpleName() + " " + e.getMessage());
++            return "";
++        }
++    }
++
++    private static void collectTextViewText(View v, StringBuilder sb) {
++        if (v == null) return;
++        if (v instanceof TextView) {
++            CharSequence t = ((TextView) v).getText();
++            if (t != null && t.length() > 0) sb.append(t).append(" ");
++        }
++        if (v instanceof ViewGroup) {
++            ViewGroup vg = (ViewGroup) v;
++            for (int i = 0; i < vg.getChildCount(); i++) {
++                collectTextViewText(vg.getChildAt(i), sb);
++            }
++        }
++    }
++
++    private void saveDebug(String msg) {
++        try {
++            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
++                .edit().putString(KEY_CAPAPS_DEBUG, System.currentTimeMillis() + " " + msg).apply();
++        } catch (Exception e) { /* ignore */ }
++    }
++
++    private static Float parseFloat(String s) {
++        if (s == null) return null;
++        try {
++            return Float.parseFloat(s.trim());
++        } catch (NumberFormatException e) {
++            return null;
++        }
++    }
++
++    private static Pair<Float, String> parseGlycemiaFromActions(ArrayList<RemoteViewAction> actions, String packageName) {
++        StringBuilder combined = new StringBuilder();
++        for (RemoteViewAction a : actions) {
++            if (!"setText".equals(a.methodName)) continue;
++            Object v = a.value;
++            if (!(v instanceof CharSequence)) continue;
++            String s = v.toString().trim();
++            if (s.isEmpty()) continue;
++            Pair<Float, String> fromOne = parseGlycemiaFromText(s, packageName);
++            if (fromOne != null) return fromOne;
++            combined.append(s).append(' ');
++        }
++        if (combined.length() == 0) return null;
++        return parseGlycemiaFromText(combined.toString().trim(), packageName);
++    }
++
++    private static String buildFallbackText(Notification notif) {
++        StringBuilder sb = new StringBuilder();
++        if (notif.tickerText != null) sb.append(notif.tickerText).append(" ");
++        if (notif.extras != null) {
++            Bundle e = notif.extras;
++            String[] textKeys = { Notification.EXTRA_TITLE, Notification.EXTRA_TEXT, Notification.EXTRA_SUB_TEXT,
++                Notification.EXTRA_BIG_TEXT, Notification.EXTRA_INFO_TEXT, Notification.EXTRA_SUMMARY_TEXT,
++                "android.title", "android.text" };
++            for (String key : textKeys) {
++                try {
++                    Object val = e.get(key);
++                    if (val instanceof CharSequence) sb.append(((CharSequence) val).toString().trim()).append(" ");
++                    else if (val instanceof String) sb.append(((String) val).trim()).append(" ");
++                } catch (Exception ex) { /* skip */ }
++            }
++            Set<String> keys = e.keySet();
++            if (keys != null) {
++                for (String key : keys) {
++                    try {
++                        Object val = e.get(key);
++                        if (val instanceof CharSequence) {
++                            String s = ((CharSequence) val).toString().trim();
++                            if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                        } else if (val instanceof String) {
++                            String s = ((String) val).trim();
++                            if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                        }
++                    } catch (Exception ex) { /* skip */ }
++                }
++            }
++        }
++        if (notif.publicVersion != null && notif.publicVersion.extras != null) {
++            try {
++                Object t = notif.publicVersion.extras.getCharSequence(Notification.EXTRA_TEXT);
++                if (t != null) sb.append(t.toString().trim()).append(" ");
++            } catch (Exception ex) { /* skip */ }
++        }
++        return sb.toString().trim();
++    }
++
++    private static final java.util.regex.Pattern INSULIN_DOSE_PATTERN =
++        java.util.regex.Pattern.compile("\\d+\\.?\\d*\\s*(?:U|IU|units?|unités?)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
++    private static final java.util.regex.Pattern INSULIN_KEYWORDS =
++        java.util.regex.Pattern.compile("\\b(bolus|insulin|insuline|injected|injection|injecté|injectee|units?|unités?|carbs?|glucides?|meal|repas|correction|delivered|delivré|prime|iob)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
++    private static final java.util.regex.Pattern GLUCOSE_CONTEXT_PATTERN =
++        java.util.regex.Pattern.compile("\\b(BG|blood\\s*glucose|glucose|glycémie|glycemie|CGM|sensor|mmol|mg\\s*/\\s*d[lL])\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
++    private static final java.util.regex.Pattern EXPLICIT_GLUCOSE_UNIT =
++        java.util.regex.Pattern.compile("\\bmg\\s*/\\s*d[lL]\\b|\\bmg\\s*d[lL]\\b|\\bmmol\\s*/\\s*[lL]\\b|\\d+\\.?\\d*\\s+mmol\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
++
++    private static final java.util.regex.Pattern[] BG_PATTERNS = {
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mmol/L", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mg\\s*/\\s*d[lL]", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mg/d[lL]", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mmol\\b", java.util.regex.Pattern.CASE_INSENSITIVE),
++        java.util.regex.Pattern.compile("(\\d+\\.?\\d*)\\s*mg\\s*d[lL]\\b", java.util.regex.Pattern.CASE_INSENSITIVE),
++    };
++
++    private static boolean isLikelyInsulinNotification(String text) {
++        if (text == null || text.isEmpty()) return false;
++        if (GLUCOSE_CONTEXT_PATTERN.matcher(text).find() && hasExplicitGlucoseUnit(text)) return false;
++        if (INSULIN_DOSE_PATTERN.matcher(text).find()) return true;
++        return INSULIN_KEYWORDS.matcher(text).find() && !GLUCOSE_CONTEXT_PATTERN.matcher(text).find();
++    }
++
++    private static boolean hasExplicitGlucoseUnit(String text) {
++        return text != null && EXPLICIT_GLUCOSE_UNIT.matcher(text).find();
++    }
++
++    private static boolean isPlausibleGlucoseValue(float value, String unit) {
++        if (value <= 0f) return false;
++        float mgDl = "mg/dL".equalsIgnoreCase(unit) ? value : value * 18.0182f;
++        return mgDl >= 7f && mgDl <= 600f;
++    }
++
++    private static Pair<Float, String> parseGlycemiaFromText(String text, String packageName) {
++        if (text == null || text.isEmpty()) return null;
++        if (isLikelyInsulinNotification(text) && !hasExplicitGlucoseUnit(text)) return null;
++
++        boolean packageImpliesMgdl = packageName != null && packageName.contains("mgdl");
++        boolean packageImpliesMmol = packageName != null && packageName.contains("mmoll");
++        boolean allowBareNumber = packageImpliesMgdl || packageImpliesMmol;
++
++        if (!hasExplicitGlucoseUnit(text) && !allowBareNumber) return null;
++
++        Float bestValue = null;
++        String bestUnit = null;
++        int bestScore = Integer.MIN_VALUE;
++
++        for (java.util.regex.Pattern p : BG_PATTERNS) {
++            java.util.regex.Matcher m = p.matcher(text);
++            while (m.find()) {
++                String raw = m.group(1);
++                if (raw == null) continue;
++                Float v = parseFloat(raw);
++                if (v == null) continue;
++
++                String unit = p.pattern().toLowerCase().contains("mg") ? "mg/dL" : "mmol/L";
++                if (!isPlausibleGlucoseValue(v, unit)) continue;
++
++                int start = Math.max(0, m.start() - 24);
++                int end = Math.min(text.length(), m.end() + 24);
++                String slice = text.substring(start, end);
++
++                if (INSULIN_DOSE_PATTERN.matcher(slice).find() && !GLUCOSE_CONTEXT_PATTERN.matcher(slice).find()) {
++                    continue;
++                }
++
++                int score = 0;
++                if (GLUCOSE_CONTEXT_PATTERN.matcher(slice).find()) score += 10;
++                if (slice.toLowerCase().contains("mmol/l") || slice.toLowerCase().contains("mg/dl")) score += 5;
++                if (INSULIN_KEYWORDS.matcher(slice).find()) score -= 8;
++                if (INSULIN_DOSE_PATTERN.matcher(slice).find()) score -= 12;
++
++                if (score > bestScore) {
++                    bestScore = score;
++                    bestValue = v;
++                    bestUnit = unit;
++                }
++            }
++        }
++
++        // CapAPS custom views often show only the number; unit is implied by package (mgdl / mmoll).
++        if (bestValue == null && allowBareNumber) {
++            java.util.regex.Matcher bare = java.util.regex.Pattern
++                    .compile("(?<!\\d)(\\d{2,3}(?:\\.\\d+)?)(?!\\d)")
++                    .matcher(text);
++            while (bare.find()) {
++                Float v = parseFloat(bare.group(1));
++                if (v == null) continue;
++                String unit = packageImpliesMmol ? "mmol/L" : "mg/dL";
++                // Prefer integer-looking mg/dL in typical CGM range
++                if (packageImpliesMgdl && (v < 40f || v > 400f)) continue;
++                if (packageImpliesMmol && (v < 2.0f || v > 25f)) continue;
++                if (!isPlausibleGlucoseValue(v, unit)) continue;
++                // Prefer values that look like current BG (2–3 digits mg/dL)
++                int score = packageImpliesMgdl && v >= 54f && v <= 350f ? 3 : 1;
++                if (score > bestScore) {
++                    bestScore = score;
++                    bestValue = v;
++                    bestUnit = unit;
++                }
++            }
++        }
++
++        if (bestValue == null) return null;
++        return new Pair<>(bestValue, bestUnit);
++    }
++
++    private static final int MAX_RECURSION_DEPTH = 5;
++
++    private static ArrayList<RemoteViewAction> getRemoteViewActionsRecursive(RemoteViews rv, int depth) {
++        if (rv == null || depth >= MAX_RECURSION_DEPTH) return new ArrayList<>();
++        ArrayList<RemoteViewAction> result = getRemoteViewActions(rv);
++
++        // Recurse into nested RemoteViews: mLandscape, mPortrait, mSizedRemoteViews, and actions with mNestedViews
++        for (String nestedField : new String[]{"mLandscape", "mPortrait"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(nestedField);
++                f.setAccessible(true);
++                Object nested = f.get(rv);
++                if (nested instanceof RemoteViews) {
++                    result.addAll(getRemoteViewActionsRecursive((RemoteViews) nested, depth + 1));
++                }
++            } catch (Exception e) { /* ignore */ }
++        }
++        try {
++            java.lang.reflect.Field f = RemoteViews.class.getDeclaredField("mSizedRemoteViews");
++            f.setAccessible(true);
++            Object raw = f.get(rv);
++            if (raw instanceof List) {
++                for (Object item : (List<?>) raw) {
++                    if (item instanceof RemoteViews) {
++                        result.addAll(getRemoteViewActionsRecursive((RemoteViews) item, depth + 1));
++                    }
++                }
++            }
++        } catch (Exception e) { /* ignore */ }
++
++        // Recurse into actions that contain mNestedViews (ViewGroupActionAdd)
++        List<?> rawActions = getRawActions(rv);
++        if (rawActions != null) {
++            for (Object actionObj : rawActions) {
++                if (actionObj == null) continue;
++                try {
++                    java.lang.reflect.Field nestedF = actionObj.getClass().getDeclaredField("mNestedViews");
++                    nestedF.setAccessible(true);
++                    Object nested = nestedF.get(actionObj);
++                    if (nested instanceof RemoteViews) {
++                        result.addAll(getRemoteViewActionsRecursive((RemoteViews) nested, depth + 1));
++                    }
++                } catch (Exception e) { /* not a ViewGroupActionAdd or no mNestedViews */ }
++            }
++        }
++        return result;
++    }
++
++    private static List<?> getRawActions(RemoteViews rv) {
++        if (rv == null) return null;
++        for (String fieldName : new String[]{"mActions", "actions"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(fieldName);
++                f.setAccessible(true);
++                Object raw = f.get(rv);
++                if (raw instanceof List) return (List<?>) raw;
++                if (raw instanceof ArrayList) return (ArrayList<?>) raw;
++            } catch (Exception e) { /* ignore */ }
++        }
++        return null;
++    }
++
++    private static ArrayList<RemoteViewAction> getRemoteViewActions(RemoteViews rv) {
++        ArrayList<RemoteViewAction> result = new ArrayList<>();
++        for (String fieldName : new String[]{"mActions", "actions"}) {
++            try {
++                java.lang.reflect.Field f = RemoteViews.class.getDeclaredField(fieldName);
++                f.setAccessible(true);
++                Object raw = f.get(rv);
++                if (raw == null) continue;
++                Iterable<?> iter;
++                if (raw instanceof ArrayList) {
++                    iter = (ArrayList<?>) raw;
++                } else if (raw instanceof java.util.List) {
++                    iter = (java.util.List<?>) raw;
++                } else {
++                    Log.d(TAG, "CapAPS: " + fieldName + " type=" + raw.getClass().getName());
++                    continue;
++                }
++                for (Object item : iter) {
++                    RemoteViewAction a = getRemoteViewAction(item);
++                    if (a != null) result.add(a);
++                }
++                if (!result.isEmpty()) return result;
++            } catch (NoSuchFieldException e) {
++                continue;
++            } catch (Exception e) {
++                Log.d(TAG, "CapAPS getRemoteViewActions " + fieldName + ": " + e.getClass().getSimpleName() + " " + e.getMessage());
++            }
++        }
++        java.lang.reflect.Field[] fields = RemoteViews.class.getDeclaredFields();
++        StringBuilder sb = new StringBuilder("CapAPS RemoteViews fields: ");
++        for (java.lang.reflect.Field ff : fields) {
++            sb.append(ff.getName()).append(",");
++        }
++        Log.d(TAG, sb.toString());
++        return result;
++    }
++
++    private static java.lang.reflect.Field findFieldInHierarchy(Class<?> c, String name) {
++        for (Class<?> cls = c; cls != null; cls = cls.getSuperclass()) {
++            try {
++                java.lang.reflect.Field f = cls.getDeclaredField(name);
++                f.setAccessible(true);
++                return f;
++            } catch (NoSuchFieldException e) { /* continue */ }
++        }
++        return null;
++    }
++
++    private static RemoteViewAction getRemoteViewAction(Object action) {
++        if (action == null) return null;
++        Class<?> c = action.getClass();
++        for (String methodFieldName : new String[]{"mMethodName", "methodName"}) {
++            for (String valueFieldName : new String[]{"mValue", "value"}) {
++                try {
++                    java.lang.reflect.Field methodField = findFieldInHierarchy(c, methodFieldName);
++                    if (methodField == null) continue;
++                    String methodName = (String) methodField.get(action);
++                    java.lang.reflect.Field valueField = findFieldInHierarchy(c, valueFieldName);
++                    if (valueField == null) continue;
++                    Object value = valueField.get(action);
++                    return new RemoteViewAction(methodName != null ? methodName : "", value);
++                } catch (Exception e) {
++                    continue;
++                }
++            }
++        }
++        return null;
++    }
++
++    private static class RemoteViewAction {
++        final String methodName;
++        final Object value;
++
++        RemoteViewAction(String methodName, Object value) {
++            this.methodName = methodName;
++            this.value = value;
++        }
++    }
++
+     @Override
+     public void onNotificationRemoved(StatusBarNotification sbn) {}
+ }
+\ No newline at end of file
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.java
+index 2bd7b44..58c9829 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListenerModule.java
+@@ -52,4 +52,23 @@ public class RNAndroidNotificationListenerModule extends ReactContextBaseJavaMod
+             this.reactContext.startActivity(i);
+         }
+     }
++
++    /** Re-bind the listener after OS updates kill the service (common on Samsung One UI). */
++    @ReactMethod
++    public void requestRebind(Promise promise) {
++        try {
++            if (this.reactContext == null) {
++                promise.resolve(false);
++                return;
++            }
++            android.content.ComponentName cn = new android.content.ComponentName(
++                this.reactContext,
++                RNAndroidNotificationListener.class
++            );
++            android.service.notification.NotificationListenerService.requestRebind(cn);
++            promise.resolve(true);
++        } catch (Exception e) {
++            promise.reject("REBIND_FAILED", e.getMessage(), e);
++        }
++    }
+ }
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
+index 79a17f9..5d97dbe 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNNotification.java
+@@ -16,6 +16,9 @@ import android.content.Context;
+ import java.lang.Exception;
+ import android.graphics.drawable.Icon;
+ import android.graphics.drawable.BitmapDrawable;
++import android.os.Build;
++import android.os.Bundle;
++import java.util.Set;
+ 
+ public class RNNotification {
+     private static final String TAG = "RNAndroidNotificationListener";
+@@ -35,6 +38,8 @@ public class RNNotification {
+     protected String image;
+     protected String time;
+     protected String iconLarge;
++    protected String tickerText;
++    protected String extrasText;
+     public RNNotification(Context context, StatusBarNotification sbn) {
+         Notification notification = sbn.getNotification();
+ 
+@@ -52,15 +57,67 @@ public class RNNotification {
+             this.audioContentsURI = this.getPropertySafely(notification, Notification.EXTRA_AUDIO_CONTENTS_URI);
+             this.imageBackgroundURI = this.getPropertySafely(notification, Notification.EXTRA_BACKGROUND_IMAGE_URI);
+             this.extraInfoText = this.getPropertySafely(notification, Notification.EXTRA_INFO_TEXT);
++            this.tickerText = notification.tickerText != null ? notification.tickerText.toString().trim() : "";
++            this.extrasText = this.getAllExtrasText(notification);
+             this.iconLarge = this.getNotificationLargeIcon(context, notification);
+             this.icon = this.getNotificationIcon(context, notification);
+             this.image = this.getNotificationImage(notification);
+             this.groupedMessages = this.getGroupedNotifications(notification);
++            // CapAPS (and some OEMs after Android 15/16) put glucose only in custom RemoteViews.
++            if ((TextUtils.isEmpty(this.title) && TextUtils.isEmpty(this.text))
++                    && packageName != null && packageName.startsWith("com.camdiab")) {
++                String fromViews = this.extractRemoteViewsText(context, notification, packageName);
++                if (!TextUtils.isEmpty(fromViews)) {
++                    this.text = fromViews;
++                    if (TextUtils.isEmpty(this.extrasText)) this.extrasText = fromViews;
++                    else this.extrasText = (this.extrasText + " " + fromViews).trim();
++                }
++            }
+         } else {
+             Log.d(TAG, "The notification received has no data");
+         }
+     }
+ 
++    private String extractRemoteViewsText(Context context, Notification notification, String packageName) {
++        try {
++            android.widget.RemoteViews[] views = {
++                notification.contentView,
++                notification.bigContentView,
++                notification.headsUpContentView
++            };
++            StringBuilder sb = new StringBuilder();
++            for (android.widget.RemoteViews rv : views) {
++                if (rv == null) continue;
++                try {
++                    // No CONTEXT_INCLUDE_CODE: loading CamAPS code into our process crashes it.
++                    android.widget.FrameLayout parent = new android.widget.FrameLayout(context);
++                    android.view.View root = rv.apply(context, parent);
++                    appendTextViews(root, sb);
++                } catch (Exception e) {
++                    Log.d(TAG, "RemoteViews inflate: " + e.getMessage());
++                }
++            }
++            return sb.toString().trim();
++        } catch (Exception e) {
++            Log.d(TAG, e.getMessage());
++            return "";
++        }
++    }
++
++    private void appendTextViews(android.view.View v, StringBuilder sb) {
++        if (v == null) return;
++        if (v instanceof android.widget.TextView) {
++            CharSequence t = ((android.widget.TextView) v).getText();
++            if (t != null && t.length() > 0) sb.append(t).append(" ");
++        }
++        if (v instanceof android.view.ViewGroup) {
++            android.view.ViewGroup vg = (android.view.ViewGroup) v;
++            for (int i = 0; i < vg.getChildCount(); i++) {
++                appendTextViews(vg.getChildAt(i), sb);
++            }
++        }
++    }
++
+     private String getPropertySafely(Notification notification, String propKey) {
+         try {
+             CharSequence propCharSequence = notification.extras.getCharSequence(propKey);
+@@ -72,6 +129,31 @@ public class RNNotification {
+         }
+     }
+ 
++    private String getAllExtrasText(Notification notification) {
++        StringBuilder sb = new StringBuilder();
++        try {
++            Bundle extras = notification.extras;
++            if (extras == null) return "";
++            Set<String> keys = extras.keySet();
++            if (keys == null) return "";
++            for (String key : keys) {
++                try {
++                    Object val = extras.get(key);
++                    if (val instanceof CharSequence) {
++                        String s = ((CharSequence) val).toString().trim();
++                        if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                    } else if (val instanceof String) {
++                        String s = ((String) val).trim();
++                        if (s.length() > 0 && s.length() < 500) sb.append(s).append(" ");
++                    }
++                } catch (Exception e) { /* skip */ }
++            }
++        } catch (Exception e) {
++            Log.d(TAG, e.getMessage());
++        }
++        return sb.toString().trim();
++    }
++
+     private ArrayList<RNGroupedNotification> getGroupedNotifications(Notification notification) {
+         ArrayList<RNGroupedNotification> result = new ArrayList<RNGroupedNotification>();
+ 

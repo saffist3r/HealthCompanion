@@ -221,6 +221,72 @@ export interface LifeAssessment {
   generatedAt?: number;
 }
 
+export type UnderstandingSeverity = 'high' | 'medium' | 'low';
+export type UnderstandingCategory =
+  | 'estimation'
+  | 'timing'
+  | 'stress'
+  | 'logging'
+  | 'glucose'
+  | 'lifestyle';
+
+export interface UnderstandingFinding {
+  id: string;
+  severity: UnderstandingSeverity;
+  category: UnderstandingCategory;
+  title: string;
+  detail: string;
+  evidence: string[];
+  exampleIds?: string[];
+}
+
+export type MedicalCheckStatus = 'established' | 'plausible' | 'weak' | 'not_supported';
+
+export interface UnderstandingScienceSource {
+  title: string;
+  url: string;
+  publisher?: string;
+}
+
+export interface UnderstandingMedicalCheck {
+  patternId: string;
+  claim?: string;
+  category?: string;
+  observed?: Record<string, unknown>;
+  status: MedicalCheckStatus;
+  confidence: 'high' | 'medium' | 'low';
+  title: string;
+  explanation: string;
+  /** Short scientific physiology paragraph (Gemini + curated library). */
+  scienceBrief?: string;
+  sources?: UnderstandingScienceSource[];
+  caveat?: string;
+}
+
+export interface UnderstandingAnalysis {
+  headline: string;
+  executiveSummary: string;
+  findings: UnderstandingFinding[];
+  medicalChecks?: UnderstandingMedicalCheck[];
+  correlations: string[];
+  whatToWatch: string[];
+  dataGaps: string[];
+  source: 'gemini' | 'fallback';
+  locale?: string;
+  note?: string;
+}
+
+/** Forensic pattern report: signals + Gemini (or fallback) synthesis. */
+export interface UnderstandingReport {
+  periodStart: string;
+  periodEnd: string;
+  dayCount: number;
+  totals?: Record<string, unknown>;
+  signals: Record<string, unknown>;
+  analysis: UnderstandingAnalysis;
+  generatedAt?: number;
+}
+
 export function toDateKey(ts: number, timeZone = 'local'): string {
   const d = new Date(ts);
   if (timeZone === 'utc') return d.toISOString().slice(0, 10);

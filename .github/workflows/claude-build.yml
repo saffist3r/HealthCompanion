@@ -1,0 +1,55 @@
+# AI builder (agents-hub agency). Started only by n8n ("Agency Todo watcher") when Safwen moves a ticket to Todo on
+# the Agency board, or by hand from the Actions tab. One run: spec → implement → tests → self-review → PR.
+# Safwen merges. Prompt: .github/agency/builder.md (read from the default branch).
+name: Claude build
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "Issue number to build"
+        required: true
+
+concurrency:
+  group: claude-build-${{ github.event.inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions: { contents: write, pull-requests: write, issues: write, id-token: write, actions: read }
+    env:
+      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      ISSUE: ${{ github.event.inputs.issue }}
+    steps:
+      - name: Check the input
+        run: '[[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "issue must be a number"; exit 1; }'
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - id: role
+        if: env.HAS_KEY == 'true'
+        run: |
+          git fetch -q origin "$DEFAULT_BRANCH"
+          { echo 'prompt<<AGENCY_EOF'; git show "origin/$DEFAULT_BRANCH:.github/agency/builder.md" | sed "s/ISSUE/$ISSUE/g"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
+      - if: env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          include_comments_by_actor: "saffist3r,claude[bot]"
+          prompt: |
+            REPO: ${{ github.repository }} · ISSUE: #${{ env.ISSUE }}
+
+            ${{ steps.role.outputs.prompt }}
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 200
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash"
+      - name: Tell the ticket the build failed
+        if: failure()
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh issue comment "$ISSUE" -R "$GITHUB_REPOSITORY" --body "❌ The builder failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" || true
+          gh issue edit "$ISSUE" -R "$GITHUB_REPOSITORY" --add-label build-failed || true

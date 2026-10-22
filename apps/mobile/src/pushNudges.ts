@@ -27,6 +27,7 @@ export type NudgeKind =
 
 export type NudgeScreen =
   | 'MorningLog'
+  | 'PainLog'
   | 'Meals'
   | 'Mental'
   | 'Glucose'
@@ -123,7 +124,7 @@ const SCREEN_FOR: Record<NudgeKind, NudgeScreen> = {
   carbTarget: 'Meals',
   weightWeekly: 'MorningLog',
   meds: 'MorningLog',
-  injuryPain: 'Activity',
+  injuryPain: 'PainLog',
   afterSport: 'Activity',
   careFollowUp: 'Activity',
   reportReady: 'Reports',

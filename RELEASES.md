@@ -4,11 +4,28 @@ This document explains how releases work and what is included in each release.
 
 **Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). See `.cursor/rules/release-docs-required.mdc`.
 
-**Current deploy line:** `1.5.57` (see [CHANGELOG](CHANGELOG.md#1557---2026-08-24)). Latest **milestone tag:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0).
+**Current deploy line:** `1.6.0` (see [CHANGELOG](CHANGELOG.md#160---2026-10-21)). Latest **milestone tag:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0).
 
 GitHub releases: [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) (latest tag) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 
 Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github/release-notes/).
+
+---
+
+## 1.6.0 (deploy, untagged)
+
+**Date:** 2026-10-21
+
+### Highlights
+
+- Hardened API: `JWT_SECRET` required (weak values warn), strict CORS, signed expiring meal-photo links, failed-login throttle, non-root containers
+- All endpoints under `/api` (legacy root paths kept for older phone builds)
+- Alembic database migrations (adopts existing databases on first boot)
+- CI (backend tests, migrations on Postgres, web/mobile typecheck, Docker image builds) + Dependabot
+- Fixes: RAG archive export crash, TTS error handling, `docker compose` backend build
+- Removed the deprecated Node API (`apps/api`)
+
+Upgrade notes: [`k8s/README.md`](k8s/README.md#upgrading-from-15x). See [CHANGELOG.md](CHANGELOG.md#160---2026-10-21).
 
 ---
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import jwt
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models import Device, User
 from app.services.auth_tokens import decode_access_token
@@ -19,7 +21,7 @@ def require_user(
         raise HTTPException(status_code=401, detail="Missing Authorization Bearer token")
     try:
         payload = decode_access_token(creds.credentials)
-    except Exception as exc:  # noqa: BLE001
+    except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
 
     user_id = str(payload.get("sub") or "")
@@ -71,7 +73,14 @@ def ensure_device(db: Session, device_id: str, owner_user_id: str | None = None)
     return device
 
 
-def household_device_ids(db: Session) -> list[str]:
-    """Single-household deploy: all authenticated users share all device data."""
-    ids = [row[0] for row in db.query(Device.id).all()]
-    return ids
+def household_device_ids(db: Session, user: User | None = None) -> list[str]:
+    """Device ids whose data ``user`` may read.
+
+    DATA_SCOPE=household (default): every authenticated user shares all device data.
+    DATA_SCOPE=owner: a user only sees devices registered to them. Calls without a
+    user (cron jobs, public share links) keep the household view.
+    """
+    query = db.query(Device.id)
+    if user is not None and get_settings().data_scope == "owner":
+        query = query.filter(Device.owner_user_id == user.id)
+    return [row[0] for row in query.all()]

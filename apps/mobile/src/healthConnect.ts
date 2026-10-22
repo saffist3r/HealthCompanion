@@ -1,6 +1,10 @@
 import { Linking, Platform } from 'react-native';
 import { toDateKey } from '@health-companion/shared';
-import { getSamsungTodaySteps } from './samsungHealth';
+import {
+  getSamsungActivityForDate,
+  getSamsungTodaySteps,
+  type SamsungWorkout,
+} from './samsungHealth';
 import { getWatchTodaySteps } from './watchSteps';
 
 export type HealthConnectStatus =
@@ -10,18 +14,25 @@ export type HealthConnectStatus =
   | 'denied'
   | 'error';
 
+export type ActivityWorkout = {
+  name: string;
+  durationMin: number;
+  calories?: number;
+};
+
 export type ActivitySnapshot = {
   date: string;
   steps: number;
   steps7d: number;
   recordCountToday: number;
+  activeMinutes?: number;
   caloriesBurned?: number;
   heartRateBpm?: number;
   energyScore?: number;
   energyScoreDate?: string;
   energyScoreNote?: string;
   stepsSource?: 'samsung_health' | 'watch' | 'health_connect';
-  workouts: Array<{ name: string; durationMin: number; calories?: number }>;
+  workouts: ActivityWorkout[];
   sources: string[];
   granted: string[];
   warning?: string;
@@ -50,6 +61,48 @@ function rangeEndingNow(daysBack: number) {
     startTime: start.toISOString(),
     endTime: end.toISOString(),
   };
+}
+
+/** Local-calendar day range in absolute Instant ISO strings (handles TZ correctly). */
+function rangeForLocalDate(dateKey: string) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const start = new Date(y, m - 1, d, 0, 0, 0, 0);
+  const end =
+    dateKey === toDateKey(Date.now())
+      ? new Date()
+      : new Date(y, m - 1, d, 23, 59, 59, 999);
+  return {
+    operator: 'between' as const,
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+  };
+}
+
+function workoutMinutes(list: ActivityWorkout[]): number {
+  return list.reduce((sum, w) => sum + (Number(w.durationMin) || 0), 0);
+}
+
+function normalizeSamsungWorkouts(list?: SamsungWorkout[] | null): ActivityWorkout[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((w) => ({
+      name: String(w?.name || 'Workout').trim() || 'Workout',
+      durationMin: Math.max(0, Math.round(Number(w?.durationMin) || 0)),
+      calories:
+        typeof w?.calories === 'number' && Number.isFinite(w.calories) ? w.calories : undefined,
+    }))
+    .filter((w) => w.durationMin > 0);
+}
+
+function pickWorkouts(
+  samsung: ActivityWorkout[],
+  healthConnect: ActivityWorkout[]
+): ActivityWorkout[] {
+  const sMin = workoutMinutes(samsung);
+  const hMin = workoutMinutes(healthConnect);
+  if (sMin >= hMin && samsung.length > 0) return samsung;
+  if (hMin > 0) return healthConnect;
+  return samsung;
 }
 
 export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
@@ -207,10 +260,52 @@ async function aggregateHeartRate(
   }
 }
 
-export async function readTodayActivity(): Promise<ActivitySnapshot> {
-  const date = toDateKey(Date.now());
-  const samsung = await getSamsungTodaySteps();
-  const watch = !samsung?.available ? await getWatchTodaySteps() : null;
+async function readHealthConnectWorkouts(
+  sdk: NonNullable<typeof HealthConnect>,
+  timeRangeFilter: { operator: 'between'; startTime: string; endTime: string }
+): Promise<ActivityWorkout[]> {
+  const workouts: ActivityWorkout[] = [];
+  try {
+    let pageToken: string | undefined;
+    do {
+      const page = (await sdk.readRecords('ExerciseSession', {
+        timeRangeFilter,
+        pageSize: 100,
+        pageToken,
+      })) as {
+        records?: Array<{
+          exerciseType?: number;
+          title?: string;
+          startTime: string;
+          endTime: string;
+        }>;
+        pageToken?: string;
+      };
+      for (const s of page.records || []) {
+        const durationMin = Math.max(
+          1,
+          Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000)
+        );
+        workouts.push({
+          name: (s.title || `Workout ${s.exerciseType ?? ''}`).trim() || 'Workout',
+          durationMin,
+        });
+      }
+      pageToken = page.pageToken;
+    } while (pageToken);
+  } catch {
+    /* optional */
+  }
+  return workouts;
+}
+
+export async function readActivityForDate(dateKey: string): Promise<ActivitySnapshot> {
+  const date = dateKey;
+  const isToday = date === toDateKey(Date.now());
+  const samsung = isToday
+    ? await getSamsungTodaySteps()
+    : await getSamsungActivityForDate(date);
+  const watch = isToday && !samsung?.available ? await getWatchTodaySteps() : null;
 
   let steps = 0;
   let stepsSource: ActivitySnapshot['stepsSource'];
@@ -233,6 +328,11 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
       : undefined;
   const energyScoreDate = samsung?.energyScoreDate;
   const energyScoreNote = samsung?.energyScoreNote;
+  const samsungWorkouts = normalizeSamsungWorkouts(samsung?.workouts);
+  const samsungActive =
+    typeof samsung?.activeMinutes === 'number' && samsung.activeMinutes > 0
+      ? Math.round(samsung.activeMinutes)
+      : workoutMinutes(samsungWorkouts) || undefined;
 
   const sdk = await loadSdk();
   if (!sdk) {
@@ -245,13 +345,14 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
       steps,
       steps7d: 0,
       recordCountToday: 0,
+      activeMinutes: samsungActive,
       energyScore,
       energyScoreDate,
       energyScoreNote,
       caloriesBurned:
         typeof samsung?.caloriesBurned === 'number' ? samsung.caloriesBurned : undefined,
       stepsSource,
-      workouts: [],
+      workouts: samsungWorkouts,
       sources,
       granted: [],
       warning,
@@ -259,7 +360,7 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
   }
 
   await sdk.initialize();
-  const today = rangeEndingNow(1);
+  const dayRange = rangeForLocalDate(date);
   const week = rangeEndingNow(7);
   const granted = await grantedLabels(sdk);
 
@@ -267,22 +368,28 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
   let recordCountToday = 0;
 
   try {
-    const [todayAgg, weekAgg, todayRecords] = await Promise.all([
-      aggregateSteps(sdk, today),
-      aggregateSteps(sdk, week),
-      countStepRecords(sdk, today),
-    ]);
-    steps7d = weekAgg.steps;
-    recordCountToday = todayRecords.count;
-    const hcSteps = todayAgg.steps || todayRecords.total;
-    const hcSources = [...new Set([...todayAgg.sources, ...todayRecords.sources, ...weekAgg.sources])];
+    const dayAgg = await aggregateSteps(sdk, dayRange);
+    const dayRecords = await countStepRecords(sdk, dayRange);
+    recordCountToday = dayRecords.count;
+    if (isToday) {
+      const weekAgg = await aggregateSteps(sdk, week);
+      steps7d = weekAgg.steps;
+    }
+    const hcSteps = dayAgg.steps || dayRecords.total;
+    const hcSources = [...new Set([...dayAgg.sources, ...dayRecords.sources])];
 
     if (!stepsSource && hcSteps > 0) {
       steps = hcSteps;
       stepsSource = 'health_connect';
       sources = hcSources;
     } else if (stepsSource) {
-      sources = [...new Set([...sources, ...hcSources])];
+      // Prefer the higher of Samsung vs HC for the same day (HC can lag; Samsung can under-count).
+      if (hcSteps > steps) {
+        steps = hcSteps;
+        sources = [...new Set([...sources, ...hcSources, 'health_connect_higher'])];
+      } else {
+        sources = [...new Set([...sources, ...hcSources])];
+      }
     } else {
       sources = hcSources;
     }
@@ -295,47 +402,28 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
       'No steps yet. Tap Connect Samsung Health (enable Developer mode in Samsung Health if needed).';
   }
 
-  const [hcCalories, heartRateBpm] = await Promise.all([
-    aggregateActiveCalories(sdk, today),
-    aggregateHeartRate(sdk, today),
+  const [hcCalories, heartRateBpm, hcWorkouts] = await Promise.all([
+    aggregateActiveCalories(sdk, dayRange),
+    aggregateHeartRate(sdk, dayRange),
+    readHealthConnectWorkouts(sdk, dayRange),
   ]);
   const caloriesBurned =
     typeof samsung?.caloriesBurned === 'number' && Number.isFinite(samsung.caloriesBurned)
-      ? samsung.caloriesBurned
+      ? Math.max(samsung.caloriesBurned, hcCalories || 0)
       : hcCalories;
 
-  const workouts: Array<{ name: string; durationMin: number; calories?: number }> = [];
-  try {
-    const sessions = (await sdk.readRecords('ExerciseSession', {
-      timeRangeFilter: today,
-      pageSize: 100,
-    })) as {
-      records?: Array<{
-        exerciseType?: number;
-        title?: string;
-        startTime: string;
-        endTime: string;
-      }>;
-    };
-    for (const s of sessions.records || []) {
-      const durationMin = Math.max(
-        1,
-        Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000)
-      );
-      workouts.push({
-        name: s.title || `Workout ${s.exerciseType ?? ''}`.trim(),
-        durationMin,
-      });
-    }
-  } catch {
-    /* optional */
-  }
+  const workouts = pickWorkouts(samsungWorkouts, hcWorkouts);
+  const activeMinutes =
+    samsungActive && samsungActive >= workoutMinutes(workouts)
+      ? samsungActive
+      : workoutMinutes(workouts) || undefined;
 
   return {
     date,
     steps,
     steps7d,
     recordCountToday,
+    activeMinutes,
     caloriesBurned,
     heartRateBpm,
     energyScore,
@@ -347,4 +435,8 @@ export async function readTodayActivity(): Promise<ActivitySnapshot> {
     granted,
     warning,
   };
+}
+
+export async function readTodayActivity(): Promise<ActivitySnapshot> {
+  return readActivityForDate(toDateKey(Date.now()));
 }

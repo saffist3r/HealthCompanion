@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, tests, migrations)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hc
+          POSTGRES_PASSWORD: hc
+          POSTGRES_DB: hc
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hc" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+      - name: Migrations apply on Postgres and match the models
+        env:
+          DATABASE_URL: postgresql://hc:hc@localhost:5432/hc
+        run: |
+          alembic upgrade head
+          alembic check
+
+  web:
+    name: Web (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  mobile:
+    name: Mobile (typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build -w @health-companion/shared
+      - run: npx patch-package
+      - run: npx tsc --noEmit -p apps/mobile
+
+  versions:
+    name: Versions in sync with VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/sync-version.mjs --check
+
+  images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Backend image (repo-root context)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          load: true
+          tags: hc-backend:ci
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          load: true
+          tags: hc-frontend:ci
+      - name: Backend container starts as non-root and serves /api/health
+        run: |
+          docker run -d --name api -p 8000:8000 \
+            -e DATABASE_URL=sqlite:////tmp/ci.db -e JWT_SECRET=$(openssl rand -hex 32) hc-backend:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/api/health && break; sleep 1; done
+          curl -fs localhost:8000/api/health
+          test "$(docker exec api id -u)" = "10001"
+      - name: Frontend nginx config is valid
+        run: docker run --rm --add-host backend:127.0.0.1 hc-frontend:ci nginx -t
+      - if: failure()
+        run: docker logs api || true

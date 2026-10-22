@@ -10,7 +10,6 @@ import {
   useColorScheme,
   ActivityIndicator,
   Alert,
-  Share,
   type ImageSourcePropType,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -158,18 +157,8 @@ export default function DashboardScreen() {
   const overnight = data?.overnight;
   const deviceCare = data?.deviceCare;
   const plotTwists: string[] = data?.plotTwists || [];
-  const directorsCut: string | undefined = data?.directorsCut;
   const hypoEvents: any[] = data?.todayHypoEvents || [];
   const hyperEvents: any[] = data?.todayHyperEvents || [];
-
-  const shareDirectorsCut = async () => {
-    if (!directorsCut) return;
-    try {
-      await Share.share({ message: directorsCut, title: "Director's cut" });
-    } catch {
-      /* user cancelled */
-    }
-  };
 
   return (
     <View style={t.root}>
@@ -286,11 +275,6 @@ export default function DashboardScreen() {
                     </Text>
                   ))}
                 </View>
-              ) : null}
-              {directorsCut ? (
-                <TouchableOpacity style={t.shareBtn} onPress={shareDirectorsCut}>
-                  <Text style={t.shareBtnText}>Share director&apos;s cut</Text>
-                </TouchableOpacity>
               ) : null}
               {(hypoEvents.length > 0 || hyperEvents.length > 0) && (
                 <View style={{ marginTop: 8 }}>
@@ -620,14 +604,5 @@ const styles = (isDark: boolean) => {
     },
     plotHypo: { color: isDark ? '#fca5a5' : '#b91c1c' },
     plotHyper: { color: isDark ? '#fdba74' : '#c2410c' },
-    shareBtn: {
-      marginTop: 12,
-      alignSelf: 'flex-start',
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: HC.radius.pill,
-      backgroundColor: HC.teal,
-    },
-    shareBtnText: { fontWeight: '700', color: '#fff', fontSize: 13 },
   });
 };

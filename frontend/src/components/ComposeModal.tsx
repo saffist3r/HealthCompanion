@@ -172,6 +172,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
   const [weightKg, setWeightKg] = useState('');
 
   const [injuryMode, setInjuryMode] = useState<InjuryMode>('choose');
+  const [injuryFlash, setInjuryFlash] = useState<string | null>(null);
   const [openInjuries, setOpenInjuries] = useState<Injury[]>([]);
   const [injuryType, setInjuryType] = useState<InjuryType>('sprain');
   const [bodyArea, setBodyArea] = useState<InjuryBodyArea>('knee_right');
@@ -274,6 +275,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
     setDate(todayKey());
     setError(null);
     setBusy(false);
+    setInjuryFlash(null);
     setCarbs('');
     setProtein('');
     setFat('');
@@ -326,10 +328,27 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
     onClose();
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const resetNewInjuryFields = () => {
+    setInjuryType('sprain');
+    setBodyArea('knee_right');
+    setBodyAreaOther('');
+    setInjuryTitle('');
+    setInjuryExercises('');
+    setInjuryNotes('');
+    setActivityTags(['sport']);
+  };
+
+  const resetPainFields = () => {
+    setPainScore(3);
+    setPainActivity('sport');
+    setPainNotes('');
+  };
+
+  const submit = async (e?: FormEvent | null, mode: 'another' | 'done' = 'done') => {
+    e?.preventDefault();
     setBusy(true);
     setError(null);
+    setInjuryFlash(null);
     try {
       if (kind === 'meal') {
         const c = Number(carbs) || 0;
@@ -429,6 +448,15 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
           exerciseNotes: injuryExercises.trim() || undefined,
           notes: injuryNotes.trim() || undefined,
         });
+        onSaved?.();
+        if (mode === 'another') {
+          resetNewInjuryFields();
+          const rows = await fetchInjuries('open').catch(() => openInjuries);
+          setOpenInjuries(rows);
+          setInjuryFlash(t('compose.injurySaved'));
+          setBusy(false);
+          return;
+        }
       } else if (kind === 'injury' && injuryMode === 'pain') {
         if (!painInjuryId) {
           setError(t('compose.errInjury'));
@@ -447,6 +475,13 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
           relatedActivityKind: painActivity || undefined,
           notes: painNotes.trim() || undefined,
         });
+        onSaved?.();
+        if (mode === 'another') {
+          resetPainFields();
+          setInjuryFlash(t('compose.painSaved'));
+          setBusy(false);
+          return;
+        }
       } else if (kind === 'injury') {
         setBusy(false);
         return;
@@ -514,7 +549,14 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
               {t('compose.back')}
             </button>
             <div className="compose-grid" style={{ marginTop: 12 }}>
-              <button type="button" className="compose-type" onClick={() => setInjuryMode('new')}>
+              <button
+                type="button"
+                className="compose-type"
+                onClick={() => {
+                  setInjuryFlash(null);
+                  setInjuryMode('new');
+                }}
+              >
                 <strong>{t('compose.newInjury')}</strong>
                 <span className="muted">{t('compose.newInjuryBlurb')}</span>
               </button>
@@ -522,6 +564,7 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
                 type="button"
                 className="compose-type"
                 onClick={() => {
+                  setInjuryFlash(null);
                   setInjuryMode('pain');
                   if (openInjuries[0]) setPainInjuryId(openInjuries[0].id);
                 }}
@@ -532,7 +575,17 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             </div>
           </div>
         ) : (
-          <form className="form" onSubmit={submit}>
+          <form
+            className="form"
+            onSubmit={(e) =>
+              submit(
+                e,
+                kind === 'injury' && (injuryMode === 'new' || injuryMode === 'pain')
+                  ? 'another'
+                  : 'done'
+              )
+            }
+          >
             <button
               type="button"
               className="btn ghost"
@@ -1146,11 +1199,28 @@ export default function ComposeModal({ open, onClose, onSaved }: Props) {
             ) : null}
 
             {error ? <p className="error">{error}</p> : null}
+            {injuryFlash ? <p className="compose-flash-ok">{injuryFlash}</p> : null}
             {!(kind === 'injury' && injuryMode === 'pain' && openInjuries.length === 0) ? (
               <div className="form-actions">
-                <button type="submit" className="btn primary" disabled={busy}>
-                  {busy ? t('common.saving') : t('common.save')}
-                </button>
+                {kind === 'injury' && (injuryMode === 'new' || injuryMode === 'pain') ? (
+                  <>
+                    <button type="submit" className="btn primary" disabled={busy}>
+                      {busy ? t('common.saving') : t('compose.saveAddAnother')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={busy}
+                      onClick={() => void submit(null, 'done')}
+                    >
+                      {t('compose.saveDone')}
+                    </button>
+                  </>
+                ) : (
+                  <button type="submit" className="btn primary" disabled={busy}>
+                    {busy ? t('common.saving') : t('common.save')}
+                  </button>
+                )}
               </div>
             ) : null}
           </form>

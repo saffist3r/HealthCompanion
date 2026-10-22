@@ -10,7 +10,7 @@ spec:
     app: frontend
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: http
       name: http
 ---
 apiVersion: apps/v1
@@ -37,8 +37,14 @@ spec:
           image: registry.saffist3r.xyz/healthcompanion-frontend:VERSION_TAG
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 25m

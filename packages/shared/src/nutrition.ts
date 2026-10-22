@@ -33,13 +33,50 @@ export interface FoodItem {
   confidence?: number; // 0–1 from AI
 }
 
+/** Role for a meal photo (main plate, dessert, drink, etc.). */
+export type MealPhotoRole = 'main' | 'side' | 'dessert' | 'drink' | 'other';
+
+export const MEAL_PHOTO_ROLE_OPTIONS: Array<{ id: MealPhotoRole; label: string }> = [
+  { id: 'main', label: 'Main' },
+  { id: 'side', label: 'Side' },
+  { id: 'dessert', label: 'Dessert' },
+  { id: 'drink', label: 'Drink' },
+  { id: 'other', label: 'Other' },
+];
+
+export function mealPhotoRoleLabel(role: string | null | undefined): string {
+  const found = MEAL_PHOTO_ROLE_OPTIONS.find((o) => o.id === role);
+  if (found) return found.label;
+  if (!role) return 'Photo';
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+export interface MealPhoto {
+  /** Relative upload URL, e.g. `/uploads/….jpg` */
+  url: string;
+  /** Filename stored on the server (create/update payloads). */
+  path?: string;
+  role?: MealPhotoRole;
+  label?: string;
+}
+
+/** Payload entry when creating/updating a meal with multiple photos. */
+export interface MealPhotoInput {
+  path: string;
+  role?: MealPhotoRole;
+  label?: string;
+}
+
 export interface MealEntry {
   id: string;
   deviceId: string;
   createdAt: number;
   eatenAt: number;
   mealType: MealType;
+  /** Primary / thumbnail photo (usually the main dish). */
   photoUrl?: string;
+  /** All meal photos (main, dessert, etc.). Empty or omitted for older meals. */
+  photos?: MealPhoto[];
   items: FoodItem[];
   macros: Macros;
   notes?: string;

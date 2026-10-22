@@ -22,6 +22,11 @@ export function getApiBase(): string {
   );
 }
 
+/** Origin + `/api`: every backend route lives under this prefix. */
+export function getApiRoot(): string {
+  return `${getApiBase().replace(/\/$/, '')}/api`;
+}
+
 export function setApiBase(url: string) {
   localStorage.setItem(API_KEY, url.replace(/\/$/, ''));
 }
@@ -69,7 +74,7 @@ export function isLoggedIn(): boolean {
 export const api = axios.create();
 
 api.interceptors.request.use((config) => {
-  config.baseURL = getApiBase();
+  config.baseURL = getApiRoot();
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   // Device id still used for phone-originated writes; web reads use JWT only
@@ -327,6 +332,78 @@ export type LifeAssessment = {
 export async function generateLifeAssessment(days = 7) {
   const { data } = await api.post('/reports/life-assessment', null, { params: { days } });
   return data as LifeAssessment;
+}
+
+export type UnderstandingSeverity = 'high' | 'medium' | 'low';
+export type UnderstandingCategory =
+  | 'estimation'
+  | 'timing'
+  | 'stress'
+  | 'logging'
+  | 'glucose'
+  | 'lifestyle';
+
+export type UnderstandingFinding = {
+  id: string;
+  severity: UnderstandingSeverity;
+  category: UnderstandingCategory;
+  title: string;
+  detail: string;
+  evidence: string[];
+  exampleIds?: string[];
+};
+
+export type MedicalCheckStatus = 'established' | 'plausible' | 'weak' | 'not_supported';
+
+export type UnderstandingScienceSource = {
+  title: string;
+  url: string;
+  publisher?: string;
+};
+
+export type UnderstandingMedicalCheck = {
+  patternId: string;
+  claim?: string;
+  category?: string;
+  observed?: Record<string, unknown>;
+  status: MedicalCheckStatus;
+  confidence: 'high' | 'medium' | 'low';
+  title: string;
+  explanation: string;
+  scienceBrief?: string;
+  sources?: UnderstandingScienceSource[];
+  caveat?: string;
+};
+
+export type UnderstandingAnalysis = {
+  headline: string;
+  executiveSummary: string;
+  findings: UnderstandingFinding[];
+  medicalChecks?: UnderstandingMedicalCheck[];
+  correlations: string[];
+  whatToWatch: string[];
+  dataGaps: string[];
+  source: 'gemini' | 'fallback';
+  locale?: string;
+  note?: string;
+};
+
+export type UnderstandingReport = {
+  periodStart: string;
+  periodEnd: string;
+  dayCount: number;
+  totals?: Record<string, unknown>;
+  signals: Record<string, unknown>;
+  analysis: UnderstandingAnalysis;
+  generatedAt?: number;
+};
+
+export async function generateUnderstanding(days = 14) {
+  const { data } = await api.post('/reports/understanding', null, {
+    params: { days },
+    timeout: 300_000,
+  });
+  return data as UnderstandingReport;
 }
 
 export async function downloadRagArchive(format: 'json' | 'zip' = 'zip', limit = 200) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   Platform,
   TouchableOpacity,
   useColorScheme,
@@ -27,13 +28,12 @@ import {
   syncAllNudges,
   checkMissedGlucose,
 } from './src/pushNudges';
-import { navigationRef, openNudgeScreen } from './src/navigation';
+import { navigateTo, navigationRef, openNudgeScreen, openPainLog } from './src/navigation';
 import DashboardScreen from './src/screens/DashboardScreen';
 import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
 import CaptureMealScreen from './src/screens/CaptureMealScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
-import LifeReviewScreen from './src/screens/LifeReviewScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
 import MentalScreen from './src/screens/MentalScreen';
 import SettingsHubScreen from './src/screens/SettingsHubScreen';
@@ -41,8 +41,10 @@ import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RemindersSettingsScreen from './src/screens/RemindersSettingsScreen';
 import MorningLogScreen from './src/screens/MorningLogScreen';
+import PainLogScreen from './src/screens/PainLogScreen';
+import Reb3iLiveScreen from './src/screens/Reb3iLiveScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import AddEntrySheet from './src/components/AddEntrySheet';
+import AddEntrySheet, { type ComposeLaunch } from './src/components/AddEntrySheet';
 
 const Tab = createBottomTabNavigator();
 const MealsStack = createNativeStackNavigator();
@@ -100,11 +102,6 @@ function ReportsStackScreen() {
         component={ReportsScreen}
         options={{ headerShown: false }}
       />
-      <ReportsStack.Screen
-        name="LifeReview"
-        component={LifeReviewScreen}
-        options={{ title: 'Life review' }}
-      />
     </ReportsStack.Navigator>
   );
 }
@@ -146,11 +143,33 @@ function MainTabs() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeLaunch, setComposeLaunch] = useState<ComposeLaunch | null>(null);
   const bottomInset =
     Platform.OS === 'android'
       ? Math.max(insets.bottom, ANDROID_NAV_CLEARANCE)
       : Math.max(insets.bottom, 8);
   const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + bottomInset;
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('open-compose', (payload?: ComposeLaunch) => {
+      if (payload?.kind === 'injury' && payload.injuryMode === 'pain') {
+        openPainLog({ injuryId: payload.painInjuryId });
+        return;
+      }
+      setComposeLaunch(payload || null);
+      setComposeOpen(true);
+    });
+    const painSub = DeviceEventEmitter.addListener(
+      'open-pain-log',
+      (payload?: { injuryId?: string }) => {
+        openPainLog(payload);
+      }
+    );
+    return () => {
+      sub.remove();
+      painSub.remove();
+    };
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -161,7 +180,6 @@ function MainTabs() {
           headerShown: false,
           tabBarActiveTintColor: '#0d9488',
           tabBarInactiveTintColor: isDark ? '#8b949e' : '#9ca3af',
-          tabBarShowIcon: false,
           tabBarIconStyle: { display: 'none', height: 0, width: 0 },
           tabBarLabelPosition: 'below-icon',
           tabBarItemStyle: {
@@ -255,17 +273,24 @@ function MainTabs() {
           shadowOffset: { width: 0, height: 4 },
           elevation: 6,
         }}
-        onPress={() => setComposeOpen(true)}
+        onPress={() => {
+          setComposeLaunch(null);
+          setComposeOpen(true);
+        }}
       >
         <Text style={{ color: '#fff', fontSize: 32, fontWeight: '300', marginTop: -2 }}>+</Text>
       </TouchableOpacity>
 
       <AddEntrySheet
         visible={composeOpen}
-        onClose={() => setComposeOpen(false)}
+        launch={composeLaunch}
+        onClose={() => {
+          setComposeOpen(false);
+          setComposeLaunch(null);
+        }}
         onCaptureMeal={() => {
           if (navigationRef.isReady()) {
-            navigationRef.navigate('Meals' as never, { screen: 'CaptureMeal' } as never);
+            navigateTo('Meals', { screen: 'CaptureMeal' });
           }
         }}
       />
@@ -329,6 +354,16 @@ function SignedInRoot() {
         name="MorningLog"
         component={MorningLogScreen}
         options={{ title: 'Morning log', presentation: 'modal' }}
+      />
+      <RootStack.Screen
+        name="PainLog"
+        component={PainLogScreen}
+        options={{ title: 'Pain check-in', presentation: 'modal' }}
+      />
+      <RootStack.Screen
+        name="Reb3iLive"
+        component={Reb3iLiveScreen}
+        options={{ title: 'Talk with Reb3i', presentation: 'modal' }}
       />
     </RootStack.Navigator>
   );

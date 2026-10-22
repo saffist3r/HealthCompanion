@@ -1,0 +1,51 @@
+# AI product manager (agents-hub agency). Started only by n8n ("Agency PM (hourly)"), or by hand from the Actions tab.
+# It files up to MAX_TICKETS precise tickets labelled `pm`; n8n adds them to the Agency board's Backlog and emails them.
+# It never builds anything. Prompt: .github/agency/pm.md (read from the default branch).
+name: Claude PM
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_tickets:
+        description: "Most tickets to file this run"
+        required: false
+        default: "5"
+      focus:
+        description: "Optional focus (e.g. 'onboarding', 'security')"
+        required: false
+        default: ""
+
+concurrency:
+  group: claude-pm
+  cancel-in-progress: false
+
+jobs:
+  pm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: { contents: read, issues: write, pull-requests: read, id-token: write }
+    env:
+      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 100 }
+      - id: role
+        if: env.HAS_KEY == 'true'
+        run: |
+          git fetch -q origin "$DEFAULT_BRANCH"
+          { echo 'prompt<<AGENCY_EOF'; git show "origin/$DEFAULT_BRANCH:.github/agency/pm.md"; echo 'AGENCY_EOF'; } >> "$GITHUB_OUTPUT"
+      - if: env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          prompt: |
+            REPO: ${{ github.repository }} · TODAY: run `date -u +%F` · MAX_TICKETS=${{ github.event.inputs.max_tickets || '5' }}
+            FOCUS FROM SAFWEN: ${{ github.event.inputs.focus || 'none' }}
+
+            ${{ steps.role.outputs.prompt }}
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 80
+            --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(date:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh search issues:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh label list:*)"

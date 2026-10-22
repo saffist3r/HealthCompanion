@@ -106,7 +106,6 @@ export default function DashboardPage() {
   const [glycemiaEvents, setGlycemiaEvents] = useState<GlycemiaChartEvent[]>([]);
   const [showEvents, setShowEvents] = useState(true);
   const [glycemiaLoading, setGlycemiaLoading] = useState(false);
-  const [directorsCopied, setDirectorsCopied] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -257,20 +256,8 @@ export default function DashboardPage() {
   const mealLogStreak = data.mealLogStreak ?? 0;
   const deviceCare = data.deviceCare || {};
   const plotTwists = (data.plotTwists || []).slice(0, 3);
-  const directorsCut = data.directorsCut as string | undefined;
   const todayHypos = (data.todayHypoEvents || []).slice(0, 3);
   const todayHypers = (data.todayHyperEvents || []).slice(0, 3);
-
-  const copyDirectorsCut = async () => {
-    if (!directorsCut) return;
-    try {
-      await navigator.clipboard.writeText(directorsCut);
-      setDirectorsCopied(true);
-      window.setTimeout(() => setDirectorsCopied(false), 2000);
-    } catch {
-      /* fallback: user can select manually */
-    }
-  };
 
   return (
     <div>
@@ -376,13 +363,6 @@ export default function DashboardPage() {
       <Panel
         title="Diabetes plot"
         subtitle="Streaks, overnight drama, and today's plot twists"
-        action={
-          directorsCut ? (
-            <button type="button" className="btn secondary compact" onClick={copyDirectorsCut}>
-              {directorsCopied ? 'Copied!' : "Copy director's cut"}
-            </button>
-          ) : null
-        }
       >
         <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 12 }}>
           <StatCard

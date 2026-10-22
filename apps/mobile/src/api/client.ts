@@ -34,8 +34,9 @@ async function headers(json = true): Promise<Record<string, string>> {
   return h;
 }
 
+/** Every backend route lives under `/api` on the configured origin. */
 async function base(): Promise<string> {
-  return getApiBaseUrl();
+  return `${await getApiBaseUrl()}/api`;
 }
 
 async function readError(res: Response): Promise<string> {
@@ -70,7 +71,6 @@ async function ensureOk(res: Response): Promise<any> {
 export async function apiHealth(): Promise<{
   ok: boolean;
   geminiConfigured?: boolean;
-  openaiConfigured?: boolean;
   aiProvider?: string;
   auth?: string;
 }> {
@@ -102,12 +102,29 @@ export async function analyzeMealPhoto(params: {
   return ensureOk(res);
 }
 
+/** Upload an extra meal photo without AI analysis. */
+export async function uploadMealPhoto(uri: string): Promise<{ photoPath: string; photoUrl: string }> {
+  const form = new FormData();
+  form.append('photo', {
+    uri,
+    name: 'meal.jpg',
+    type: 'image/jpeg',
+  } as unknown as Blob);
+  const res = await fetch(`${await base()}/meals/upload-photo`, {
+    method: 'POST',
+    headers: await headers(false),
+    body: form,
+  });
+  return ensureOk(res);
+}
+
 export async function saveMeal(input: {
   eatenAt?: number;
   mealType: MealType;
   items: FoodItem[];
   macros: Macros;
   photoPath?: string;
+  photos?: Array<{ path: string; role?: string; label?: string }>;
   notes?: string;
   aiSummary?: string;
   carbEstimateNote?: string;
@@ -786,5 +803,6 @@ export async function deleteCaffeineLog(id: string) {
 export async function absoluteUploadUrl(photoUrl?: string): Promise<string | undefined> {
   if (!photoUrl) return undefined;
   if (photoUrl.startsWith('http')) return photoUrl;
-  return `${await base()}${photoUrl}`;
+  // photoUrl is already rooted at /api (signed /api/uploads/… link)
+  return `${await getApiBaseUrl()}${photoUrl}`;
 }

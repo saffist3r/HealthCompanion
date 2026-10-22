@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -14,8 +14,6 @@ import {
   Pressable,
   DeviceEventEmitter,
   Platform,
-  PanResponder,
-  type LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
@@ -59,22 +57,16 @@ import {
   createStressLog,
   fetchDayCheckIn,
   fetchInjuries,
-  logInjuryPain,
   logWeight,
   upsertDayCheckIn,
 } from '../api/client';
 import { getAccessToken } from '../api/auth';
 import { AppIcons, careKindIcon, sportResultIcon } from '../ui/appIcons';
 import { onCareLogged, onMealLogged, onSportLogged } from '../pushNudges';
+import { ScoreSlider } from './PainScoreControls';
 
 export type EntryKind = 'meal' | 'care' | 'sport' | 'weight' | 'injury' | 'checkin' | 'caffeine' | 'stress';
-type InjuryMode = 'choose' | 'new' | 'pain';
-
-function painColor(score: number) {
-  if (score >= 7) return '#e11d48';
-  if (score >= 4) return '#f59e0b';
-  return '#10b981';
-}
+type InjuryMode = 'choose' | 'new';
 
 function stressColor(score: number) {
   if (score < 40) return '#e11d48';
@@ -86,151 +78,6 @@ function stressLevelFromScore(score: number): StressLevel {
   if (score >= 70) return 'calm';
   if (score >= 40) return 'ok';
   return 'high';
-}
-
-function ScoreSlider({
-  value,
-  onChange,
-  isDark,
-  label,
-  max,
-  colorFor,
-  lowLabel,
-  highLabel,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  isDark: boolean;
-  label: string;
-  max: number;
-  colorFor: (n: number) => string;
-  lowLabel: string;
-  highLabel: string;
-}) {
-  const [trackWidth, setTrackWidth] = useState(1);
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const widthRef = useRef(1);
-
-  const scoreFromX = (x: number) => {
-    const w = widthRef.current || 1;
-    return Math.round(Math.max(0, Math.min(max, (x / w) * max)));
-  };
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (e) => onChangeRef.current(scoreFromX(e.nativeEvent.locationX)),
-        onPanResponderMove: (e) => onChangeRef.current(scoreFromX(e.nativeEvent.locationX)),
-      }),
-    [max]
-  );
-
-  const color = colorFor(value);
-  const thumbLeft = Math.max(0, Math.min(trackWidth - 28, (value / max) * trackWidth - 14));
-
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          marginBottom: 8,
-        }}
-      >
-        <Text style={{ color: isDark ? '#8b949e' : '#666', fontSize: 13, fontWeight: '600' }}>
-          {label}
-        </Text>
-        <Text style={{ color, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
-          {value}
-          <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#8b949e' : '#9ca3af' }}>
-            {' '}
-            / {max}
-          </Text>
-        </Text>
-      </View>
-      <View
-        onLayout={(e: LayoutChangeEvent) => {
-          const w = e.nativeEvent.layout.width;
-          widthRef.current = w;
-          setTrackWidth(w);
-        }}
-        {...pan.panHandlers}
-        style={{
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: isDark ? '#21262d' : '#e5e7eb',
-          justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-        accessibilityRole="adjustable"
-        accessibilityLabel={label}
-        accessibilityValue={{ min: 0, max, now: value }}
-      >
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: (value / max) * trackWidth,
-            backgroundColor: color,
-            opacity: 0.85,
-            borderRadius: 18,
-          }}
-        />
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: thumbLeft,
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: '#fff',
-            borderWidth: 2,
-            borderColor: color,
-            top: 4,
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowRadius: 3,
-            elevation: 2,
-          }}
-        />
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>{lowLabel}</Text>
-        <Text style={{ color: isDark ? '#6e7681' : '#9ca3af', fontSize: 11 }}>{highLabel}</Text>
-      </View>
-    </View>
-  );
-}
-
-function PainScoreSlider({
-  value,
-  onChange,
-  isDark,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  isDark: boolean;
-}) {
-  return (
-    <ScoreSlider
-      value={value}
-      onChange={onChange}
-      isDark={isDark}
-      label="Pain"
-      max={10}
-      colorFor={painColor}
-      lowLabel="None"
-      highLabel="Worst"
-    />
-  );
 }
 
 function StressScoreSlider({
@@ -267,11 +114,19 @@ const CARE_KIND_OPTIONS: Array<{ kind: CareVisitKind; label: string }> = [
   { kind: 'other', label: 'Other' },
 ];
 
+export type ComposeLaunch = {
+  kind?: EntryKind;
+  /** @deprecated pain opens full-screen PainLog */
+  injuryMode?: InjuryMode | 'pain';
+  painInjuryId?: string;
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSaved?: () => void;
   onCaptureMeal?: () => void;
+  launch?: ComposeLaunch | null;
 };
 
 function shiftDate(iso: string, days: number): string {
@@ -280,7 +135,7 @@ function shiftDate(iso: string, days: number): string {
   return toDateKey(d.getTime());
 }
 
-export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal }: Props) {
+export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal, launch }: Props) {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const bottomPad = 28 + (Platform.OS === 'android' ? Math.max(insets.bottom, 48) : Math.max(insets.bottom, 8));
@@ -312,10 +167,7 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
   const [injuryExercises, setInjuryExercises] = useState('');
   const [injuryNotes, setInjuryNotes] = useState('');
   const [activityTags, setActivityTags] = useState<InjuryActivityKind[]>(['sport']);
-  const [painInjuryId, setPainInjuryId] = useState<string | null>(null);
-  const [painScore, setPainScore] = useState(4);
-  const [painActivity, setPainActivity] = useState<InjuryActivityKind | ''>('sport');
-  const [painNotes, setPainNotes] = useState('');
+  const [injuryFlash, setInjuryFlash] = useState<string | null>(null);
   const [mood, setMood] = useState<MoodLevel>('ok');
   const [wakeQuality, setWakeQuality] = useState<WakeQuality>('ok');
   const [focus, setFocus] = useState<FocusLevel>('ok');
@@ -358,10 +210,7 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
       setInjuryExercises('');
       setInjuryNotes('');
       setActivityTags(['sport']);
-      setPainInjuryId(null);
-      setPainScore(4);
-      setPainActivity('sport');
-      setPainNotes('');
+      setInjuryFlash(null);
       setMood('ok');
       setWakeQuality('ok');
       setFocus('ok');
@@ -379,10 +228,22 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
       setStressScore(55);
       setStressNotes('');
       fetchInjuries('open')
-        .then((list) => setOpenInjuries(list))
+        .then((list) => {
+          setOpenInjuries(list);
+          if (launch?.kind === 'injury' && launch.injuryMode === 'pain') {
+            // Handled by MainTabs → PainLog; keep sheet on choose if still shown.
+            setKind('injury');
+            setInjuryMode('choose');
+          } else if (launch?.kind === 'injury') {
+            setKind('injury');
+            setInjuryMode(launch.injuryMode === 'new' ? 'new' : 'choose');
+          } else if (launch?.kind) {
+            setKind(launch.kind);
+          }
+        })
         .catch(() => setOpenInjuries([]));
     }
-  }, [visible]);
+  }, [visible, launch]);
 
   useEffect(() => {
     if (!visible || kind !== 'checkin') return;
@@ -428,6 +289,64 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
     DeviceEventEmitter.emit('entry-saved');
     onSaved?.();
     onClose();
+  };
+
+  const notifySaved = () => {
+    DeviceEventEmitter.emit('entry-saved');
+    onSaved?.();
+  };
+
+  const resetNewInjuryFields = () => {
+    setInjuryType('sprain');
+    setBodyArea('knee_right');
+    setBodyAreaOther('');
+    setInjuryTitle('');
+    setInjuryExercises('');
+    setInjuryNotes('');
+    setActivityTags(['sport']);
+  };
+
+  const openPainCheckIn = () => {
+    onClose();
+    setTimeout(() => {
+      DeviceEventEmitter.emit('open-pain-log', {});
+    }, 80);
+  };
+
+  const saveInjury = async (mode: 'another' | 'done' = 'another') => {
+    if (!(await requireAuth())) return;
+    if (bodyArea === 'other' && !bodyAreaOther.trim()) {
+      Alert.alert('Body area', 'Describe the body area.');
+      return;
+    }
+    setBusy(true);
+    setInjuryFlash(null);
+    try {
+      await createInjury({
+        title: injuryTitle.trim() || undefined,
+        injuryType,
+        bodyArea,
+        bodyAreaOther: bodyArea === 'other' ? bodyAreaOther.trim() : undefined,
+        startedOn: date,
+        status: 'active',
+        relatedActivityKinds: activityTags,
+        exerciseNotes: injuryExercises.trim() || undefined,
+        notes: injuryNotes.trim() || undefined,
+      });
+      if (mode === 'done') {
+        finish();
+        return;
+      }
+      notifySaved();
+      resetNewInjuryFields();
+      const list = await fetchInjuries('open').catch(() => openInjuries);
+      setOpenInjuries(list);
+      setInjuryFlash('Saved — form cleared for the next injury.');
+    } catch (e) {
+      Alert.alert('Injury', String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveCare = async () => {
@@ -578,60 +497,6 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
     );
   };
 
-  const saveInjury = async () => {
-    if (!(await requireAuth())) return;
-    if (bodyArea === 'other' && !bodyAreaOther.trim()) {
-      Alert.alert('Body area', 'Describe the body area.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await createInjury({
-        title: injuryTitle.trim() || undefined,
-        injuryType,
-        bodyArea,
-        bodyAreaOther: bodyArea === 'other' ? bodyAreaOther.trim() : undefined,
-        startedOn: date,
-        status: 'active',
-        relatedActivityKinds: activityTags,
-        exerciseNotes: injuryExercises.trim() || undefined,
-        notes: injuryNotes.trim() || undefined,
-      });
-      finish();
-    } catch (e) {
-      Alert.alert('Injury', String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const savePain = async () => {
-    if (!(await requireAuth())) return;
-    if (!painInjuryId) {
-      Alert.alert('Injury', 'Pick an injury to log pain against.');
-      return;
-    }
-    const score = Math.round(painScore);
-    if (!Number.isFinite(score) || score < 0 || score > 10) {
-      Alert.alert('Pain', 'Score must be from 0 to 10.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await logInjuryPain(painInjuryId, {
-        date,
-        painScore: score,
-        relatedActivityKind: painActivity || undefined,
-        notes: painNotes.trim() || undefined,
-      });
-      finish();
-    } catch (e) {
-      Alert.alert('Pain', String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const pickMeal = () => {
     onClose();
     onCaptureMeal?.();
@@ -720,20 +585,29 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
                   <Text style={t.back}>← Back</Text>
                 </TouchableOpacity>
                 {injuryMode === 'choose' ? (
-                  <View style={t.typeGrid}>
-                    <TouchableOpacity style={t.typeCard} onPress={() => setInjuryMode('new')}>
-                      <Text style={t.typeLabel}>New injury</Text>
-                      <Text style={t.hint}>Type, area, exercises</Text>
-                    </TouchableOpacity>
+                  <View style={{ gap: 10 }}>
+                    {openInjuries.length > 0 ? (
+                      <TouchableOpacity
+                        style={[t.typeCard, t.painPrimaryCard]}
+                        onPress={openPainCheckIn}
+                      >
+                        <Text style={t.painPrimaryTitle}>Log pain</Text>
+                        <Text style={t.hint}>
+                          {openInjuries.length === 1
+                            ? `Full-screen check-in for ${openInjuries[0].title || openInjuries[0].bodyAreaLabel || 'your injury'}`
+                            : `${openInjuries.length} open injuries — rate them all at once`}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                     <TouchableOpacity
-                      style={t.typeCard}
+                      style={[t.typeCard, t.painChooseCard]}
                       onPress={() => {
-                        setInjuryMode('pain');
-                        if (openInjuries[0]) setPainInjuryId(openInjuries[0].id);
+                        setInjuryFlash(null);
+                        setInjuryMode('new');
                       }}
                     >
-                      <Text style={t.typeLabel}>Log pain</Text>
-                      <Text style={t.hint}>Daily score 0–10</Text>
+                      <Text style={t.typeLabel}>New injury</Text>
+                      <Text style={t.hint}>Type, area, exercises</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -812,73 +686,25 @@ export default function AddEntrySheet({ visible, onClose, onSaved, onCaptureMeal
                       value={injuryNotes}
                       onChangeText={setInjuryNotes}
                     />
-                    <TouchableOpacity style={t.btn} onPress={saveInjury} disabled={busy}>
+                    {injuryFlash ? <Text style={t.flashOk}>{injuryFlash}</Text> : null}
+                    <TouchableOpacity
+                      style={t.btn}
+                      onPress={() => saveInjury('another')}
+                      disabled={busy}
+                    >
                       {busy ? (
                         <ActivityIndicator color="#fff" />
                       ) : (
-                        <Text style={t.btnText}>Save injury</Text>
+                        <Text style={t.btnText}>Save & add another</Text>
                       )}
                     </TouchableOpacity>
-                  </View>
-                ) : null}
-                {injuryMode === 'pain' ? (
-                  <View>
-                    {openInjuries.length === 0 ? (
-                      <Text style={t.hint}>No open injuries. Create one first.</Text>
-                    ) : (
-                      <>
-                        <View style={t.chipRow}>
-                          {openInjuries.map((inj) => (
-                            <TouchableOpacity
-                              key={inj.id}
-                              style={[t.chip, painInjuryId === inj.id && t.chipOn]}
-                              onPress={() => setPainInjuryId(inj.id)}
-                            >
-                              <Text
-                                style={[t.chipText, painInjuryId === inj.id && t.chipTextOn]}
-                              >
-                                {inj.title || inj.bodyAreaLabel || inj.injuryType}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                        <PainScoreSlider value={painScore} onChange={setPainScore} isDark={!!isDark} />
-                        <View style={t.chipRow}>
-                          {INJURY_ACTIVITY_OPTIONS.map((opt) => (
-                            <TouchableOpacity
-                              key={opt.value}
-                              style={[t.chip, painActivity === opt.value && t.chipOn]}
-                              onPress={() =>
-                                setPainActivity((prev) => (prev === opt.value ? '' : opt.value))
-                              }
-                            >
-                              <Text
-                                style={[
-                                  t.chipText,
-                                  painActivity === opt.value && t.chipTextOn,
-                                ]}
-                              >
-                                {opt.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                        <TextInput
-                          style={t.input}
-                          placeholder="Notes (optional)"
-                          placeholderTextColor={isDark ? '#6e7681' : '#9ca3af'}
-                          value={painNotes}
-                          onChangeText={setPainNotes}
-                        />
-                        <TouchableOpacity style={t.btn} onPress={savePain} disabled={busy}>
-                          {busy ? (
-                            <ActivityIndicator color="#fff" />
-                          ) : (
-                            <Text style={t.btnText}>Save pain</Text>
-                          )}
-                        </TouchableOpacity>
-                      </>
-                    )}
+                    <TouchableOpacity
+                      style={t.btnSecondary}
+                      onPress={() => saveInjury('done')}
+                      disabled={busy}
+                    >
+                      <Text style={t.btnSecondaryText}>Save & done</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : null}
               </View>
@@ -1363,6 +1189,67 @@ const styles = (isDark: boolean) =>
       borderWidth: 1,
       borderColor: isDark ? '#21262d' : '#e5e7eb',
     },
+    painPrimaryCard: {
+      width: '100%',
+      alignItems: 'flex-start',
+      gap: 4,
+      backgroundColor: isDark ? '#0f3f3a' : '#ccfbf1',
+      borderColor: isDark ? '#0d9488' : '#5eead4',
+    },
+    painChooseCard: {
+      width: '100%',
+      alignItems: 'flex-start',
+      gap: 4,
+    },
+    painPrimaryTitle: {
+      fontWeight: '800',
+      fontSize: 18,
+      color: isDark ? '#5eead4' : '#0f766e',
+    },
+    sectionLabel: {
+      color: isDark ? '#8b949e' : '#64748b',
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginBottom: 8,
+    },
+    injuryPickCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? '#30363d' : '#e2e8f0',
+      backgroundColor: isDark ? '#0d1117' : '#fff',
+    },
+    injuryPickCardOn: {
+      borderColor: '#0d9488',
+      backgroundColor: isDark ? '#0f3f3a' : '#f0fdfa',
+    },
+    injuryPickTitle: {
+      fontWeight: '700',
+      fontSize: 15,
+      color: isDark ? '#e6edf3' : '#0f172a',
+    },
+    injuryPickTitleOn: { color: isDark ? '#5eead4' : '#0f766e' },
+    injuryPickBadge: {
+      minWidth: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+    },
+    injuryPickBadgeText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    injuryPickMuted: {
+      color: isDark ? '#8b949e' : '#94a3b8',
+      fontWeight: '700',
+      fontSize: 16,
+    },
+    contextToggle: { paddingVertical: 8, marginBottom: 4 },
+    contextToggleText: { color: '#0d9488', fontWeight: '700', fontSize: 14 },
     typeIcon: { width: 48, height: 48, borderRadius: 12 },
     typeLabel: { fontWeight: '600', color: isDark ? '#e6edf3' : '#111' },
     hint: { color: isDark ? '#8b949e' : '#666', fontSize: 13, marginBottom: 12, lineHeight: 18 },
@@ -1398,4 +1285,19 @@ const styles = (isDark: boolean) =>
       marginTop: 4,
     },
     btnText: { color: '#fff', fontWeight: '700' },
+    btnSecondary: {
+      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    btnSecondaryText: { color: isDark ? '#e6edf3' : '#0f172a', fontWeight: '700' },
+    flashOk: {
+      marginTop: 8,
+      marginBottom: 4,
+      color: '#059669',
+      fontWeight: '700',
+      fontSize: 13,
+    },
   });

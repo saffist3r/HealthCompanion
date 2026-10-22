@@ -14,7 +14,8 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteMeal, fetchMeal, updateMeal, type SimilarMeal, type MealGlucoseStory } from '../api/client';
+import { deleteMeal, fetchMeal, updateMeal, absoluteUploadUrl, type SimilarMeal, type MealGlucoseStory } from '../api/client';
+import { mealPhotoRoleLabel } from '@health-companion/shared';
 
 const MEAL_TYPES = [
   { value: 'breakfast', label: 'Breakfast' },
@@ -25,12 +26,20 @@ const MEAL_TYPES = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+type MealPhotoView = {
+  url: string;
+  role?: string;
+  label?: string;
+};
+
 type MealDetail = {
   id?: string;
   mealType?: string;
   eatenAt?: number;
   photoUrl?: string | null;
   resolvedPhotoUrl?: string | null;
+  photos?: MealPhotoView[];
+  resolvedPhotos?: MealPhotoView[];
   macros?: {
     caloriesKcal?: number;
     carbsG?: number;
@@ -121,6 +130,7 @@ export default function MealDetailModal({
   const [glucoseStory, setGlucoseStory] = useState<MealGlucoseStory | null>(null);
   const [similarMeals, setSimilarMeals] = useState<SimilarMeal[]>([]);
   const [relatedHypoStartedAt, setRelatedHypoStartedAt] = useState<number | null>(null);
+  const [gallery, setGallery] = useState<MealPhotoView[]>([]);
 
   useEffect(() => {
     if (!meal) return;
@@ -138,15 +148,28 @@ export default function MealDetailModal({
     setGlucoseStory(meal.glucoseStory ?? null);
     setSimilarMeals(meal.similarMeals ?? []);
     setRelatedHypoStartedAt(meal.relatedHypoStartedAt ?? null);
+    setGallery(meal.resolvedPhotos || meal.photos || []);
 
     if (meal.id) {
       setDetailLoading(true);
       fetchMeal(meal.id)
-        .then((full) => {
+        .then(async (full) => {
           setWouldAgain(full.wouldAgain ?? null);
           setGlucoseStory(full.glucoseStory ?? null);
           setSimilarMeals(full.similarMeals ?? []);
           setRelatedHypoStartedAt(full.relatedHypoStartedAt ?? null);
+          const rawPhotos =
+            (full.photos && full.photos.length > 0
+              ? full.photos
+              : full.photoUrl
+                ? [{ url: full.photoUrl, role: 'main' }]
+                : []) as MealPhotoView[];
+          const resolved: MealPhotoView[] = [];
+          for (const p of rawPhotos) {
+            const abs = await absoluteUploadUrl(p.url);
+            if (abs) resolved.push({ ...p, url: abs });
+          }
+          if (resolved.length) setGallery(resolved);
         })
         .catch(() => {
           /* keep list payload */
@@ -158,7 +181,7 @@ export default function MealDetailModal({
   if (!meal) return null;
 
   const macros = meal.macros || {};
-  const photo = meal.resolvedPhotoUrl || meal.photoUrl;
+  const photo = gallery[0]?.url || meal.resolvedPhotoUrl || meal.photoUrl;
   const items = meal.items || [];
   const ph = isDark ? '#6e7681' : '#9ca3af';
 
@@ -260,7 +283,23 @@ export default function MealDetailModal({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {photo ? (
+            {gallery.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 12 }}
+                contentContainerStyle={{ gap: 10, paddingRight: 8 }}
+              >
+                {gallery.map((p, i) => (
+                  <View key={`${p.url}-${i}`} style={t.galleryCard}>
+                    <Image source={{ uri: p.url }} style={t.galleryPhoto} resizeMode="cover" />
+                    <Text style={t.galleryLabel}>
+                      {p.label || mealPhotoRoleLabel(p.role)}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : photo ? (
               <Image source={{ uri: photo }} style={t.photo} resizeMode="contain" />
             ) : (
               <View style={t.photoEmpty}>
@@ -522,6 +561,19 @@ const styles = (isDark: boolean) =>
       borderRadius: 16,
       backgroundColor: '#0f172a',
       marginBottom: 12,
+    },
+    galleryCard: { width: 200 },
+    galleryPhoto: {
+      width: 200,
+      height: 200,
+      borderRadius: 14,
+      backgroundColor: '#0f172a',
+    },
+    galleryLabel: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '600',
+      color: isDark ? '#c9d1d9' : '#334155',
     },
     photoEmpty: {
       height: 100,
