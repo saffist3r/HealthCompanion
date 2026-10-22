@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { clearSession, getStoredUser, isLoggedIn } from './api';
+import { clearSession, getStoredUser, isLoggedIn, refreshSession } from './api';
 import ComposeModal from './components/ComposeModal';
 import { careText } from './components/care/careText';
 import { useLocale } from './i18n';
@@ -45,6 +45,15 @@ function AppShell() {
   const { t, locale } = useLocale();
   const { pathname } = useLocation();
   const [composeOpen, setComposeOpen] = useState(false);
+
+  useEffect(() => {
+    refreshSession();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   const journal = [
     { to: '/morning', label: t('nav.morning') },
