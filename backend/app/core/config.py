@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     very_high_meal_carb_g: float = 75.0
 
     jwt_secret: str = ""
-    jwt_expire_minutes: int = 60 * 24 * 14  # 14 days
+    jwt_expire_minutes: int = 60 * 24 * 60  # 60 days; mobile refreshes it on open
     # Signed /uploads URLs (meal photos) stay valid this long
     upload_url_ttl_minutes: int = 60 * 24 * 7
     # Failed logins allowed per email / client IP inside the window before 429

@@ -1,9 +1,11 @@
+import { AppState } from 'react-native';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   clearAuthSession,
   getAccessToken,
   getAuthUser,
   loginRequest,
+  refreshAuthSession,
   subscribeAuth,
   type AuthUser,
 } from '../api/auth';
@@ -39,6 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh();
     });
   }, [refresh]);
+
+  // Keep the session alive: renew the token on launch and whenever the app comes back to the foreground.
+  useEffect(() => {
+    const renew = async () => {
+      const [apiBase, deviceId] = await Promise.all([getApiBaseUrl(), getDeviceId()]);
+      await refreshAuthSession(apiBase, deviceId);
+    };
+    renew().catch(() => {});
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') renew().catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const apiBase = await getApiBaseUrl();

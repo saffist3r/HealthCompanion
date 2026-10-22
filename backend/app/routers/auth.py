@@ -73,6 +73,13 @@ def login(
     return TokenOut(accessToken=token, user=serialize_user(user))
 
 
+@router.post("/refresh", response_model=TokenOut)
+def refresh(user: User = Depends(require_user)) -> TokenOut:
+    """Swap a still-valid token for a fresh one, so an app opened regularly never logs out."""
+    token = create_access_token(user_id=user.id, email=user.email, role=user.role)
+    return TokenOut(accessToken=token, user=serialize_user(user))
+
+
 @router.get("/me", response_model=MeOut)
 def me(user: User = Depends(require_user)) -> MeOut:
     return MeOut(
