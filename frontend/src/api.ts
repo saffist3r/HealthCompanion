@@ -812,3 +812,43 @@ export async function pingHealth() {
   const { data } = await api.get('/health');
   return data;
 }
+
+// --- Care team (read-only links for the nurse / doctor) ---
+
+export type CareShareLink = {
+  token: string;
+  label: string;
+  days: number;
+  note: string | null;
+  url: string;
+  createdAt: number | null;
+  expiresAt: number;
+  revoked: boolean;
+};
+
+export async function fetchCareSummary(days: number) {
+  const { data } = await api.get('/care/summary', { params: { days } });
+  return data;
+}
+
+export async function listCareShares() {
+  const { data } = await api.get('/care/shares');
+  return data as CareShareLink[];
+}
+
+export async function createCareShare(input: { days: number; ttlDays: number; label?: string; note?: string }) {
+  const { data } = await api.post('/care/shares', input);
+  return data as CareShareLink;
+}
+
+export async function revokeCareShare(token: string) {
+  await api.delete(`/care/shares/${encodeURIComponent(token)}`);
+}
+
+/** Public, token-only: no auth header so an expired session never redirects the clinician. */
+export async function fetchSharedCareSummary(token: string) {
+  const res = await fetch(`${getApiRoot()}/care/view/${encodeURIComponent(token)}`);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `Unavailable (${res.status})`);
+  return body;
+}
