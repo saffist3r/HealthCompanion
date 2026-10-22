@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { DEFAULT_API_BASE_URL, getApiBaseUrl, setApiBaseUrl } from '../api/config';
+import { getLastEmail } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import ScreenHero from '../components/ui/ScreenHero';
 import { FadeIn } from '../components/ui/FadeIn';
@@ -23,10 +24,12 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editServer, setEditServer] = useState(false);
   const t = styles(isDark);
 
   useEffect(() => {
     getApiBaseUrl().then(setUrl);
+    getLastEmail().then((e) => e && setEmail(e));
   }, []);
 
   const onSubmit = async () => {
@@ -52,16 +55,6 @@ export default function LoginScreen() {
 
       <FadeIn>
         <View style={t.form}>
-          <Text style={t.label}>API URL</Text>
-          <TextInput
-            style={t.input}
-            value={url}
-            onChangeText={setUrl}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholderTextColor={isDark ? '#6e7681' : '#999'}
-          />
-
           <Text style={t.label}>Email</Text>
           <TextInput
             style={t.input}
@@ -90,6 +83,31 @@ export default function LoginScreen() {
               <Text style={t.btnText}>Sign in</Text>
             )}
           </TouchableOpacity>
+
+          {editServer ? (
+            <View style={t.serverBox}>
+              <Text style={t.label}>Server</Text>
+              <TextInput
+                style={t.input}
+                value={url}
+                onChangeText={setUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                placeholderTextColor={isDark ? '#6e7681' : '#999'}
+              />
+              <TouchableOpacity onPress={() => setUrl(DEFAULT_API_BASE_URL)}>
+                <Text style={t.link}>Use the default server</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={t.serverRow} onPress={() => setEditServer(true)}>
+              <Text style={t.serverText} numberOfLines={1}>
+                Server: {url.replace(/^https?:\/\//, '')}
+              </Text>
+              <Text style={t.link}>Change</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={t.card}>
             <Text style={t.hint}>
@@ -142,5 +160,15 @@ const styles = (isDark: boolean) => {
       borderColor: c.border,
     },
     hint: { color: c.muted, lineHeight: 20, fontSize: 13 },
+    serverRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 16,
+      gap: 12,
+    },
+    serverText: { flex: 1, color: c.muted, fontSize: 13 },
+    serverBox: { marginTop: 20 },
+    link: { color: isDark ? HC.tealBright : HC.tealMid, fontWeight: '700', fontSize: 13 },
   });
 };
