@@ -2,17 +2,46 @@
 
 This document explains how releases work and what is included in each release.
 
-**Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). See `.cursor/rules/release-docs-required.mdc`.
+**Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). Every deploy gets an annotated `vX.Y.Z` tag on the deployed commit.
 
-**Current deploy line:** `1.7.0` (see [CHANGELOG](CHANGELOG.md#170---2026-10-22)). Latest **milestone tag:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0).
+**Current deploy line:** `1.8.0` (see [CHANGELOG](CHANGELOG.md#180---2026-10-29)). Latest **tag:** [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0).
 
-GitHub releases: [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) (latest tag) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
+Tags: [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 
 Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github/release-notes/).
 
 ---
 
-## 1.6.0 (deploy, untagged)
+## Release v1.8.0
+
+**Date:** 2026-10-29 · **Tag:** [`v1.8.0`](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0)
+
+### Highlights
+
+- Three watch faces (HUD, Classic, Minimal), picked from the watch app or from the phone (Settings → Watch); the newest pick wins on either device
+- Face animations while the screen is on (gauge sweep and ripple, comet seconds, heartbeat at the measured rate, trend nudge); the reading itself is never interpolated
+- Phone glucose chart uses the watch's CGM trend engine: seven-step arrow, change per 5 min, "Low/High in ~N min" warnings
+- New logo across phone, web and watch; the phone follows the system dark mode
+- Watch app opens straight to its settings and fits round screens
+
+No backend or database changes (Alembic stays at `0003`). The phone build needs a native rebuild for the new icon, dark mode and face picker. See [CHANGELOG.md](CHANGELOG.md#180---2026-10-29).
+
+---
+
+## Release v1.7.0
+
+**Date:** 2026-10-22 · **Tag:** [`v1.7.0`](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0)
+
+### Highlights
+
+- Care team view: a read-only, expiring share link for the nurse or doctor (glucose bands, GMI, hypos with the 4 hours before, insulin, carbs, steps, pain, mood, sleep)
+- Stay signed in on web and phone (token refresh on open, 60-day tokens)
+
+Alembic `0003` adds `care_shares`. See [CHANGELOG.md](CHANGELOG.md#170---2026-10-22).
+
+---
+
+## 1.6.0 (deploy, tag `v1.6.0`)
 
 **Date:** 2026-10-21
 

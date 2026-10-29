@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-29
+
 ### Added
 
 - **Watch face redesign (HUD):** glucose gauge ring with forecast marker, neon readout with CGM trend badge, delta per 5 min, 3 h chart with 30 min projection, time-in-range, radar-sweep background, true-black ambient mode
