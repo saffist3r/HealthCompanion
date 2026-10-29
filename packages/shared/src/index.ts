@@ -1,6 +1,7 @@
 export * from './background';
 export * from './sparkline';
 export * from './sparklineChart';
+export * from './glucoseTrend';
 export * from './nutrition';
 export * from './reports';
 export * from './healthMetrics';

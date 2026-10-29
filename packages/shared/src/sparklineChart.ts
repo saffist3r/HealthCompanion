@@ -4,6 +4,7 @@ import {
   SPARKLINE_Y_MIN_MG_DL,
   type SparklinePoint,
 } from './sparkline';
+import { analyzeGlucose } from './glucoseTrend';
 
 export interface SparklineLayout {
   width: number;
@@ -87,12 +88,13 @@ export function sparklineX(
   return l.paddingLeft + Math.min(1, Math.max(0, xFrac)) * plotW;
 }
 
-export function sparklineTrend(points: SparklinePoint[]): 'up' | 'down' | 'flat' | null {
-  if (points.length < 2) return null;
-  const recent = points.slice(-Math.min(6, points.length));
-  const first = recent[0].valueMgDl;
-  const last = recent[recent.length - 1].valueMgDl;
-  const delta = last - first;
-  if (Math.abs(delta) < 5) return 'flat';
-  return delta > 0 ? 'up' : 'down';
+/** Coarse direction from the CGM trend engine (null when stale or too few readings). */
+export function sparklineTrend(points: SparklinePoint[], nowMs = Date.now()): 'up' | 'down' | 'flat' | null {
+  const { arrow } = analyzeGlucose(
+    points.map((p) => ({ mgDl: p.valueMgDl, timestamp: p.timestamp })),
+    nowMs,
+  );
+  if (arrow === 'none') return null;
+  if (arrow === 'flat') return 'flat';
+  return arrow.endsWith('Up') ? 'up' : 'down';
 }

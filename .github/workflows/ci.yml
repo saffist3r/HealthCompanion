@@ -74,6 +74,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run build -w @health-companion/shared
+      - run: npm test -w @health-companion/shared
       - run: npx patch-package
       - run: npx tsc --noEmit -p apps/mobile
 
