@@ -21,6 +21,12 @@ object GlycemiaHolder {
     /** Same band as status "Low" (mg/dL < 70); vibrate once per new reading from the phone. */
     private const val LOW_MG_DL_THRESHOLD = 70.0
 
+    /** Buzz once when the forecast crosses the low threshold within this many minutes. */
+    private const val PREDICTED_LOW_ALERT_MIN = 20
+
+    /** Re-arm the predicted-low alert once glucose is this far above the threshold again. */
+    private const val PREDICTED_LOW_REARM_MG_DL = 15.0
+
     private var appContext: Context? = null
     private var previousTimestamp: Long = -1L
 
@@ -43,6 +49,11 @@ object GlycemiaHolder {
     val historyRevision: LiveData<Int> = _historyRevision
 
     private var lastTimestamp: Long = 0
+    private var predictedLowAlerted = false
+
+    /** Unit the CGM app reports in; the face shows values in this unit. */
+    @Volatile var displayUnit: String = "mg/dL"
+        private set
 
     /** (mg/dL, timestamp) newest first */
     private val _history = CopyOnWriteArrayList<Pair<Double, Long>>()
@@ -52,6 +63,10 @@ object GlycemiaHolder {
         loadHistoryFromPrefs()
         pruneOldHistory()
     }
+
+    /** Oldest → newest readings (mg/dL) for the trend engine and the chart. */
+    fun samples(): List<GlucoseSample> =
+        _history.map { GlucoseSample(it.first, it.second) }.sortedBy { it.timestamp }
 
     @Deprecated("Use getSparklinePoints12h()")
     fun getHistoryForSparkline(): List<Pair<Double, Long>> = getSparklinePoints12h()
@@ -81,6 +96,7 @@ object GlycemiaHolder {
         previousTimestamp = timestamp
         lastTimestamp = timestamp
         val mgDl = if (unit.equals("mg/dL", true)) value else value * 18.0182
+        displayUnit = if (unit.equals("mg/dL", true)) "mg/dL" else "mmol/L"
 
         if (isNewSample) {
             val dup = _history.any { Math.abs(it.second - timestamp) < DUPLICATE_MS }
@@ -92,13 +108,27 @@ object GlycemiaHolder {
         }
 
         _glycemia.postValue(GlycemiaData(value, unit, timestamp))
-        _glycemiaDisplay.postValue("%.1f %s".format(value, unit))
+        _glycemiaDisplay.postValue("%s %s".format(HudFaceDrawer.formatGlucose(mgDl, displayUnit), displayUnit))
         _timeAgo.postValue(formatTimeAgo(timestamp))
         _statusColor.postValue(colorForValue(value, unit))
         _statusLabel.postValue(statusLabelForValue(value, unit))
 
         if (isNewSample && mgDl < LOW_MG_DL_THRESHOLD) {
             vibrateLowAlert()
+        } else if (isNewSample) {
+            checkPredictedLow(mgDl)
+        }
+    }
+
+    /** One gentle buzz per falling episode when the forecast says "low soon". */
+    private fun checkPredictedLow(mgDl: Double) {
+        if (mgDl >= LOW_MG_DL_THRESHOLD + PREDICTED_LOW_REARM_MG_DL) predictedLowAlerted = false
+        if (predictedLowAlerted) return
+        val insight = GlucoseTrendEngine.analyze(samples(), System.currentTimeMillis(), LOW_MG_DL_THRESHOLD)
+        val minutes = insight.minutesToLow ?: return
+        if (minutes <= PREDICTED_LOW_ALERT_MIN) {
+            predictedLowAlerted = true
+            vibrate(longArrayOf(0, 120, 120, 120, 120, 120))
         }
     }
 
@@ -150,12 +180,13 @@ object GlycemiaHolder {
         }
     }
 
-    private fun vibrateLowAlert() {
+    private fun vibrateLowAlert() = vibrate(longArrayOf(0, 280, 140, 280))
+
+    private fun vibrate(pattern: LongArray) {
         val ctx = appContext ?: return
         val vibrator = getVibrator(ctx) ?: return
         if (!vibrator.hasVibrator()) return
 
-        val pattern = longArrayOf(0, 280, 140, 280)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {

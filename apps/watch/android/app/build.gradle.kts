@@ -72,4 +72,6 @@ dependencies {
     implementation("androidx.wear.watchface:watchface:1.2.0-alpha06")
     implementation("androidx.health:health-services-client:1.0.0")
     implementation("com.google.guava:guava:33.3.1-android")
+
+    testImplementation("junit:junit:4.13.2")
 }

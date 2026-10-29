@@ -5,11 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -17,6 +19,7 @@ object BackgroundCanvasRenderer {
     private val overlayPaint = Paint()
     private val shapePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val gradientPaint = Paint()
+    private val sweepMatrix = Matrix()
 
     fun draw(
         canvas: Canvas,
@@ -27,7 +30,8 @@ object BackgroundCanvasRenderer {
         context: Context
     ) {
         if (isAmbient) {
-            canvas.drawColor(Color.parseColor("#0A1628"))
+            // True black keeps OLED pixels off in ambient mode
+            canvas.drawColor(Color.BLACK)
             return
         }
 
@@ -79,44 +83,68 @@ object BackgroundCanvasRenderer {
         }
     }
 
+    /**
+     * HUD backdrop: deep-space gradient, faint range rings and spokes, and a slow radar
+     * sweep (one turn every 12 s). One shader per layer per frame; no bitmaps.
+     */
     private fun drawAnimated(canvas: Canvas, bounds: Rect, cx: Float, cy: Float, w: Float, h: Float) {
-        val t = System.currentTimeMillis() / 1000f
-        val pulse = 0.78f + 0.22f * sin(t * 1.4).toFloat()
+        val now = System.currentTimeMillis()
+        val r = minOf(w, h) / 2f
+        val s = r / 227f
 
-        // Single static base gradient (cheap — one shader per frame)
-        gradientPaint.shader = LinearGradient(
-            0f, 0f, w, h,
-            intArrayOf(Color.parseColor("#0A1628"), Color.parseColor("#152A4A")),
-            null,
+        gradientPaint.shader = RadialGradient(
+            cx, cy * 0.85f, r * 1.25f,
+            intArrayOf(Color.parseColor("#0B1830"), Color.parseColor("#050A16"), Color.BLACK),
+            floatArrayOf(0f, 0.6f, 1f),
             Shader.TileMode.CLAMP
         )
         canvas.drawRect(bounds, gradientPaint)
         gradientPaint.shader = null
 
-        // Four soft orbs — solid circles, no per-orb shaders
-        val orbColors = intArrayOf(
-            Color.argb((52 * pulse).toInt(), 77, 208, 225),
-            Color.argb((46 * pulse).toInt(), 179, 157, 219),
-            Color.argb((44 * pulse).toInt(), 129, 199, 132),
-            Color.argb((48 * pulse).toInt(), 255, 171, 145)
+        // Range rings + spokes (static grid)
+        shapePaint.style = Paint.Style.STROKE
+        shapePaint.strokeWidth = 1f * s
+        shapePaint.color = Color.argb(26, 0, 229, 255)
+        for (i in 1..4) canvas.drawCircle(cx, cy, r * (0.22f + i * 0.17f), shapePaint)
+        for (i in 0 until 12) {
+            val a = Math.toRadians(i * 30.0)
+            canvas.drawLine(
+                cx + cos(a).toFloat() * r * 0.39f, cy + sin(a).toFloat() * r * 0.39f,
+                cx + cos(a).toFloat() * r * 0.9f, cy + sin(a).toFloat() * r * 0.9f,
+                shapePaint
+            )
+        }
+
+        // Radar sweep: bright leading edge fading behind it
+        val angle = (now % 12_000L) / 12_000f * 360f
+        sweepMatrix.setRotate(angle, cx, cy)
+        val sweep = SweepGradient(
+            cx, cy,
+            intArrayOf(Color.TRANSPARENT, Color.TRANSPARENT, Color.argb(46, 0, 229, 255), Color.TRANSPARENT),
+            floatArrayOf(0f, 0.82f, 0.995f, 1f)
         )
-        val baseRadii = floatArrayOf(36f, 28f, 42f, 32f)
-        for (i in 0..3) {
-            val phaseH = t * (0.38f + i * 0.09f) + i * 1.4f
-            val phaseV = t * (0.32f + i * 0.07f) + i * 0.85f
-            val x = cx + w * 0.4f * sin(phaseH)
-            val y = cy + h * 0.36f * cos(phaseV)
-            val radius = baseRadii[i] + 6f * sin(t * 0.35f + i * 0.6f)
-            shapePaint.color = orbColors[i]
-            canvas.drawCircle(x, y, radius.coerceAtLeast(20f), shapePaint)
+        sweep.setLocalMatrix(sweepMatrix)
+        shapePaint.style = Paint.Style.FILL
+        shapePaint.shader = sweep
+        canvas.drawCircle(cx, cy, r * 0.9f, shapePaint)
+        shapePaint.shader = null
+
+        // A few slow-drifting data motes
+        for (i in 0 until 6) {
+            val t = now / 1000f
+            val orbit = r * (0.45f + 0.07f * i)
+            val a = t * (0.05f + 0.013f * i) + i * 1.7f
+            val twinkle = 0.5f + 0.5f * sin(t * (0.9f + 0.2f * i) + i)
+            shapePaint.color = Color.argb((40 + 70 * twinkle).toInt(), 157, 140, 255)
+            canvas.drawCircle(cx + cos(a) * orbit, cy + sin(a) * orbit, (1.4f + twinkle) * s, shapePaint)
         }
     }
 
     private fun drawStatusTint(canvas: Canvas, cx: Float, cy: Float, w: Float, h: Float, statusColor: Int) {
         overlayPaint.shader = RadialGradient(
-            cx, cy, w.coerceAtLeast(h),
-            intArrayOf(Color.argb(38, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)), Color.TRANSPARENT),
-            floatArrayOf(0.2f, 1f),
+            cx, cy, w.coerceAtLeast(h) * 0.6f,
+            intArrayOf(Color.argb(22, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)), Color.TRANSPARENT),
+            floatArrayOf(0f, 1f),
             Shader.TileMode.CLAMP
         )
         canvas.drawRect(0f, 0f, w, h, overlayPaint)

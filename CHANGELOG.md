@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- (none yet)
+- **Watch face redesign (HUD):** glucose gauge ring with forecast marker, neon readout with CGM trend badge, delta per 5 min, 3 h chart with 30 min projection, time-in-range, radar-sweep background, true-black ambient mode
+- **Predictive alerts on the watch:** "LOW IN ~N MIN" / "HIGH IN ~N MIN" chips; one gentle buzz per falling episode when a low is forecast within 20 min
+- Watch unit tests (`GlucoseTrendEngineTest`) and a CI job that runs them and builds the watch APK
+
+### Changed
+
+- **Watch trend algorithm:** recency-weighted least-squares rate over the last ~10 min (wider when readings are sparse), standard CGM arrow bands, merged re-posted duplicates, no trend on stale data (> 15 min); replaces "last minus first of 8 points", which flipped on noise and ignored elapsed time
+- mg/dL readings on the watch show whole numbers (`139`, not `139.0`); stale readings are struck through with "SIGNAL LOST"
+- Watch redraws at 1 fps (10 fps only for the animated background) instead of 12 fps whenever a trend was shown
 
 ## [1.6.0] - 2026-10-21
 

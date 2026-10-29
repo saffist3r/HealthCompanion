@@ -70,13 +70,13 @@ Edit hostnames in `k8s/ingress.yaml` / `k8s/configmap.yaml` for your domain.
 | Feature | Description |
 |---------|-------------|
 | **Time & Date** | Large time display with date (dd/MM/yyyy) underneath |
-| **Glycemia** | Blood glucose from CapAPS Fx, synced from phone notifications |
-| **Trend** | Animated arrows on the watch face (↑ / ↓ / →); 12h chart on the phone app |
+| **Glycemia** | Blood glucose from CapAPS Fx, synced from phone notifications, on a HUD gauge ring (log scale, target band highlighted) |
+| **Trend** | CGM-style arrows (⇈ ↑ ↗ → ↘ ↓ ⇊) from a recency-weighted rate over the last ~10 min, delta per 5 min, 3 h chart with a 30 min forecast; 12h chart on the phone app |
 | **Heart Rate** | Live BPM from watch sensor with vector heart icon |
 | **Steps** | Daily step count from watch sensor (since midnight) |
 | **Status Colors** | Green (in range), orange (high), red (low/very high) |
 | **Customization** | Watch background (animated / solid / gradient / image slideshow), text color, status tint |
-| **Low alert** | Watch vibrates on new reading below 70 mg/dL |
+| **Low alert** | Watch vibrates on new reading below 70 mg/dL, plus a gentle buzz and "LOW IN ~N MIN" when the forecast crosses 70 within 20 min |
 | **Meal AI** | Photograph meals → server-side AI macros + diabetes warnings |
 | **Reports** | Daily / weekly nutrition + glucose + activity + injuries |
 | **Injuries** | Cases + daily pain logs for rehab / AI context |

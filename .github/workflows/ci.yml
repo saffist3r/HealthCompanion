@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -75,6 +76,27 @@ jobs:
       - run: npm run build -w @health-companion/shared
       - run: npx patch-package
       - run: npx tsc --noEmit -p apps/mobile
+
+  watch:
+    name: Watch (unit tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/watch/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Debug keystore expected by the signing config
+        run: |
+          mkdir -p ../../mobile/android/app
+          keytool -genkeypair -keystore ../../mobile/android/app/debug.keystore -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+      - run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
   versions:
     name: Versions in sync with VERSION
