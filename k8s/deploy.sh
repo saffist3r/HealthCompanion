@@ -47,14 +47,19 @@ fi
 
 check_prereqs() {
   log_phase "Checking prerequisites"
-  if [ -z "$REGISTRY_PASS" ]; then
-    log_error "REGISTRY_PASS is not set (required for docker login). Example:"
-    log_info "  export REGISTRY_PASS='…'   # do not commit this value"
-    exit 1
-  fi
   if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$VPS_SSH" 'echo OK' >/dev/null 2>&1; then
     log_error "Cannot SSH to $VPS_SSH"
     exit 1
+  fi
+  if [ -z "$REGISTRY_PASS" ]; then
+    # Without a password, reuse the docker login already stored on the VPS
+    if ssh -o BatchMode=yes "$VPS_SSH" "grep -q '\"$REGISTRY\"' ~/.docker/config.json" 2>/dev/null; then
+      log_info "REGISTRY_PASS not set; using the VPS's existing login to $REGISTRY"
+    else
+      log_error "REGISTRY_PASS is not set and the VPS is not logged in to $REGISTRY. Example:"
+      log_info "  export REGISTRY_PASS='…'   # do not commit this value"
+      exit 1
+    fi
   fi
   if ! kubectl_vps get nodes >/dev/null 2>&1; then
     log_error "kubectl on VPS cannot reach cluster"
@@ -100,7 +105,9 @@ REGISTRY=${REGISTRY}
 PROJECT=${VPS_PROJECT}
 PUBLIC_URL=${PUBLIC_URL}
 
-printf '%s\n' '${REGISTRY_PASS}' | docker login "\$REGISTRY" -u ${REGISTRY_USER} --password-stdin
+if [ -n "${REGISTRY_PASS:+set}" ]; then
+  printf '%s\n' '${REGISTRY_PASS}' | docker login "\$REGISTRY" -u ${REGISTRY_USER} --password-stdin
+fi
 
 echo "== Building backend \$VERSION =="
 docker build --network=host \
@@ -145,6 +152,10 @@ deploy_k8s() {
   kubectl_vps create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl_vps apply -f -
 
   if ! kubectl_vps get secret registry-secret -n "$NAMESPACE" >/dev/null 2>&1; then
+    if [ -z "$REGISTRY_PASS" ]; then
+      log_error "registry-secret is missing and REGISTRY_PASS is not set; export it to create the secret"
+      exit 1
+    fi
     log_info "Creating registry-secret"
     kubectl_vps create secret docker-registry registry-secret \
       --docker-server="$REGISTRY" \
