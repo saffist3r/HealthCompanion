@@ -1,5 +1,14 @@
 export type BackgroundType = 'animated' | 'solid' | 'gradient' | 'image';
 
+/** Watch face layouts (picked on the phone or in the watch app). */
+export type WatchFaceStyle = 'hud' | 'classic' | 'minimal';
+
+export const WATCH_FACE_STYLES: { id: WatchFaceStyle; label: string; description: string }[] = [
+  { id: 'hud', label: 'HUD', description: 'Gauge ring, forecast, 3-hour chart and time in range' },
+  { id: 'classic', label: 'Classic', description: 'Big time and date, reading, heart rate and steps' },
+  { id: 'minimal', label: 'Minimal', description: 'Oversized reading in a zone-coloured ring' },
+];
+
 export interface BackgroundSettings {
   type: BackgroundType;
   solidColor: string;
@@ -13,6 +22,9 @@ export interface BackgroundSettings {
   textColor: string;
   /** Seconds between slideshow images (when imageIds.length > 1). */
   slideshowIntervalSec: number;
+  faceStyle: WatchFaceStyle;
+  /** When the face was last picked; the watch keeps whichever pick is newer, its own or the phone's. */
+  faceStyleUpdatedAt: number;
   /** Phone-only local URIs for custom images; synced to watch as Wear assets. */
   customImageUris: string[];
   /** @deprecated Use customImageUris */
@@ -31,6 +43,8 @@ export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
   statusTint: true,
   textColor: '#FFFFFF',
   slideshowIntervalSec: 30,
+  faceStyle: 'hud',
+  faceStyleUpdatedAt: 0,
   customImageUris: [],
   customImageUri: null,
   updatedAt: 0,
@@ -150,6 +164,10 @@ export function parseBackgroundSettings(raw: unknown): BackgroundSettings {
     textColor:
       typeof o.textColor === 'string' ? o.textColor : DEFAULT_BACKGROUND_SETTINGS.textColor,
     slideshowIntervalSec,
+    faceStyle: WATCH_FACE_STYLES.some((f) => f.id === o.faceStyle)
+      ? (o.faceStyle as WatchFaceStyle)
+      : DEFAULT_BACKGROUND_SETTINGS.faceStyle,
+    faceStyleUpdatedAt: typeof o.faceStyleUpdatedAt === 'number' ? o.faceStyleUpdatedAt : 0,
     customImageUris,
     customImageUri: customImageUris[0] ?? legacyUri,
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : Date.now(),

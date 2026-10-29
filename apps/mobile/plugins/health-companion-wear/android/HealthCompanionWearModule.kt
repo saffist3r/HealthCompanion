@@ -137,6 +137,10 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
                 req.dataMap.putString("textColor", textColor)
                 req.dataMap.putInt("slideshowIntervalSec", slideshowIntervalSec)
                 req.dataMap.putLong("updatedAt", updatedAt)
+                settings.getString("faceStyle")?.let { req.dataMap.putString("faceStyle", it) }
+                if (settings.hasKey("faceStyleUpdatedAt")) {
+                    req.dataMap.putLong("faceStyleUpdatedAt", settings.getDouble("faceStyleUpdatedAt").toLong())
+                }
 
                 if (type == "image" && customUris.isNotEmpty()) {
                     req.dataMap.putInt("customImageCount", customUris.size)

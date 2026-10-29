@@ -85,6 +85,15 @@ class GlycemiaDataListenerService : WearableListenerService() {
         val legacyImageId = dataMap.getString("imageId") ?: "teal"
         val imageIds = parseImageIdsJson(imageIdsJson).ifEmpty { listOf(legacyImageId) }
 
+        // The phone re-sends its settings on its own, so only take its face pick when it's
+        // newer than the last one made on the watch (older phone builds don't send it at all)
+        val local = BackgroundSettingsHolder.current()
+        val phoneFaceAt = dataMap.getLong("faceStyleUpdatedAt", 0L)
+        val face = if (dataMap.containsKey("faceStyle") && phoneFaceAt > local.faceStyleUpdatedAt) {
+            FaceStyle.fromWire(dataMap.getString("faceStyle")) to phoneFaceAt
+        } else {
+            local.faceStyle to local.faceStyleUpdatedAt
+        }
         val settings = BackgroundSettings(
             type = BackgroundType.fromWire(dataMap.getString("type")),
             solidColor = dataMap.getString("solidColor") ?: "#0D1117",
@@ -94,9 +103,8 @@ class GlycemiaDataListenerService : WearableListenerService() {
             statusTint = dataMap.getBoolean("statusTint", true),
             textColor = dataMap.getString("textColor") ?: "#FFFFFF",
             slideshowIntervalSec = dataMap.getInt("slideshowIntervalSec", 30),
-            // The face is picked on the watch; the phone doesn't send it, so keep the current one
-            faceStyle = dataMap.getString("faceStyle")?.let { FaceStyle.fromWire(it) }
-                ?: BackgroundSettingsHolder.current().faceStyle,
+            faceStyle = face.first,
+            faceStyleUpdatedAt = face.second,
             updatedAt = dataMap.getLong("updatedAt", System.currentTimeMillis())
         )
         BackgroundSettingsHolder.update(settings, fromSync = true)

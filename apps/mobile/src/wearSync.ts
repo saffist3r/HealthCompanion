@@ -49,6 +49,8 @@ export async function sendBackgroundToWatch(settings: BackgroundSettings): Promi
       statusTint: settings.statusTint,
       textColor: settings.textColor,
       slideshowIntervalSec: settings.slideshowIntervalSec,
+      faceStyle: settings.faceStyle,
+      faceStyleUpdatedAt: settings.faceStyleUpdatedAt,
       customImageUris: settings.customImageUris,
       customImageUri: settings.customImageUri,
       updatedAt: settings.updatedAt,

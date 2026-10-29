@@ -19,6 +19,7 @@ import {
   normalizeImageIds,
   SOLID_COLOR_OPTIONS,
   TEXT_COLOR_OPTIONS,
+  WATCH_FACE_STYLES,
 } from '@health-companion/shared';
 import { loadBackgroundSettings, updateBackgroundSettings } from '../backgroundSettings';
 import { sendBackgroundToWatch } from '../wearSync';
@@ -118,15 +119,36 @@ export function BackgroundSettingsCard({ isDark }: Props) {
   return (
     <View style={[styles.card, isDark && styles.cardDark]}>
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: text }]}>Watch background</Text>
+        <Text style={[styles.title, { color: text }]}>Watch face</Text>
         {syncing && <ActivityIndicator size="small" color="#007AFF" />}
         {synced && !syncing && <Text style={styles.synced}>Synced</Text>}
       </View>
       <Text style={[styles.hint, { color: muted }]}>
-        Applies to the watch app and watch face. Swipe to Settings on the watch to tweak locally.
+        Applies to the watch face. You can also change it from the Health Companion app on the watch.
       </Text>
 
-      <Text style={[styles.label, { color: muted }]}>Style</Text>
+      <Text style={[styles.label, { color: muted }]}>Face</Text>
+      <View style={styles.faceList}>
+        {WATCH_FACE_STYLES.map((face) => {
+          const on = settings.faceStyle === face.id;
+          return (
+            <TouchableOpacity
+              key={face.id}
+              style={[styles.faceOption, isDark && styles.faceOptionDark, on && styles.faceOptionActive]}
+              onPress={() => apply({ faceStyle: face.id, faceStyleUpdatedAt: Date.now() })}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.faceLabel, { color: on ? '#007AFF' : text }]}>
+                {face.label}
+                {on ? '  ✓' : ''}
+              </Text>
+              <Text style={[styles.faceDescription, { color: muted }]}>{face.description}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.label, { color: muted }]}>Background</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
         {TYPES.map((type) => (
           <TouchableOpacity
@@ -302,6 +324,18 @@ const styles = StyleSheet.create({
   hint: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 4 },
   chipRow: { marginBottom: 8 },
+  faceList: { gap: 8, marginBottom: 12 },
+  faceOption: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  faceOptionDark: { borderColor: 'rgba(255,255,255,0.12)' },
+  faceOptionActive: { borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.08)' },
+  faceLabel: { fontSize: 15, fontWeight: '700' },
+  faceDescription: { fontSize: 12, marginTop: 2 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,

@@ -54,7 +54,11 @@ fun SettingsScreen() {
                     .fillMaxWidth()
                     .clip(CircleShape)
                     .background(if (selected) Color(0xFF00E5FF).copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-                    .clickable { BackgroundSettingsHolder.updateLocal { it.copy(faceStyle = style) } }
+                    .clickable {
+                        BackgroundSettingsHolder.updateLocal {
+                            it.copy(faceStyle = style, faceStyleUpdatedAt = System.currentTimeMillis())
+                        }
+                    }
                     .padding(vertical = 6.dp, horizontal = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

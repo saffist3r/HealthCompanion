@@ -24,6 +24,8 @@ data class BackgroundSettings(
     val textColor: String = "#FFFFFF",
     val slideshowIntervalSec: Int = 30,
     val faceStyle: FaceStyle = FaceStyle.HUD,
+    /** When the face was last picked (here or on the phone); the newer pick wins. */
+    val faceStyleUpdatedAt: Long = 0L,
     val updatedAt: Long = 0L
 ) {
     fun effectiveImageIds(): List<String> =
