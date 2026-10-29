@@ -69,7 +69,8 @@ class HealthCompanionWatchFaceService : WatchFaceService() {
             currentUserStyleRepository,
             watchState,
             CanvasType.SOFTWARE,
-            1000L
+            // ~25 fps while the screen is awake for the face animations; ambient mode redraws once a minute
+            40L
         )
         return WatchFace(WatchFaceType.DIGITAL, renderer)
     }
@@ -111,9 +112,6 @@ class HealthCompanionRenderer(
         Handler(Looper.getMainLooper()).post {
             BackgroundSettingsHolder.settings.observeForever {
                 backgroundSettings = it ?: BackgroundSettings()
-                // Radar sweep needs ~10 fps; everything else only changes each second.
-                this.interactiveDrawModeUpdateDelayMillis =
-                    if (backgroundSettings.type == BackgroundType.ANIMATED) 100L else 1000L
             }
             HeartRateHolder.bpm.observeForever { heartBpm = it }
             StepsHolder.steps.observeForever { stepsCount = it }
@@ -148,7 +146,8 @@ class HealthCompanionRenderer(
                 settings,
                 appContext
             )
-            HudFaceDrawer.draw(
+            FaceDrawers.draw(
+                settings.faceStyle,
                 canvas,
                 bounds,
                 FaceState(

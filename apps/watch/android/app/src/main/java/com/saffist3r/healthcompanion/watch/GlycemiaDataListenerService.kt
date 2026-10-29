@@ -94,6 +94,9 @@ class GlycemiaDataListenerService : WearableListenerService() {
             statusTint = dataMap.getBoolean("statusTint", true),
             textColor = dataMap.getString("textColor") ?: "#FFFFFF",
             slideshowIntervalSec = dataMap.getInt("slideshowIntervalSec", 30),
+            // The face is picked on the watch; the phone doesn't send it, so keep the current one
+            faceStyle = dataMap.getString("faceStyle")?.let { FaceStyle.fromWire(it) }
+                ?: BackgroundSettingsHolder.current().faceStyle,
             updatedAt = dataMap.getLong("updatedAt", System.currentTimeMillis())
         )
         BackgroundSettingsHolder.update(settings, fromSync = true)

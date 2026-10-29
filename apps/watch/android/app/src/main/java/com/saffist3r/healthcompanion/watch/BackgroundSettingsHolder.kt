@@ -20,6 +20,7 @@ object BackgroundSettingsHolder {
     private const val KEY_STATUS_TINT = "statusTint"
     private const val KEY_TEXT_COLOR = "textColor"
     private const val KEY_SLIDESHOW = "slideshowIntervalSec"
+    private const val KEY_FACE_STYLE = "faceStyle"
     private const val KEY_UPDATED = "updatedAt"
     private const val MAX_CUSTOM_IMAGES = 10
 
@@ -161,6 +162,7 @@ object BackgroundSettingsHolder {
             statusTint = prefs.getBoolean(KEY_STATUS_TINT, true),
             textColor = prefs.getString(KEY_TEXT_COLOR, "#FFFFFF") ?: "#FFFFFF",
             slideshowIntervalSec = prefs.getInt(KEY_SLIDESHOW, 30),
+            faceStyle = FaceStyle.fromWire(prefs.getString(KEY_FACE_STYLE, null)),
             updatedAt = prefs.getLong(KEY_UPDATED, 0L)
         )
         _settings.postValue(loaded)
@@ -181,6 +183,7 @@ object BackgroundSettingsHolder {
             .putBoolean(KEY_STATUS_TINT, settings.statusTint)
             .putString(KEY_TEXT_COLOR, settings.textColor)
             .putInt(KEY_SLIDESHOW, settings.slideshowIntervalSec)
+            .putString(KEY_FACE_STYLE, settings.faceStyle.wire)
             .putLong(KEY_UPDATED, settings.updatedAt)
             .apply()
     }

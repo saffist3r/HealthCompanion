@@ -23,6 +23,7 @@ data class BackgroundSettings(
     val statusTint: Boolean = true,
     val textColor: String = "#FFFFFF",
     val slideshowIntervalSec: Int = 30,
+    val faceStyle: FaceStyle = FaceStyle.HUD,
     val updatedAt: Long = 0L
 ) {
     fun effectiveImageIds(): List<String> =

@@ -17,6 +17,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.ln
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -35,7 +36,11 @@ data class FaceState(
     val textColor: Int,
     val isAmbient: Boolean,
     val lowMgDl: Double = 70.0,
-    val highMgDl: Double = 180.0
+    val highMgDl: Double = 180.0,
+    /** Where the gauge needle is mid-animation; the number itself always shows the real reading. */
+    val gaugeMgDl: Double? = null,
+    /** 0 → 1 over the wake-up / new-reading animation, 1 when idle. */
+    val revealProgress: Float = 1f
 )
 
 /**
@@ -51,7 +56,7 @@ object HudFaceDrawer {
     val RED = Color.parseColor("#FF4D6D")
     val URGENT = Color.parseColor("#FF1F4B")
     val VIOLET = Color.parseColor("#9D8CFF")
-    private val DIM = Color.parseColor("#5B6B82")
+    val DIM = Color.parseColor("#5B6B82")
 
     private const val GAUGE_MIN = 40.0
     private const val GAUGE_MAX = 400.0
@@ -97,21 +102,21 @@ object HudFaceDrawer {
         val accent = if (insight.isStale) DIM else zoneColor(insight.zone)
         val pulse = if (state.isAmbient) 1f else 0.5f + 0.5f * sin(2 * PI * (state.nowMs % 2400) / 2400.0).toFloat()
 
-        if (!state.isAmbient) drawSecondsRing(canvas, cx, cy, radius - 7 * s, s, state.time.second)
+        if (!state.isAmbient) drawSecondsRing(canvas, cx, cy, radius - 7 * s, s, state.time.second, (state.nowMs % 1000) / 1000f)
         drawGauge(canvas, cx, cy, radius - 26 * s, s, state, accent, pulse)
         drawDateTime(canvas, cx, cy, s, state)
-        drawSideStats(canvas, cx, cy, s, state)
+        drawSideStats(canvas, cx, cy - 22 * s, s, state)
         drawReadout(canvas, cx, cy + 34 * s, s, state, accent, pulse)
-        drawStatusLine(canvas, cx, cy + 68 * s, s, state, pulse)
+        drawStatusLine(canvas, cx, cy + 74 * s, s, state, pulse)
         if (!state.isAmbient) {
-            drawChart(canvas, RectF(cx - 112 * s, cy + 84 * s, cx + 112 * s, cy + 134 * s), s, state)
-            drawTimeInRange(canvas, cx, cy + 160 * s, s, state)
+            drawChart(canvas, RectF(cx - 112 * s, cy + 90 * s, cx + 112 * s, cy + 138 * s), s, state)
+            drawTimeInRange(canvas, cx, cy + 164 * s, s, state)
         }
     }
 
     // ---------------------------------------------------------------- frame
 
-    private fun drawSecondsRing(canvas: Canvas, cx: Float, cy: Float, r: Float, s: Float, second: Int) {
+    private fun drawSecondsRing(canvas: Canvas, cx: Float, cy: Float, r: Float, s: Float, second: Int, fraction: Float) {
         for (i in 0 until 60) {
             val major = i % 5 == 0
             val lit = i <= second
@@ -129,6 +134,17 @@ object HudFaceDrawer {
             canvas.drawLine(cx + ca * r, cy + sa * r, cx + ca * (r - len), cy + sa * (r - len), stroke)
         }
         stroke.clearShadowLayer()
+
+        // Comet gliding smoothly between the ticks, with a fading tail
+        val head = (second + fraction) * 6f
+        val cr = r - 4.5f * s
+        for (k in 0 until 12) {
+            val p = pointOn(cx, cy, cr, head - 90f - k * 2.2f)
+            fill.color = withAlpha(if (k == 0) Color.WHITE else CYAN, 255 - k * 20)
+            if (k == 0) fill.setShadowLayer(9f * s, 0f, 0f, CYAN)
+            canvas.drawCircle(p.first, p.second, (3.4f - k * 0.22f) * s, fill)
+            fill.clearShadowLayer()
+        }
     }
 
     private fun drawGauge(
@@ -174,7 +190,7 @@ object HudFaceDrawer {
         }
 
         val current = state.insight.current ?: return
-        val curAngle = gaugeAngle(current.mgDl)
+        val curAngle = gaugeAngle(state.gaugeMgDl ?: current.mgDl)
 
         // Filled sweep up to the current value
         if (!ambient) {
@@ -241,10 +257,14 @@ object HudFaceDrawer {
         text.letterSpacing = 0f
     }
 
-    private fun drawReadout(
-        canvas: Canvas, cx: Float, baseline: Float, s: Float,
-        state: FaceState, accent: Int, pulse: Float
+    /** Glucose value with trend badge and unit; [scale] lets other faces reuse it larger or smaller. */
+    internal fun drawReadout(
+        canvas: Canvas, cx: Float, baseline: Float, faceScale: Float,
+        state: FaceState, accent: Int, pulse: Float, scale: Float = 1f
     ) {
+        // Settles from slightly oversized when a reading arrives or the screen wakes
+        val pop = 1f - state.revealProgress
+        val s = faceScale * scale * (1f + 0.14f * pop * pop)
         val insight = state.insight
         val current = insight.current
         val value = current?.let { formatGlucose(it.mgDl, state.displayUnit) } ?: "--"
@@ -284,7 +304,9 @@ object HudFaceDrawer {
         if (hasArrow) {
             val bx = left + valueW + gap + badgeR
             val by = baseline - 28 * s
-            drawTrendBadge(canvas, bx, by, badgeR, insight.arrow, accent, state.isAmbient, insight.confidence)
+            // The arrow nudges in its own direction so the trend reads at a glance
+            val bob = if (state.isAmbient) 0f else sin(2 * PI * (state.nowMs % 1400) / 1400.0).toFloat() * badgeR * 0.13f
+            drawTrendBadge(canvas, bx, by, badgeR, insight.arrow, accent, state.isAmbient, insight.confidence, bob)
         }
 
         // Unit, small and spaced, under the number
@@ -298,7 +320,7 @@ object HudFaceDrawer {
 
     private fun drawTrendBadge(
         canvas: Canvas, cx: Float, cy: Float, r: Float,
-        arrow: TrendArrow, color: Int, ambient: Boolean, confidence: Double
+        arrow: TrendArrow, color: Int, ambient: Boolean, confidence: Double, bob: Float = 0f
     ) {
         stroke.strokeWidth = 2f * r / 17f
         stroke.color = if (ambient) withAlpha(Color.WHITE, 160) else withAlpha(color, 210)
@@ -310,6 +332,7 @@ object HudFaceDrawer {
 
         canvas.save()
         canvas.rotate(arrow.angleDeg, cx, cy)
+        canvas.translate(bob, 0f)
         fill.color = Color.WHITE
         val heads = arrow.arrowCount
         val hw = r * 0.42f
@@ -332,7 +355,7 @@ object HudFaceDrawer {
         canvas.restore()
     }
 
-    private fun drawStatusLine(canvas: Canvas, cx: Float, baseline: Float, s: Float, state: FaceState, pulse: Float) {
+    internal fun drawStatusLine(canvas: Canvas, cx: Float, baseline: Float, s: Float, state: FaceState, pulse: Float) {
         val insight = state.insight
         if (insight.current == null) {
             drawLabel(canvas, cx, baseline, s, "WAITING FOR CGM", DIM, state.isAmbient)
@@ -364,9 +387,9 @@ object HudFaceDrawer {
 
     private fun drawLabel(canvas: Canvas, cx: Float, baseline: Float, s: Float, label: String, color: Int, ambient: Boolean) {
         text.typeface = condensedLight
-        text.textSize = 15f * s
+        text.textSize = 18f * s
         text.letterSpacing = 0.12f
-        text.color = withAlpha(if (ambient) Color.WHITE else color, if (ambient) 150 else 190)
+        text.color = withAlpha(if (ambient) Color.WHITE else color, if (ambient) 170 else 220)
         canvas.drawText(label, cx, baseline, text)
         text.letterSpacing = 0f
     }
@@ -376,10 +399,10 @@ object HudFaceDrawer {
         label: String, color: Int, pulse: Float, ambient: Boolean
     ) {
         text.typeface = condensed
-        text.textSize = 15f * s
+        text.textSize = 19f * s
         text.letterSpacing = 0.14f
-        val w = text.measureText(label) + 26 * s
-        val h = 24f * s
+        val w = text.measureText(label) + 30 * s
+        val h = 31f * s
         val rect = RectF(cx - w / 2, baseline - h * 0.72f, cx + w / 2, baseline + h * 0.28f)
         if (ambient) {
             stroke.strokeWidth = 1.5f * s
@@ -466,6 +489,12 @@ object HudFaceDrawer {
             fill.setShadowLayer(6f * s, 0f, 0f, CYAN)
             canvas.drawCircle(x(current.timestamp), y(current.mgDl), 3.2f * s, fill)
             fill.clearShadowLayer()
+            if (!state.isAmbient) {
+                val p = (state.nowMs % 2000) / 2000f
+                stroke.strokeWidth = 1.5f * s
+                stroke.color = withAlpha(CYAN, ((1f - p) * 220).toInt())
+                canvas.drawCircle(x(current.timestamp), y(current.mgDl), (3.2f + 11f * p) * s, stroke)
+            }
         }
 
         text.typeface = condensedLight
@@ -484,9 +513,9 @@ object HudFaceDrawer {
     private fun drawTimeInRange(canvas: Canvas, cx: Float, baseline: Float, s: Float, state: FaceState) {
         val tir = state.insight.timeInRangePct ?: return
         text.typeface = condensed
-        text.textSize = 13f * s
-        text.letterSpacing = 0.22f
-        text.color = withAlpha(Color.WHITE, 150)
+        text.textSize = 18f * s
+        text.letterSpacing = 0.16f
+        text.color = withAlpha(Color.WHITE, 210)
         val label = "TIR "
         val value = "$tir%"
         val lw = text.measureText(label)
@@ -502,14 +531,13 @@ object HudFaceDrawer {
 
     // ---------------------------------------------------------------- side stats
 
-    private fun drawSideStats(canvas: Canvas, cx: Float, cy: Float, s: Float, state: FaceState) {
-        val y = cy - 22 * s
+    internal fun drawSideStats(canvas: Canvas, cx: Float, y: Float, s: Float, state: FaceState, spread: Float = 150f) {
         val alpha = if (state.isAmbient) 140 else 220
-        drawStat(canvas, cx - 150 * s, y, s, state.heartBpm?.toString() ?: "--", "BPM", RED, alpha, state.isAmbient) { x, iy ->
-            drawHeart(canvas, x, iy, 11f * s)
+        drawStat(canvas, cx - spread * s, y, s, state.heartBpm?.toString() ?: "--", "BPM", RED, alpha, state.isAmbient) { x, iy ->
+            drawHeart(canvas, x, iy, 11f * s * heartbeatScale(state))
         }
         val steps = state.steps?.let { if (it >= 10_000) "%.1fk".format(Locale.ENGLISH, it / 1000.0) else "%,d".format(Locale.ENGLISH, it) } ?: "--"
-        drawStat(canvas, cx + 150 * s, y, s, steps, "STEPS", CYAN, alpha, state.isAmbient) { x, iy ->
+        drawStat(canvas, cx + spread * s, y, s, steps, "STEPS", CYAN, alpha, state.isAmbient) { x, iy ->
             drawSteps(canvas, x, iy, 11f * s)
         }
     }
@@ -530,6 +558,17 @@ object HudFaceDrawer {
         text.color = withAlpha(Color.WHITE, alpha / 2)
         canvas.drawText(label, x, y + 16 * s, text)
         text.letterSpacing = 0f
+    }
+
+    /** Lub-dub at the wearer's own heart rate. */
+    private fun heartbeatScale(state: FaceState): Float {
+        val bpm = state.heartBpm ?: return 1f
+        if (state.isAmbient || bpm <= 0) return 1f
+        val period = 60_000L / bpm.coerceIn(30, 220)
+        val p = (state.nowMs % period).toFloat() / period
+        val lub = if (p < 0.12f) sin(p / 0.12f * PI).toFloat() else 0f
+        val dub = if (p in 0.18f..0.28f) 0.6f * sin((p - 0.18f) / 0.10f * PI).toFloat() else 0f
+        return 1f + 0.3f * max(lub, dub)
     }
 
     private fun drawHeart(canvas: Canvas, cx: Float, cy: Float, size: Float) {
@@ -580,6 +619,6 @@ object HudFaceDrawer {
         else -> "${minutes / 60}H AGO"
     }
 
-    private fun withAlpha(color: Int, alpha: Int): Int =
+    internal fun withAlpha(color: Int, alpha: Int): Int =
         Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))
 }

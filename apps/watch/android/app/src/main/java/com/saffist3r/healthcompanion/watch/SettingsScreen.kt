@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,15 +33,43 @@ fun SettingsScreen() {
     val settings by BackgroundSettingsHolder.settings.observeAsState(BackgroundSettings())
     val scroll = rememberScrollState()
     val selectedImages = settings.effectiveImageIds()
+    // Round screens clip the corners: inset the sides by the Wear OS guideline (14.6%) and leave
+    // room above and below so the first and last items can scroll to the wide middle of the screen.
+    val config = LocalConfiguration.current
+    val round = config.isScreenRound
+    val sidePad = if (round) (config.screenWidthDp * 0.146f).dp else 10.dp
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scroll)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(start = sidePad, end = sidePad, top = if (round) 30.dp else 8.dp, bottom = if (round) 56.dp else 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("Background", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        SectionTitle("Face")
+        FaceStyle.entries.forEach { style ->
+            val selected = settings.faceStyle == style
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(if (selected) Color(0xFF00E5FF).copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
+                    .clickable { BackgroundSettingsHolder.updateLocal { it.copy(faceStyle = style) } }
+                    .padding(vertical = 6.dp, horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    style.label,
+                    fontSize = 13.sp,
+                    color = if (selected) Color(0xFF00E5FF) else Color.White.copy(0.9f),
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                )
+                if (selected) Text("✓", fontSize = 13.sp, color = Color(0xFF00E5FF))
+            }
+        }
+
+        SectionTitle("Background", Modifier.padding(top = 6.dp))
 
         SettingRow("Style") {
             Text(
@@ -67,13 +97,13 @@ fun SettingsScreen() {
         }
 
         Text("Text color", fontSize = 12.sp, color = Color.White.copy(0.7f))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
             BackgroundPresets.textColors.forEach { (_, color) ->
                 val hex = String.format("#%06X", 0xFFFFFF and color)
                 val selected = settings.textColor.equals(hex, ignoreCase = true)
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(18.dp)
                         .clip(CircleShape)
                         .background(Color(color))
                         .clickable {
@@ -86,13 +116,13 @@ fun SettingsScreen() {
 
         if (settings.type == BackgroundType.SOLID) {
             Text("Color", fontSize = 12.sp, color = Color.White.copy(0.7f))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
                 BackgroundPresets.solidColors.forEach { (_, color) ->
                     val hex = String.format("#%06X", 0xFFFFFF and color)
                     val selected = settings.solidColor.equals(hex, ignoreCase = true)
                     Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(18.dp)
                             .clip(CircleShape)
                             .background(Color(color))
                             .clickable {
@@ -187,9 +217,22 @@ fun SettingsScreen() {
             "Sync from phone for custom photos",
             fontSize = 10.sp,
             color = Color.White.copy(0.5f),
-            modifier = Modifier.padding(top = 4.dp)
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
         )
     }
+}
+
+@Composable
+private fun SectionTitle(title: String, modifier: Modifier = Modifier) {
+    Text(
+        title,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.White,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth()
+    )
 }
 
 @Composable
