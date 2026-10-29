@@ -585,7 +585,7 @@ const styles = (isDark: boolean) => {
       fontSize: 12,
       fontWeight: '700',
       color: isDark ? '#c9d1d9' : '#475569',
-      backgroundColor: isDark ? '#21262d' : '#f1f5f9',
+      backgroundColor: isDark ? '#16233A' : '#f1f5f9',
       overflow: 'hidden',
       paddingHorizontal: 8,
       paddingVertical: 4,

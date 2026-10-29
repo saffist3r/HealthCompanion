@@ -4,20 +4,18 @@ import {
   DeviceEventEmitter,
   Platform,
   TouchableOpacity,
-  useColorScheme,
   View,
-  Text,
 } from 'react-native';
 import {
   NavigationContainer,
   DarkTheme,
-  DefaultTheme,
 } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { startGlucoseAutoSync, stopGlucoseAutoSync } from './src/glucoseCloudSync';
@@ -29,14 +27,16 @@ import {
   checkMissedGlucose,
 } from './src/pushNudges';
 import { navigateTo, navigationRef, openNudgeScreen, openPainLog } from './src/navigation';
-import DashboardScreen from './src/screens/DashboardScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import LogScreen from './src/screens/LogScreen';
+import MeScreen from './src/screens/MeScreen';
+import LifeReviewScreen from './src/screens/LifeReviewScreen';
 import GlucoseScreen from './src/screens/GlucoseScreen';
 import MealsScreen from './src/screens/MealsScreen';
 import CaptureMealScreen from './src/screens/CaptureMealScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
 import MentalScreen from './src/screens/MentalScreen';
-import SettingsHubScreen from './src/screens/SettingsHubScreen';
 import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RemindersSettingsScreen from './src/screens/RemindersSettingsScreen';
@@ -45,102 +45,96 @@ import PainLogScreen from './src/screens/PainLogScreen';
 import Reb3iLiveScreen from './src/screens/Reb3iLiveScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import AddEntrySheet, { type ComposeLaunch } from './src/components/AddEntrySheet';
+import { HUD } from './src/ui/hud';
+import { startGlucoseForegroundCatchUp } from './src/glucose/store';
 
 const Tab = createBottomTabNavigator();
-const MealsStack = createNativeStackNavigator();
-const ReportsStack = createNativeStackNavigator();
-const SettingsStack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
+const LogStack = createNativeStackNavigator();
+const InsightsStack = createNativeStackNavigator();
+const MeStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
+
 export { navigationRef };
 
-/** Content row for text-only tabs (no icon slot). */
-const TAB_BAR_CONTENT_HEIGHT = 44;
+const TAB_BAR_CONTENT_HEIGHT = 58;
+
 /**
  * Android gesture nav often reports only ~20dp via safe-area, while the
  * mandatory/tappable system zone is ~48dp — tabs must clear that full zone.
  */
 const ANDROID_NAV_CLEARANCE = 48;
 
-function TabLabel({ label, color }: { label: string; color: string }) {
+const stackHeader = {
+  headerStyle: { backgroundColor: HUD.bg },
+  headerTintColor: HUD.ink,
+  headerTitleStyle: { fontFamily: HUD.fontCondensed, fontWeight: '700' as const },
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: HUD.bg },
+};
+
+const HUD_NAV_THEME = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: HUD.cyan,
+    background: HUD.bg,
+    card: HUD.bg,
+    text: HUD.ink,
+    border: HUD.line,
+    notification: HUD.red,
+  },
+};
+
+function HomeStackScreen() {
   return (
-    <Text style={{ fontSize: 12, color, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>
-      {label}
-    </Text>
+    <HomeStack.Navigator screenOptions={stackHeader}>
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="GlucoseDetail" component={GlucoseScreen} options={{ title: 'Glucose' }} />
+    </HomeStack.Navigator>
   );
 }
 
-function MealsStackScreen() {
-  const isDark = useColorScheme() === 'dark';
+function LogStackScreen() {
   return (
-    <MealsStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
-        headerTintColor: isDark ? '#e6edf3' : '#111',
-      }}
-    >
-      <MealsStack.Screen name="MealsList" component={MealsScreen} options={{ title: 'Meals' }} />
-      <MealsStack.Screen
-        name="CaptureMeal"
-        component={CaptureMealScreen}
-        options={{ title: 'Capture meal' }}
-      />
-    </MealsStack.Navigator>
+    <LogStack.Navigator screenOptions={stackHeader}>
+      <LogStack.Screen name="LogMain" component={LogScreen} options={{ headerShown: false }} />
+      <LogStack.Screen name="Meals" component={MealsScreen} options={{ title: 'Meals' }} />
+      <LogStack.Screen name="CaptureMeal" component={CaptureMealScreen} options={{ title: 'Capture meal' }} />
+    </LogStack.Navigator>
   );
 }
 
-function ReportsStackScreen() {
-  const isDark = useColorScheme() === 'dark';
+function InsightsStackScreen() {
   return (
-    <ReportsStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
-        headerTintColor: isDark ? '#e6edf3' : '#111',
-      }}
-    >
-      <ReportsStack.Screen
-        name="ReportsHome"
-        component={ReportsScreen}
-        options={{ headerShown: false }}
-      />
-    </ReportsStack.Navigator>
+    <InsightsStack.Navigator screenOptions={stackHeader}>
+      <InsightsStack.Screen name="ReportsHome" component={ReportsScreen} options={{ headerShown: false }} />
+      <InsightsStack.Screen name="LifeReview" component={LifeReviewScreen} options={{ title: 'Life Review' }} />
+    </InsightsStack.Navigator>
   );
 }
 
-function SettingsStackScreen() {
-  const isDark = useColorScheme() === 'dark';
+function MeStackScreen() {
   return (
-    <SettingsStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
-        headerTintColor: isDark ? '#e6edf3' : '#111',
-      }}
-    >
-      <SettingsStack.Screen
-        name="SettingsHub"
-        component={SettingsHubScreen}
-        options={{ title: 'Settings', headerShown: false }}
-      />
-      <SettingsStack.Screen
-        name="WatchSettings"
-        component={WatchSettingsScreen}
-        options={{ title: 'Watch' }}
-      />
-      <SettingsStack.Screen
-        name="RemindersSettings"
-        component={RemindersSettingsScreen}
-        options={{ title: 'Reminders' }}
-      />
-      <SettingsStack.Screen
-        name="AppSettings"
-        component={SettingsScreen}
-        options={{ title: 'Connection' }}
-      />
-    </SettingsStack.Navigator>
+    <MeStack.Navigator screenOptions={stackHeader}>
+      <MeStack.Screen name="MeMain" component={MeScreen} options={{ headerShown: false }} />
+      <MeStack.Screen name="WatchSettings" component={WatchSettingsScreen} options={{ title: 'Watch' }} />
+      <MeStack.Screen name="Activity" component={ActivityScreen} options={{ title: 'Health and activity' }} />
+      <MeStack.Screen name="Mental" component={MentalScreen} options={{ title: 'Mind history' }} />
+      <MeStack.Screen name="RemindersSettings" component={RemindersSettingsScreen} options={{ title: 'Reminders' }} />
+      <MeStack.Screen name="AppSettings" component={SettingsScreen} options={{ title: 'Connection and account' }} />
+    </MeStack.Navigator>
   );
 }
+
+const TAB_ICONS: Record<string, [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap]> = {
+  Home: ['pulse', 'pulse-outline'],
+  Log: ['list', 'list-outline'],
+  Insights: ['analytics', 'analytics-outline'],
+  Me: ['person-circle', 'person-circle-outline'],
+};
 
 function MainTabs() {
-  const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeLaunch, setComposeLaunch] = useState<ComposeLaunch | null>(null);
@@ -172,87 +166,31 @@ function MainTabs() {
   }, []);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: HUD.bg }}>
       <Tab.Navigator
-        initialRouteName="Today"
+        initialRouteName="Home"
         safeAreaInsets={{ top: 0, right: 0, left: 0, bottom: 0 }}
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: '#0d9488',
-          tabBarInactiveTintColor: isDark ? '#8b949e' : '#9ca3af',
-          tabBarIconStyle: { display: 'none', height: 0, width: 0 },
-          tabBarLabelPosition: 'below-icon',
-          tabBarItemStyle: {
-            justifyContent: 'center',
-            paddingTop: 0,
-            paddingBottom: 0,
-          },
+          tabBarActiveTintColor: HUD.cyan,
+          tabBarInactiveTintColor: HUD.dim,
+          tabBarLabelStyle: { fontFamily: HUD.fontCondensed, fontSize: 12, letterSpacing: 0.6 },
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={23} color={color} />
+          ),
+          tabBarItemStyle: { paddingTop: 6 },
           tabBarStyle: {
-            backgroundColor: isDark ? '#0d1117' : '#fff',
-            borderTopColor: isDark ? '#21262d' : '#e5e7eb',
+            backgroundColor: HUD.bg,
+            borderTopColor: HUD.line,
             height: tabBarHeight,
             paddingBottom: bottomInset,
-            paddingTop: 0,
           },
-        }}
+        })}
       >
-        <Tab.Screen
-          name="Today"
-          component={DashboardScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Today" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
-        <Tab.Screen
-          name="Glucose"
-          component={GlucoseScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Glucose" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
-        <Tab.Screen
-          name="Meals"
-          component={MealsStackScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Meals" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
-        <Tab.Screen
-          name="Reports"
-          component={ReportsStackScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Reports" color={color} />,
-            tabBarIcon: () => null,
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="Mental"
-          component={MentalScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Mental" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
-        <Tab.Screen
-          name="Activity"
-          component={ActivityScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Activity" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsStackScreen}
-          options={{
-            tabBarLabel: ({ color }) => <TabLabel label="Settings" color={color} />,
-            tabBarIcon: () => null,
-          }}
-        />
+        <Tab.Screen name="Home" component={HomeStackScreen} />
+        <Tab.Screen name="Log" component={LogStackScreen} />
+        <Tab.Screen name="Insights" component={InsightsStackScreen} />
+        <Tab.Screen name="Me" component={MeStackScreen} />
       </Tab.Navigator>
 
       <TouchableOpacity
@@ -261,24 +199,24 @@ function MainTabs() {
           position: 'absolute',
           right: 20,
           bottom: tabBarHeight + 16,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: '#0d9488',
+          width: 58,
+          height: 58,
+          borderRadius: 29,
+          backgroundColor: HUD.cyan,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 6,
+          shadowColor: HUD.cyan,
+          shadowOpacity: 0.6,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 10,
         }}
         onPress={() => {
           setComposeLaunch(null);
           setComposeOpen(true);
         }}
       >
-        <Text style={{ color: '#fff', fontSize: 32, fontWeight: '300', marginTop: -2 }}>+</Text>
+        <Ionicons name="add" size={32} color={HUD.bg} />
       </TouchableOpacity>
 
       <AddEntrySheet
@@ -290,7 +228,7 @@ function MainTabs() {
         }}
         onCaptureMeal={() => {
           if (navigationRef.isReady()) {
-            navigateTo('Meals', { screen: 'CaptureMeal' });
+            navigateTo('Log', { screen: 'CaptureMeal' });
           }
         }}
       />
@@ -299,7 +237,8 @@ function MainTabs() {
 }
 
 function SignedInRoot() {
-  const isDark = useColorScheme() === 'dark';
+  // Pick up readings stored while the app slept, whichever screen is open.
+  useEffect(() => startGlucoseForegroundCatchUp(), []);
 
   useEffect(() => {
     void syncAllNudges();
@@ -343,12 +282,7 @@ function SignedInRoot() {
   }, []);
 
   return (
-    <RootStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
-        headerTintColor: isDark ? '#e6edf3' : '#111',
-      }}
-    >
+    <RootStack.Navigator screenOptions={stackHeader}>
       <RootStack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen
         name="MorningLog"
@@ -370,7 +304,6 @@ function SignedInRoot() {
 }
 
 function RootNavigator() {
-  const isDark = useColorScheme() === 'dark';
   const { ready, signedIn } = useAuth();
 
   useEffect(() => {
@@ -397,10 +330,10 @@ function RootNavigator() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isDark ? '#0d1117' : '#f3f7f6',
+          backgroundColor: HUD.bg,
         }}
       >
-        <ActivityIndicator color="#0d9488" />
+        <ActivityIndicator color={HUD.cyan} />
       </View>
     );
   }
@@ -409,14 +342,13 @@ function RootNavigator() {
 }
 
 export default function App() {
-  const isDark = useColorScheme() === 'dark';
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
           <NavigationContainer
             ref={navigationRef}
-            theme={isDark ? DarkTheme : DefaultTheme}
+            theme={HUD_NAV_THEME}
             linking={{
               prefixes: ['healthcompanion://'],
               config: {
@@ -424,10 +356,10 @@ export default function App() {
                   MorningLog: 'morning',
                   Tabs: {
                     screens: {
-                      Today: 'today',
-                      Mental: 'mental',
-                      Settings: {
+                      Home: { screens: { HomeMain: 'today' } },
+                      Me: {
                         screens: {
+                          Mental: 'mental',
                           RemindersSettings: 'reminders',
                         },
                       },
@@ -437,7 +369,7 @@ export default function App() {
               },
             }}
           >
-            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <StatusBar style="light" />
             <RootNavigator />
           </NavigationContainer>
         </AuthProvider>

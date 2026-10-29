@@ -28,7 +28,10 @@ import {
   type DayDebriefDetail,
   type DayDebriefSummary,
 } from '../api/client';
-import ScreenHero from '../components/ui/ScreenHero';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import GlucoseTrendChart from '../components/GlucoseTrendChart';
+import { HUD, Panel, Row } from '../ui/hud';
 import { HC, themeColors } from '../theme';
 import { openReb3iLive } from '../navigation';
 
@@ -97,6 +100,8 @@ export default function ReportsScreen() {
     p.loop = false;
   });
   const t = styles(isDark);
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const canGoNext = selectedDate < today;
 
   const load = useCallback(async () => {
@@ -246,18 +251,31 @@ export default function ReportsScreen() {
       contentContainerStyle={t.content}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={HC.teal} />}
     >
-      <ScreenHero
-        eyebrow="INSIGHTS"
-        title="Reports"
-        subtitle="Meals, glucose & activity in one place"
-        pills={['Daily', 'Weekly', 'Archive']}
-        compact
-      />
+      <Text
+        style={{ paddingTop: insets.top + 12, marginHorizontal: 16, marginBottom: 12, fontFamily: HUD.fontLight, fontSize: 30, color: HUD.ink }}
+      >
+        Insights
+      </Text>
 
-      <TouchableOpacity style={t.liveBtn} onPress={openReb3iLive} activeOpacity={0.9}>
-        <Text style={t.liveBtnTitle}>Talk with Reb3i</Text>
-        <Text style={t.liveBtnSub}>Live Darija — hold to talk or Gemini-style hands-free orb</Text>
-      </TouchableOpacity>
+      <Panel style={{ paddingVertical: 4, marginHorizontal: 16, marginBottom: 14 }}>
+        <Row
+          first
+          icon="mic-outline"
+          color={HUD.violet}
+          title="Talk with Reb3i"
+          subtitle="Live Darija voice chat"
+          chevron
+          onPress={openReb3iLive}
+        />
+        <Row
+          icon="sparkles-outline"
+          color={HUD.cyan}
+          title="Life Review"
+          subtitle="Your longer-term story"
+          chevron
+          onPress={() => navigation.navigate('LifeReview')}
+        />
+      </Panel>
 
       <View style={t.tabs}>
         <TouchableOpacity
@@ -450,15 +468,13 @@ export default function ReportsScreen() {
           </Text>
           {glucoseReadings.length > 0 ? (
             <View style={t.subCard}>
-              <Text style={t.subTitle}>Glucose history</Text>
-              {glucoseReadings.slice(0, 24).map((r, i) => (
-                <Text key={i} style={t.meta}>
-                  {formatTime(r.timestamp)} · {Math.round(r.mgDl)} mg/dL
-                </Text>
-              ))}
-              {glucoseReadings.length > 24 ? (
-                <Text style={t.meta}>… +{glucoseReadings.length - 24} more in archive</Text>
-              ) : null}
+              <Text style={t.subTitle}>Glucose</Text>
+              <GlucoseTrendChart
+                samples={glucoseReadings.map((r) => ({ mgDl: r.mgDl, timestamp: r.timestamp }))}
+                prediction={[]}
+                nowMs={Math.max(...glucoseReadings.map((r) => r.timestamp))}
+                hours={24}
+              />
             </View>
           ) : null}
           <Text style={t.line}>
@@ -574,7 +590,7 @@ const styles = (isDark: boolean) => {
   const c = themeColors(isDark);
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
-    content: { paddingBottom: 40 },
+    content: { paddingBottom: 120 },
     title: { fontSize: 24, fontWeight: '700', color: c.ink },
     sub: { marginTop: 4, marginBottom: 16, color: c.muted },
     liveBtn: {
@@ -605,7 +621,7 @@ const styles = (isDark: boolean) => {
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
     },
     dayNavBtnDisabled: { opacity: 0.35 },
     dayNavText: { color: c.ink, fontSize: 18, fontWeight: '800' },
@@ -624,7 +640,7 @@ const styles = (isDark: boolean) => {
       flex: 1,
       padding: 12,
       borderRadius: HC.radius.md,
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
       alignItems: 'center',
     },
     tabOn: { backgroundColor: HC.teal },
@@ -645,7 +661,7 @@ const styles = (isDark: boolean) => {
       marginTop: 8,
       padding: 10,
       borderRadius: HC.radius.sm,
-      backgroundColor: isDark ? '#0d1117' : '#f8fafc',
+      backgroundColor: isDark ? '#070B14' : '#f8fafc',
       gap: 4,
     },
     archiveRow: {
@@ -669,7 +685,7 @@ const styles = (isDark: boolean) => {
     seekTrack: {
       height: 28,
       borderRadius: 14,
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
       justifyContent: 'center',
       overflow: 'hidden',
     },

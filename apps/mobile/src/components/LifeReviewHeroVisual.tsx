@@ -64,7 +64,7 @@ export default function LifeReviewHeroVisual({ active }: { active?: boolean }) {
       <Svg width={280} height={240} viewBox="0 0 320 280">
         <Defs>
           <LinearGradient id="lrArcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#5eead4" />
+            <Stop offset="0%" stopColor="#22D3EE" />
             <Stop offset="50%" stopColor="#a78bfa" />
             <Stop offset="100%" stopColor="#fcd34d" />
           </LinearGradient>
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#fff',
-    shadowColor: '#5eead4',
+    shadowColor: '#22D3EE',
     shadowOpacity: 0.8,
     shadowRadius: 6,
     elevation: 4,

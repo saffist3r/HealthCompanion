@@ -10,6 +10,7 @@
     "build": "expo prebuild"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@health-companion/shared": "*",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.3.10",

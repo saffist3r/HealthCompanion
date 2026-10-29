@@ -9,13 +9,13 @@ import {
   sparklineX,
   TREND_ARROW_GLYPH,
   TREND_ARROW_LABEL,
-  type GlucoseInsight,
   toSparklinePoints,
   toMgDl,
   type GlycemiaReading,
   type GlycemiaUnit,
 } from '@health-companion/shared';
 import type { GlycemiaChartEvent } from '../api/client';
+import { formatDelta5Min, trendAlert } from '../glucose/format';
 
 const WIDTH = 300;
 const HEIGHT = 110;
@@ -43,28 +43,6 @@ function windowMsFor(hours: ChartRangeHours): number {
   if (hours === 24) return GLYCEMIA_24H_MS;
   if (hours === 48) return GLYCEMIA_24H_MS * 2;
   return GLYCEMIA_12H_MS;
-}
-
-/** Same lead time as the watch face's alert chip. */
-const ALERT_MINUTES = 20;
-
-function formatDelta5Min(insight: GlucoseInsight, unit: GlycemiaUnit): string | null {
-  if (insight.ratePerMin == null) return null;
-  const mg = insight.ratePerMin * 5;
-  const v = unit === 'mg/dL' ? Math.round(mg) : Math.round((mg / 18.0182) * 10) / 10;
-  const sign = v > 0 ? '+' : v < 0 ? '−' : '±';
-  return `${sign}${unit === 'mg/dL' ? Math.abs(v) : Math.abs(v).toFixed(1)}/5 min`;
-}
-
-function trendAlert(insight: GlucoseInsight): { text: string; color: string } | null {
-  if (!insight.current) return null;
-  if (insight.isStale) return { text: 'No recent reading', color: '#d97706' };
-  if (insight.zone === 'urgentLow') return { text: 'Urgent low', color: '#e11d48' };
-  const low = insight.minutesToLow;
-  if (low != null && low <= ALERT_MINUTES) return { text: `Low in ~${Math.max(1, low)} min`, color: '#e11d48' };
-  const high = insight.minutesToHigh;
-  if (high != null && high <= ALERT_MINUTES) return { text: `High in ~${Math.max(1, high)} min`, color: '#d97706' };
-  return null;
 }
 
 function nearestY(
@@ -114,7 +92,10 @@ export function SparklineChart({
   );
   const displayUnit: GlycemiaUnit = history[history.length - 1]?.unit ?? 'mg/dL';
   const delta = formatDelta5Min(insight, displayUnit);
-  const alert = trendAlert(insight);
+  const alertInfo = trendAlert(insight);
+  const alert = alertInfo
+    ? { text: alertInfo.text, color: alertInfo.level === 'high' || alertInfo.level === 'stale' ? '#d97706' : '#e11d48' }
+    : null;
 
   const windowStart = now - windowMs;
   const visibleEvents = showEvents
@@ -212,7 +193,7 @@ export function SparklineChart({
                   cy={y}
                   r={3.5}
                   fill={c}
-                  stroke={isDark ? '#0d1117' : '#fff'}
+                  stroke={isDark ? '#070B14' : '#fff'}
                   strokeWidth={1}
                 />,
               ];
@@ -262,10 +243,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(13,148,136,0.12)',
+    backgroundColor: 'rgba(8,145,178,0.12)',
   },
-  rangeChipOn: { backgroundColor: '#0d9488' },
-  rangeChipText: { fontSize: 13, fontWeight: '600', color: '#0d9488' },
+  rangeChipOn: { backgroundColor: '#0891B2' },
+  rangeChipText: { fontSize: 13, fontWeight: '600', color: '#0891B2' },
   rangeChipTextOn: { color: '#fff' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   subtitle: { fontSize: 13, fontWeight: '600' },

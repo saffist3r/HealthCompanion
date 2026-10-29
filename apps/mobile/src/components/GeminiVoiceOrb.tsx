@@ -36,7 +36,7 @@ function phaseColors(phase: VoiceOrbPhase): [string, string, string] {
     case 'hearing':
       return ['#a78bfa', '#7c3aed', '#4c1d95'];
     case 'listening':
-      return ['#5eead4', '#0d9488', '#134e4a'];
+      return ['#22D3EE', '#0891B2', '#134e4a'];
     case 'speaking':
       return ['#67e8f9', '#0891b2', '#164e63'];
     case 'thinking':
@@ -44,7 +44,7 @@ function phaseColors(phase: VoiceOrbPhase): [string, string, string] {
     case 'offline':
       return ['#94a3b8', '#64748b', '#334155'];
     default:
-      return ['#2dd4bf', '#0f766e', '#042f2e'];
+      return ['#2dd4bf', '#0E7490', '#0A1A2E'];
   }
 }
 

@@ -454,7 +454,7 @@ export default function MealDetailModal({
                 ))}
 
                 {detailLoading ? (
-                  <ActivityIndicator style={{ marginVertical: 12 }} color="#0d9488" />
+                  <ActivityIndicator style={{ marginVertical: 12 }} color="#0891B2" />
                 ) : null}
 
                 {glucoseStory?.blurb ? (
@@ -539,7 +539,7 @@ const styles = (isDark: boolean) =>
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.5)' },
     sheet: {
       maxHeight: '92%',
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       paddingHorizontal: 16,
@@ -547,14 +547,14 @@ const styles = (isDark: boolean) =>
     },
     head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
     title: { fontSize: 22, fontWeight: '700', color: isDark ? '#fff' : '#111' },
-    sub: { marginTop: 4, color: isDark ? '#8b949e' : '#667', fontSize: 13 },
+    sub: { marginTop: 4, color: isDark ? '#8CA0BC' : '#667', fontSize: 13 },
     closeBtn: {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 10,
-      backgroundColor: isDark ? '#21262d' : '#e5e7eb',
+      backgroundColor: isDark ? '#16233A' : '#e5e7eb',
     },
-    closeText: { fontWeight: '600', color: isDark ? '#e6edf3' : '#111' },
+    closeText: { fontWeight: '600', color: isDark ? '#E6F4FF' : '#111' },
     photo: {
       width: '100%',
       height: 220,
@@ -580,7 +580,7 @@ const styles = (isDark: boolean) =>
       borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: isDark ? '#21262d' : '#f1f5f9',
+      backgroundColor: isDark ? '#16233A' : '#f1f5f9',
       marginBottom: 12,
     },
     pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
@@ -589,22 +589,22 @@ const styles = (isDark: boolean) =>
       paddingVertical: 6,
       borderRadius: 999,
       overflow: 'hidden',
-      backgroundColor: isDark ? '#21262d' : '#eef2f7',
+      backgroundColor: isDark ? '#16233A' : '#eef2f7',
       color: isDark ? '#c9d1d9' : '#334155',
       fontWeight: '600',
       fontSize: 13,
     },
-    pillCal: { backgroundColor: '#0d9488', color: '#fff' },
+    pillCal: { backgroundColor: '#0891B2', color: '#fff' },
     section: { marginBottom: 14 },
     sectionTitle: {
       fontSize: 12,
       fontWeight: '700',
       letterSpacing: 0.6,
       textTransform: 'uppercase',
-      color: isDark ? '#8b949e' : '#64748b',
+      color: isDark ? '#8CA0BC' : '#64748b',
       marginBottom: 6,
     },
-    body: { fontSize: 16, lineHeight: 24, color: isDark ? '#e6edf3' : '#0f172a' },
+    body: { fontSize: 16, lineHeight: 24, color: isDark ? '#E6F4FF' : '#0f172a' },
     item: { fontSize: 15, lineHeight: 22, color: isDark ? '#c9d1d9' : '#334155', marginTop: 4 },
     warn: {
       marginBottom: 10,
@@ -618,31 +618,31 @@ const styles = (isDark: boolean) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: isDark ? '#21262d' : '#e5e7eb',
+      backgroundColor: isDark ? '#16233A' : '#e5e7eb',
     },
-    chipOn: { backgroundColor: '#0d9488' },
+    chipOn: { backgroundColor: '#0891B2' },
     chipText: { fontWeight: '600', color: isDark ? '#c9d1d9' : '#333' },
     chipTextOn: { color: '#fff' },
     input: {
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#d1d5db',
+      borderColor: isDark ? '#1E3350' : '#d1d5db',
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginBottom: 8,
-      color: isDark ? '#e6edf3' : '#111',
-      backgroundColor: isDark ? '#0d1117' : '#fff',
+      color: isDark ? '#E6F4FF' : '#111',
+      backgroundColor: isDark ? '#070B14' : '#fff',
     },
     btn: {
       marginTop: 8,
-      backgroundColor: '#0d9488',
+      backgroundColor: '#0891B2',
       borderRadius: 12,
       paddingVertical: 12,
       alignItems: 'center',
     },
     btnText: { color: '#fff', fontWeight: '700' },
-    btnGhost: { backgroundColor: isDark ? '#21262d' : '#e5e7eb' },
-    btnGhostText: { color: isDark ? '#e6edf3' : '#111', fontWeight: '700' },
+    btnGhost: { backgroundColor: isDark ? '#16233A' : '#e5e7eb' },
+    btnGhostText: { color: isDark ? '#E6F4FF' : '#111', fontWeight: '700' },
     btnDanger: { backgroundColor: '#be123c', marginBottom: 20 },
     rateRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
     rateBtn: {
@@ -650,9 +650,9 @@ const styles = (isDark: boolean) =>
       paddingVertical: 10,
       borderRadius: 10,
       alignItems: 'center',
-      backgroundColor: isDark ? '#21262d' : '#eef2f7',
+      backgroundColor: isDark ? '#16233A' : '#eef2f7',
     },
-    rateBtnOn: { backgroundColor: '#0d9488' },
+    rateBtnOn: { backgroundColor: '#0891B2' },
     rateBtnText: { fontWeight: '700', color: isDark ? '#c9d1d9' : '#334155' },
     rateBtnTextOn: { color: '#fff' },
     hypoNote: {
@@ -662,5 +662,5 @@ const styles = (isDark: boolean) =>
       backgroundColor: isDark ? '#1c2a3a' : '#eff6ff',
     },
     hypoNoteTitle: { fontWeight: '700', color: '#2563eb', marginBottom: 4 },
-    similarRow: { marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: isDark ? '#30363d' : '#e5e7eb' },
+    similarRow: { marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: isDark ? '#1E3350' : '#e5e7eb' },
   });

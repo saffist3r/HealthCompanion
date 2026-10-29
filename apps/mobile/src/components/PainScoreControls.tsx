@@ -102,12 +102,12 @@ export function ScoreSlider({
             marginBottom: 8,
           }}
         >
-          <Text style={{ color: isDark ? '#8b949e' : '#666', fontSize: 13, fontWeight: '600' }}>
+          <Text style={{ color: isDark ? '#8CA0BC' : '#666', fontSize: 13, fontWeight: '600' }}>
             {label}
           </Text>
           <Text style={{ color, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
             {value}
-            <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#8b949e' : '#9ca3af' }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#8CA0BC' : '#9ca3af' }}>
               {' '}
               / {max}
             </Text>
@@ -124,7 +124,7 @@ export function ScoreSlider({
         style={{
           height: trackH,
           borderRadius: trackH / 2,
-          backgroundColor: isDark ? '#21262d' : '#e5e7eb',
+          backgroundColor: isDark ? '#16233A' : '#e5e7eb',
           justifyContent: 'center',
           overflow: 'hidden',
         }}
@@ -194,9 +194,9 @@ export function InjuryPainCard({
       style={{
         borderRadius: 16,
         padding: 14,
-        backgroundColor: isDark ? '#161b22' : '#fff',
+        backgroundColor: isDark ? '#0E1624' : '#fff',
         borderWidth: focused ? 2 : 1,
-        borderColor: focused ? color : isDark ? '#30363d' : '#e2e8f0',
+        borderColor: focused ? color : isDark ? '#1E3350' : '#e2e8f0',
         marginBottom: 12,
       }}
     >
@@ -204,7 +204,7 @@ export function InjuryPainCard({
         <View style={{ flex: 1, paddingRight: 10 }}>
           <Text
             style={{
-              color: isDark ? '#e6edf3' : '#111',
+              color: isDark ? '#E6F4FF' : '#111',
               fontSize: 16,
               fontWeight: '700',
             }}
@@ -213,7 +213,7 @@ export function InjuryPainCard({
             {title}
           </Text>
           {subtitle ? (
-            <Text style={{ color: isDark ? '#8b949e' : '#64748b', fontSize: 12, marginTop: 2 }}>
+            <Text style={{ color: isDark ? '#8CA0BC' : '#64748b', fontSize: 12, marginTop: 2 }}>
               {subtitle}
             </Text>
           ) : null}
@@ -260,7 +260,7 @@ export function InjuryPainCard({
                 backgroundColor: active
                   ? painColor(p.score)
                   : isDark
-                    ? '#21262d'
+                    ? '#16233A'
                     : '#f1f5f9',
               }}
             >

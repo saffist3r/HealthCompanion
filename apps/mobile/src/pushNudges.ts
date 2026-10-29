@@ -169,7 +169,7 @@ async function ensureChannels() {
       name: d.name,
       importance: d.importance,
       vibrationPattern: [0, 220, 120, 220],
-      lightColor: '#0d9488',
+      lightColor: '#0891B2',
     });
   }
 }

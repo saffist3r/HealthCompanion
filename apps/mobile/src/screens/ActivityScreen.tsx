@@ -299,7 +299,7 @@ export default function ActivityScreen() {
                   <Text style={t.meta}>Heart rate avg: {snapshot.heartRateBpm} bpm</Text>
                 ) : null}
                 {snapshot.caloriesBurned != null ? (
-                  <Text style={t.meta}>{snapshot.caloriesBurned} active kcal</Text>
+                  <Text style={t.meta}>{Math.round(Number(snapshot.caloriesBurned) || 0)} active kcal</Text>
                 ) : null}
                 {snapshot.energyScore != null ? (
                   <View style={t.sourceRow}>
@@ -534,7 +534,7 @@ export default function ActivityScreen() {
                 <TouchableOpacity
                   onPress={() => DeviceEventEmitter.emit('open-pain-log', {})}
                 >
-                  <Text style={{ color: '#0d9488', fontWeight: '800' }}>Log all pain</Text>
+                  <Text style={{ color: '#0891B2', fontWeight: '800' }}>Log all pain</Text>
                 </TouchableOpacity>
               </View>
               {injuries.map((inj) => (
@@ -558,7 +558,7 @@ export default function ActivityScreen() {
                         DeviceEventEmitter.emit('open-pain-log', { injuryId: inj.id })
                       }
                     >
-                      <Text style={{ color: '#0d9488', fontWeight: '700' }}>Log pain</Text>
+                      <Text style={{ color: '#0891B2', fontWeight: '700' }}>Log pain</Text>
                     </TouchableOpacity>
                   </View>
                   <TouchableOpacity
@@ -688,7 +688,7 @@ const styles = (isDark: boolean) => {
       marginHorizontal: 16,
     },
     btnSecondary: {
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
       borderRadius: HC.radius.md,
       paddingVertical: 14,
       alignItems: 'center',
@@ -712,7 +712,7 @@ const styles = (isDark: boolean) => {
       marginTop: 8,
       marginBottom: 10,
       color: c.ink,
-      backgroundColor: isDark ? '#0d1117' : '#fff',
+      backgroundColor: isDark ? '#070B14' : '#fff',
     },
     workoutDraft: {
       marginTop: 12,

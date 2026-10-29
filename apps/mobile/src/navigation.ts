@@ -32,22 +32,22 @@ export function openNudgeScreen(screen?: NudgeScreen | string) {
       navigateTo('PainLog');
       return;
     case 'Meals':
-      navigateTo('Tabs', { screen: 'Meals' });
+      navigateTo('Tabs', { screen: 'Log', params: { screen: 'LogMain' } });
       return;
     case 'Mental':
-      navigateTo('Tabs', { screen: 'Mental' });
+      navigateTo('Tabs', { screen: 'Me', params: { screen: 'Mental' } });
       return;
     case 'Glucose':
-      navigateTo('Tabs', { screen: 'Glucose' });
+      navigateTo('Tabs', { screen: 'Home', params: { screen: 'GlucoseDetail' } });
       return;
     case 'Activity':
-      navigateTo('Tabs', { screen: 'Activity' });
+      navigateTo('Tabs', { screen: 'Me', params: { screen: 'Activity' } });
       return;
     case 'Reports':
-      navigateTo('Tabs', { screen: 'Reports' });
+      navigateTo('Tabs', { screen: 'Insights' });
       return;
     case 'Today':
     default:
-      navigateTo('Tabs', { screen: 'Today' });
+      navigateTo('Tabs', { screen: 'Home', params: { screen: 'HomeMain' } });
   }
 }

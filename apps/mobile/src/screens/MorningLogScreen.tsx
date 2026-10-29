@@ -185,7 +185,7 @@ export default function MorningLogScreen() {
   if (loading) {
     return (
       <View style={[t.root, t.center]}>
-        <ActivityIndicator color="#0d9488" />
+        <ActivityIndicator color="#0891B2" />
       </View>
     );
   }
@@ -290,48 +290,48 @@ export default function MorningLogScreen() {
 
 const styles = (isDark: boolean) =>
   StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+    root: { flex: 1, backgroundColor: isDark ? '#070B14' : '#f5f7fa' },
     center: { alignItems: 'center', justifyContent: 'center' },
     content: { padding: 16, paddingBottom: 48 },
     title: { fontSize: 24, fontWeight: '700', color: isDark ? '#fff' : '#111' },
     sub: { marginTop: 4, marginBottom: 16, color: isDark ? '#9aa4b2' : '#667', lineHeight: 20 },
     card: {
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderRadius: 14,
       padding: 14,
       marginBottom: 14,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: isDark ? '#30363d' : '#e5e7eb',
+      borderColor: isDark ? '#1E3350' : '#e5e7eb',
     },
     section: {
       fontSize: 17,
       fontWeight: '700',
-      color: isDark ? '#e6edf3' : '#111',
+      color: isDark ? '#E6F4FF' : '#111',
       marginBottom: 10,
     },
     block: { marginBottom: 10 },
-    hint: { fontSize: 13, color: isDark ? '#8b949e' : '#666', marginBottom: 6 },
+    hint: { fontSize: 13, color: isDark ? '#8CA0BC' : '#666', marginBottom: 6 },
     input: {
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#ddd',
+      borderColor: isDark ? '#1E3350' : '#ddd',
       borderRadius: 10,
       padding: 12,
-      color: isDark ? '#e6edf3' : '#111',
+      color: isDark ? '#E6F4FF' : '#111',
       marginBottom: 8,
-      backgroundColor: isDark ? '#0d1117' : '#fff',
+      backgroundColor: isDark ? '#070B14' : '#fff',
     },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
     chip: {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: isDark ? '#21262d' : '#e5e7eb',
+      backgroundColor: isDark ? '#16233A' : '#e5e7eb',
     },
-    chipOn: { backgroundColor: '#0d9488' },
-    chipText: { color: isDark ? '#e6edf3' : '#111', fontWeight: '600', fontSize: 13 },
+    chipOn: { backgroundColor: '#0891B2' },
+    chipText: { color: isDark ? '#E6F4FF' : '#111', fontWeight: '600', fontSize: 13 },
     chipTextOn: { color: '#fff' },
     btn: {
-      backgroundColor: '#0d9488',
+      backgroundColor: '#0891B2',
       padding: 16,
       borderRadius: 12,
       alignItems: 'center',

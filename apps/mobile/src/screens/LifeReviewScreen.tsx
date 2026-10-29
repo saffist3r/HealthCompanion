@@ -188,10 +188,10 @@ export default function LifeReviewScreen() {
   };
 
   const totals = assessment?.totals as Record<string, unknown> | undefined;
-  const cardBg = isDark ? '#161b22' : '#fff';
-  const border = isDark ? '#30363d' : '#e2e8f0';
-  const ink = isDark ? '#e6edf3' : '#0f172a';
-  const muted = isDark ? '#8b949e' : '#64748b';
+  const cardBg = isDark ? '#0E1624' : '#fff';
+  const border = isDark ? '#1E3350' : '#e2e8f0';
+  const ink = isDark ? '#E6F4FF' : '#0f172a';
+  const muted = isDark ? '#8CA0BC' : '#64748b';
 
   const stats = useMemo(() => {
     if (!totals) return [];
@@ -220,7 +220,7 @@ export default function LifeReviewScreen() {
   return (
     <ScrollView style={t.root} contentContainerStyle={t.content}>
       <LinearGradient
-        colors={['#021a19', '#0f766e', '#1e1b4b']}
+        colors={['#070B14', '#0E7490', '#1B1440']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={t.hero}
@@ -245,7 +245,7 @@ export default function LifeReviewScreen() {
         <TouchableOpacity style={t.cta} onPress={run} disabled={busy} activeOpacity={0.88}>
           {busy ? (
             <View style={t.ctaBusyRow}>
-              <ActivityIndicator color="#042f2e" size="small" />
+              <ActivityIndicator color="#0A1A2E" size="small" />
               <Text style={t.ctaText}>Analyzing your week…</Text>
             </View>
           ) : (
@@ -306,7 +306,7 @@ export default function LifeReviewScreen() {
 
           <FadeIn delay={140}>
             <LinearGradient
-              colors={isDark ? ['#161b22', '#0f172a'] : ['#fff', '#f0fdfa']}
+              colors={isDark ? ['#0E1624', '#0f172a'] : ['#fff', '#f0fdfa']}
               style={[t.summaryCard, { borderColor: border }]}
             >
               <Text style={[t.summary, { color: ink }]}>{assessment.honestSummary}</Text>
@@ -419,10 +419,10 @@ export default function LifeReviewScreen() {
 }
 
 function styles(isDark: boolean) {
-  const bg = isDark ? '#0d1117' : '#f3f7f6';
-  const card = isDark ? '#161b22' : '#fff';
-  const ink = isDark ? '#e6edf3' : '#0f172a';
-  const muted = isDark ? '#8b949e' : '#64748b';
+  const bg = isDark ? '#070B14' : '#f3f7f6';
+  const card = isDark ? '#0E1624' : '#fff';
+  const ink = isDark ? '#E6F4FF' : '#0f172a';
+  const muted = isDark ? '#8CA0BC' : '#64748b';
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: bg },
     content: { paddingBottom: 48 },
@@ -443,7 +443,7 @@ function styles(isDark: boolean) {
       width: 10,
       height: 10,
       borderRadius: 5,
-      backgroundColor: '#5eead4',
+      backgroundColor: '#22D3EE',
     },
     eyebrow: {
       color: 'rgba(255,255,255,0.72)',
@@ -482,40 +482,40 @@ function styles(isDark: boolean) {
       elevation: 4,
     },
     ctaBusyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    ctaText: { color: '#042f2e', fontSize: 16, fontWeight: '800' },
+    ctaText: { color: '#0A1A2E', fontSize: 16, fontWeight: '800' },
     loadingBox: {
       margin: 20,
       padding: 28,
       borderRadius: 24,
       backgroundColor: card,
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#e2e8f0',
+      borderColor: isDark ? '#1E3350' : '#e2e8f0',
     },
     loadingSteps: { flexDirection: 'row', gap: 4, marginBottom: 16 },
     loadingStep: {
       flex: 1,
       height: 4,
       borderRadius: 4,
-      backgroundColor: isDark ? '#30363d' : '#e2e8f0',
+      backgroundColor: isDark ? '#1E3350' : '#e2e8f0',
     },
-    loadingStepDone: { backgroundColor: '#0d9488' },
+    loadingStepDone: { backgroundColor: '#0891B2' },
     loadingStepCurrent: { backgroundColor: '#7c3aed', transform: [{ scaleY: 1.4 }] },
     progressTrack: {
       height: 6,
       borderRadius: 999,
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
       overflow: 'hidden',
       marginBottom: 18,
     },
     progressFill: {
       height: '100%',
       borderRadius: 999,
-      backgroundColor: '#0d9488',
+      backgroundColor: '#0891B2',
     },
     loadingText: { color: ink, fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
     loadingHint: { color: muted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
     results: { padding: 20, gap: 4 },
-    period: { color: '#0d9488', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+    period: { color: '#0891B2', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
     headline: { color: ink, fontSize: 26, fontWeight: '800', marginTop: 6, marginBottom: 14, lineHeight: 32 },
     statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
     summaryCard: {
@@ -532,7 +532,7 @@ function styles(isDark: boolean) {
       borderWidth: 1,
       borderLeftWidth: 4,
     },
-    verdictGlucose: { borderLeftColor: '#0d9488' },
+    verdictGlucose: { borderLeftColor: '#0891B2' },
     verdictLife: { borderLeftColor: '#7c3aed' },
     verdictMood: { borderLeftColor: '#d97706' },
     verdictIcon: { fontSize: 22, marginBottom: 6 },
@@ -565,15 +565,15 @@ function styles(isDark: boolean) {
       width: 30,
       height: 30,
       borderRadius: 10,
-      backgroundColor: isDark ? '#0f3d38' : '#ccfbf1',
+      backgroundColor: isDark ? '#0B2E3A' : '#ccfbf1',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    priorityNumText: { color: '#0d9488', fontWeight: '800', fontSize: 14 },
+    priorityNumText: { color: '#0891B2', fontWeight: '800', fontSize: 14 },
     priorityText: { flex: 1, fontSize: 14, lineHeight: 21 },
     disclaimer: { fontSize: 12, textAlign: 'center', marginTop: 24, lineHeight: 18 },
     emptyWrap: { alignItems: 'center', padding: 40, gap: 12 },
-    emptyIcon: { fontSize: 32, color: '#0d9488', opacity: 0.6 },
+    emptyIcon: { fontSize: 32, color: '#0891B2', opacity: 0.6 },
     empty: { textAlign: 'center', fontSize: 14, lineHeight: 21, maxWidth: 280 },
   });
 }

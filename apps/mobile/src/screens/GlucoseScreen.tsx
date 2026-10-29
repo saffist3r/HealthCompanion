@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import {
   Alert,
   Linking,
-  NativeModules,
   Platform,
   StyleSheet,
   Text,
@@ -19,7 +18,6 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
 import { Swipeable } from 'react-native-gesture-handler';
 import Svg, { Circle } from 'react-native-svg';
@@ -28,8 +26,6 @@ import {
   getGlycemiaStatusColor,
   getGlycemiaStatusLabel,
   toMgDl,
-  MAX_GLYCEMIA_HISTORY,
-  GLYCEMIA_24H_MS,
 } from '@health-companion/shared';
 import { sendGlycemiaToWatch, sendBackgroundToWatch } from '../wearSync';
 import { SparklineChart, type ChartRangeHours } from '../components/SparklineChart';
@@ -39,16 +35,18 @@ import { HC } from '../theme';
 import { loadBackgroundSettings } from '../backgroundSettings';
 import { syncGlucose, fetchGlucoseHistory, fetchGlycemiaEvents, type GlycemiaChartEvent } from '../api/client';
 import { pushGlucoseToCloud, flushGlucosePending, GLYCEMIA_UPDATED_EVENT } from '../glucoseCloudSync';
+import {
+  appendToHistory,
+  loadHistory,
+  loadLatestGlycemia,
+  mergeHistory,
+  removeFromHistory,
+  saveHistory,
+} from '../glucose/store';
 
-const LOCAL_HISTORY_MS = GLYCEMIA_24H_MS * 2;
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
-const HISTORY_KEY = '@health_companion/history';
-const MAX_HISTORY = MAX_GLYCEMIA_HISTORY;
-const GlycemiaStorage = NativeModules.GlycemiaStorage;
 
 function formatTimeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -72,82 +70,6 @@ function formatTime(ts: number): string {
     ' ' +
     d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   );
-}
-
-async function loadLatestGlycemia(): Promise<GlycemiaReading | null> {
-  try {
-    let best: GlycemiaReading | null = null;
-    const asyncRaw = await AsyncStorage.getItem(GLYCEMIA_ASYNC_KEY);
-    if (asyncRaw) {
-      try {
-        best = JSON.parse(asyncRaw) as GlycemiaReading;
-      } catch {
-        /* ignore */
-      }
-    }
-    // Native CapAPS extract writes SharedPreferences; prefer whichever reading is newer.
-    if (GlycemiaStorage?.getLastGlycemia) {
-      const nativeRaw = await GlycemiaStorage.getLastGlycemia();
-      if (nativeRaw) {
-        try {
-          const native = JSON.parse(nativeRaw) as GlycemiaReading;
-          if (!best || (native.timestamp || 0) >= (best.timestamp || 0)) {
-            best = native;
-            // Keep AsyncStorage in sync so cloud flush / meal capture see it
-            await AsyncStorage.setItem(GLYCEMIA_ASYNC_KEY, JSON.stringify(native));
-            try {
-              await pushGlucoseToCloud(native);
-            } catch {
-              /* queued by pushGlucoseToCloud on failure */
-            }
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    return best;
-  } catch {
-    return null;
-  }
-}
-
-async function loadHistory(): Promise<GlycemiaReading[]> {
-  try {
-    const raw = await AsyncStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as GlycemiaReading[];
-    if (!Array.isArray(arr)) return [];
-    const cutoff = Date.now() - LOCAL_HISTORY_MS;
-    return arr.filter((r) => r.timestamp >= cutoff).slice(0, MAX_HISTORY);
-  } catch {
-    return [];
-  }
-}
-
-function mergeHistory(local: GlycemiaReading[], cloud: GlycemiaReading[]): GlycemiaReading[] {
-  const byTs = new Map<number, GlycemiaReading>();
-  for (const r of [...cloud, ...local]) {
-    if (!r?.timestamp || !Number.isFinite(r.value)) continue;
-    const key = Math.round(r.timestamp / 1000) * 1000;
-    if (!byTs.has(key)) byTs.set(key, r);
-  }
-  return Array.from(byTs.values())
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, MAX_HISTORY);
-}
-
-async function appendToHistory(reading: GlycemiaReading): Promise<void> {
-  const history = await loadHistory();
-  const filtered = history.filter((r) => Math.abs(r.timestamp - reading.timestamp) > 5000);
-  const updated = [reading, ...filtered].slice(0, MAX_HISTORY);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-}
-
-async function removeFromHistory(timestamp: number): Promise<void> {
-  const history = await loadHistory();
-  const updated = history.filter((r) => r.timestamp !== timestamp);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
 }
 
 function StatusRing({
@@ -197,12 +119,17 @@ function StatusRing({
       <View style={{ alignItems: 'center' }}>
         <Text
           style={{
-            fontSize: 36,
-            fontWeight: '700',
+            fontSize: 40,
+            fontFamily: 'sans-serif-light',
             color: color,
           }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
         >
-          {reading.value} {reading.unit}
+          {reading.unit === 'mg/dL' ? Math.round(reading.value) : reading.value}
+        </Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1.5, color: isDark ? 'rgba(255,255,255,0.6)' : '#888' }}>
+          {reading.unit.toUpperCase()}
         </Text>
         <Text
           style={{
@@ -292,7 +219,7 @@ export default function GlucoseScreen() {
       const cloud = await fetchGlucoseHistory(hours);
       const merged = mergeHistory(local, cloud);
       setHistory(merged);
-      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
+      await saveHistory(merged);
       await loadChartEvents(hours);
       return merged;
     } catch {
@@ -357,23 +284,13 @@ export default function GlucoseScreen() {
     return () => clearTimeout(timer);
   }, [permissionStatus, requestPermission]);
 
+  // Foreground catch-up (watch + cloud) runs app-wide; here we only refresh what's shown.
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (state: AppStateStatus) => {
-      if (state === 'active') {
-        refreshPermission();
-        const reading = await loadLatestGlycemia();
-        setGlycemia(reading);
-        if (reading) {
-          await appendToHistory(reading);
-          setHistory(await loadHistory());
-          sendGlycemiaToWatch(reading, await loadHistory()).catch(() => {});
-          pushGlucoseToCloud(reading).catch(() => {});
-        }
-        flushGlucosePending().catch(() => {});
-      }
+    const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') refreshPermission();
     });
     return () => subscription.remove();
-  }, []);
+  }, [refreshPermission]);
 
   const openAccessibilitySettings = () => {
     if (Platform.OS === 'android') {
@@ -582,7 +499,7 @@ export default function GlucoseScreen() {
 
 const styles = (isDark: boolean) =>
   StyleSheet.create({
-    scrollView: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
+    scrollView: { flex: 1, backgroundColor: isDark ? '#070B14' : '#f3f7f6' },
     container: {
       paddingBottom: 40,
     },
@@ -590,32 +507,32 @@ const styles = (isDark: boolean) =>
       fontSize: 26,
       fontWeight: '800',
       marginBottom: 20,
-      color: isDark ? '#e6edf3' : '#0f172a',
+      color: isDark ? '#E6F4FF' : '#0f172a',
       letterSpacing: -0.4,
     },
     card: {
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderRadius: 18,
       padding: 18,
       marginBottom: 16,
       marginHorizontal: 16,
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#e2e8f0',
+      borderColor: isDark ? '#1E3350' : '#e2e8f0',
     },
     cardTitle: {
       fontSize: 16,
       fontWeight: '800',
       marginBottom: 8,
-      color: isDark ? '#e6edf3' : '#0f172a',
+      color: isDark ? '#E6F4FF' : '#0f172a',
     },
     hint: {
       fontSize: 14,
-      color: isDark ? '#8b949e' : '#64748b',
+      color: isDark ? '#8CA0BC' : '#64748b',
       marginBottom: 12,
     },
     timeAgo: {
       fontSize: 13,
-      color: isDark ? '#8b949e' : '#64748b',
+      color: isDark ? '#8CA0BC' : '#64748b',
     },
     historyRow: {
       flexDirection: 'row',
@@ -624,9 +541,9 @@ const styles = (isDark: boolean) =>
       paddingVertical: 10,
     },
     historyValue: { fontSize: 16, fontWeight: '600' },
-    historyTime: { fontSize: 13, color: isDark ? '#8b949e' : '#64748b' },
+    historyTime: { fontSize: 13, color: isDark ? '#8CA0BC' : '#64748b' },
     button: {
-      backgroundColor: '#0d9488',
+      backgroundColor: '#0891B2',
       paddingVertical: 12,
       paddingHorizontal: 24,
       borderRadius: 14,
@@ -643,7 +560,7 @@ const styles = (isDark: boolean) =>
       alignSelf: 'flex-start',
     },
     buttonSecondaryText: {
-      color: '#0d9488',
+      color: '#0891B2',
       fontSize: 14,
       fontWeight: '700',
     },
@@ -662,7 +579,7 @@ const styles = (isDark: boolean) =>
     },
     message: {
       fontSize: 16,
-      color: isDark ? '#8b949e' : '#64748b',
+      color: isDark ? '#8CA0BC' : '#64748b',
       textAlign: 'center',
     },
   });

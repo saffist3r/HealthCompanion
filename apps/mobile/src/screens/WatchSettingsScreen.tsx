@@ -19,7 +19,7 @@ export default function WatchSettingsScreen() {
 
 const styles = (isDark: boolean) =>
   StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f5f7fa' },
+    root: { flex: 1, backgroundColor: isDark ? '#070B14' : '#f5f7fa' },
     content: { padding: 16, paddingBottom: 40 },
     title: { fontSize: 24, fontWeight: '700', color: isDark ? '#fff' : '#111' },
     sub: { marginTop: 4, marginBottom: 16, color: isDark ? '#9aa4b2' : '#667', lineHeight: 20 },

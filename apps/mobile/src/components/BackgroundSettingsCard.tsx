@@ -103,7 +103,7 @@ export function BackgroundSettingsCard({ isDark }: Props) {
   if (!settings) {
     return (
       <View style={[styles.card, isDark && styles.cardDark]}>
-        <ActivityIndicator color="#007AFF" />
+        <ActivityIndicator color="#0891B2" />
       </View>
     );
   }
@@ -120,7 +120,7 @@ export function BackgroundSettingsCard({ isDark }: Props) {
     <View style={[styles.card, isDark && styles.cardDark]}>
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: text }]}>Watch face</Text>
-        {syncing && <ActivityIndicator size="small" color="#007AFF" />}
+        {syncing && <ActivityIndicator size="small" color="#0891B2" />}
         {synced && !syncing && <Text style={styles.synced}>Synced</Text>}
       </View>
       <Text style={[styles.hint, { color: muted }]}>
@@ -138,7 +138,7 @@ export function BackgroundSettingsCard({ isDark }: Props) {
               onPress={() => apply({ faceStyle: face.id, faceStyleUpdatedAt: Date.now() })}
               activeOpacity={0.8}
             >
-              <Text style={[styles.faceLabel, { color: on ? '#007AFF' : text }]}>
+              <Text style={[styles.faceLabel, { color: on ? '#0891B2' : text }]}>
                 {face.label}
                 {on ? '  ✓' : ''}
               </Text>
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 16,
   },
-  cardDark: { backgroundColor: '#161B22' },
+  cardDark: { backgroundColor: '#0E1624' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   title: { fontSize: 16, fontWeight: '600', flex: 1 },
   hint: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
@@ -333,18 +333,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   faceOptionDark: { borderColor: 'rgba(255,255,255,0.12)' },
-  faceOptionActive: { borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.08)' },
+  faceOptionActive: { borderColor: '#0891B2', backgroundColor: 'rgba(8,145,178,0.08)' },
   faceLabel: { fontSize: 15, fontWeight: '700' },
   faceDescription: { fontSize: 12, marginTop: 2 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,122,255,0.12)',
+    backgroundColor: 'rgba(8,145,178,0.12)',
     marginRight: 8,
   },
-  chipActive: { backgroundColor: '#007AFF' },
-  chipText: { fontSize: 13, color: '#007AFF', fontWeight: '600' },
+  chipActive: { backgroundColor: '#0891B2' },
+  chipText: { fontSize: 13, color: '#0891B2', fontWeight: '600' },
   chipTextActive: { color: '#fff' },
   toggleRow: {
     flexDirection: 'row',
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  swatchSelected: { borderColor: '#007AFF' },
+  swatchSelected: { borderColor: '#0891B2' },
   gradientRow: {
     borderRadius: 10,
     overflow: 'hidden',
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  gradientRowSelected: { borderColor: '#007AFF' },
+  gradientRowSelected: { borderColor: '#0891B2' },
   gradientFill: { height: 44, justifyContent: 'flex-end', padding: 8 },
   gradientLabel: { color: '#fff', fontWeight: '600', fontSize: 13 },
   imageRow: {
@@ -380,14 +380,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  imageRowSelected: { borderColor: '#007AFF' },
+  imageRowSelected: { borderColor: '#0891B2' },
   customButton: {
     marginTop: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: 'rgba(0,122,255,0.12)',
+    backgroundColor: 'rgba(8,145,178,0.12)',
   },
-  customButtonText: { color: '#007AFF', fontWeight: '600', fontSize: 14 },
+  customButtonText: { color: '#0891B2', fontWeight: '600', fontSize: 14 },
   synced: { color: '#81C784', fontSize: 13, fontWeight: '600' },
 });

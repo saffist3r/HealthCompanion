@@ -117,7 +117,7 @@ export default function PainLogScreen() {
   return (
     <View style={[t.root, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {loading ? (
-        <ActivityIndicator color="#0d9488" style={{ marginTop: 40 }} />
+        <ActivityIndicator color="#0891B2" style={{ marginTop: 40 }} />
       ) : injuries.length === 0 ? (
         <View style={t.empty}>
           <Text style={t.emptyTitle}>No open injuries</Text>
@@ -243,7 +243,7 @@ export default function PainLogScreen() {
 
 const styles = (isDark: boolean) =>
   StyleSheet.create({
-    root: { flex: 1, backgroundColor: isDark ? '#0d1117' : '#f3f7f6' },
+    root: { flex: 1, backgroundColor: isDark ? '#070B14' : '#f3f7f6' },
     scroll: { flex: 1 },
     content: { padding: 16, paddingBottom: 24 },
     lead: {
@@ -256,20 +256,20 @@ const styles = (isDark: boolean) =>
     emptyTitle: {
       fontSize: 20,
       fontWeight: '700',
-      color: isDark ? '#e6edf3' : '#111',
+      color: isDark ? '#E6F4FF' : '#111',
       marginBottom: 8,
     },
-    emptySub: { color: isDark ? '#8b949e' : '#667', marginBottom: 20, lineHeight: 20 },
+    emptySub: { color: isDark ? '#8CA0BC' : '#667', marginBottom: 20, lineHeight: 20 },
     applyAll: {
       marginBottom: 14,
       padding: 12,
       borderRadius: 14,
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: isDark ? '#30363d' : '#e2e8f0',
+      borderColor: isDark ? '#1E3350' : '#e2e8f0',
     },
     applyLabel: {
-      color: isDark ? '#8b949e' : '#64748b',
+      color: isDark ? '#8CA0BC' : '#64748b',
       fontSize: 12,
       fontWeight: '700',
       marginBottom: 8,
@@ -286,37 +286,37 @@ const styles = (isDark: boolean) =>
     },
     applyChipText: { color: '#fff', fontWeight: '800', fontSize: 15 },
     contextToggle: { paddingVertical: 10, marginBottom: 4 },
-    contextToggleText: { color: '#0d9488', fontWeight: '700', fontSize: 14 },
+    contextToggleText: { color: '#0891B2', fontWeight: '700', fontSize: 14 },
     contextBox: { marginBottom: 8 },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
     chip: {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: isDark ? '#21262d' : '#eef2f7',
+      backgroundColor: isDark ? '#16233A' : '#eef2f7',
     },
-    chipOn: { backgroundColor: '#0d9488' },
+    chipOn: { backgroundColor: '#0891B2' },
     chipText: { color: isDark ? '#c9d1d9' : '#334155', fontWeight: '600', fontSize: 13 },
     chipTextOn: { color: '#fff' },
     input: {
       borderWidth: 1,
-      borderColor: isDark ? '#30363d' : '#e2e8f0',
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      borderColor: isDark ? '#1E3350' : '#e2e8f0',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      color: isDark ? '#e6edf3' : '#111',
+      color: isDark ? '#E6F4FF' : '#111',
       fontSize: 15,
     },
     footer: {
       paddingHorizontal: 16,
       paddingTop: 10,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: isDark ? '#21262d' : '#e5e7eb',
-      backgroundColor: isDark ? '#0d1117' : '#f3f7f6',
+      borderTopColor: isDark ? '#16233A' : '#e5e7eb',
+      backgroundColor: isDark ? '#070B14' : '#f3f7f6',
     },
     btn: {
-      backgroundColor: '#0d9488',
+      backgroundColor: '#0891B2',
       paddingVertical: 16,
       borderRadius: 14,
       alignItems: 'center',

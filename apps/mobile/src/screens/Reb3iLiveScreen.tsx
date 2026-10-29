@@ -613,7 +613,7 @@ export default function Reb3iLiveScreen() {
       </View>
 
       {mode === 'handsfree' ? (
-        <LinearGradient colors={['#0b1220', '#042f2e', '#1e1b4b']} style={t.orbPanel}>
+        <LinearGradient colors={['#0b1220', '#0A1A2E', '#1B1440']} style={t.orbPanel}>
           <GeminiVoiceOrb
             phase={orbPhase}
             level={voiceLevel}
@@ -750,7 +750,7 @@ const styles = (isDark: boolean) => {
       borderRadius: 12,
       paddingVertical: 10,
       alignItems: 'center',
-      backgroundColor: isDark ? '#21262d' : '#e2e8f0',
+      backgroundColor: isDark ? '#16233A' : '#e2e8f0',
       borderWidth: 1,
       borderColor: c.border,
     },
@@ -775,13 +775,13 @@ const styles = (isDark: boolean) => {
     bubbleUser: { alignSelf: 'flex-end', backgroundColor: HC.teal },
     bubbleModel: {
       alignSelf: 'flex-start',
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderWidth: 1,
       borderColor: c.border,
     },
     bubbleSystem: {
       alignSelf: 'center',
-      backgroundColor: isDark ? '#21262d' : '#eef2f7',
+      backgroundColor: isDark ? '#16233A' : '#eef2f7',
     },
     bubbleText: { color: c.ink, fontSize: 15, lineHeight: 21, writingDirection: 'auto' },
     bubbleTextUser: { color: '#fff' },
@@ -797,7 +797,7 @@ const styles = (isDark: boolean) => {
       flex: 1,
       borderWidth: 1,
       borderColor: c.border,
-      backgroundColor: isDark ? '#161b22' : '#fff',
+      backgroundColor: isDark ? '#0E1624' : '#fff',
       borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: Platform.OS === 'ios' ? 12 : 8,
