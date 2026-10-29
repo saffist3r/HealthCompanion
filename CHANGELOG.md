@@ -12,12 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Watch face redesign (HUD):** glucose gauge ring with forecast marker, neon readout with CGM trend badge, delta per 5 min, 3 h chart with 30 min projection, time-in-range, radar-sweep background, true-black ambient mode
 - **Predictive alerts on the watch:** "LOW IN ~N MIN" / "HIGH IN ~N MIN" chips; one gentle buzz per falling episode when a low is forecast within 20 min
 - Watch unit tests (`GlucoseTrendEngineTest`) and a CI job that runs them and builds the watch APK
+- **Three watch faces:** HUD, Classic (the original layout) and Minimal (oversized reading in a zone-coloured ring), picked from the watch app or from the phone (Settings → Watch). The newest pick wins on either device
+- **Face animations** while the screen is on: gauge sweep and ripple on wake and on each new reading, comet seconds hand, chart ping, heart beating at the measured rate, trend arrow nudge, orbiting scanner on Minimal. The number itself is never interpolated
+- **Phone trend engine:** the watch's engine ported to `packages/shared` (same 14 test cases, run in CI); the glucose chart shows the seven-step arrow, the change per 5 min and "Low/High in ~N min" warnings
+- **New logo** across phone, web and watch (hex frame around a neon drop), with an Android adaptive icon, a dark splash and a proper white notification icon
 
 ### Changed
 
 - **Watch trend algorithm:** recency-weighted least-squares rate over the last ~10 min (wider when readings are sparse), standard CGM arrow bands, merged re-posted duplicates, no trend on stale data (> 15 min); replaces "last minus first of 8 points", which flipped on noise and ignored elapsed time
 - mg/dL readings on the watch show whole numbers (`139`, not `139.0`); stale readings are struck through with "SIGNAL LOST"
-- Watch redraws at 1 fps (10 fps only for the animated background) instead of 12 fps whenever a trend was shown
+- Watch redraws at ~25 fps while the screen is on (for the face animations); ambient mode is unchanged
+- The watch app opens straight to its settings (the reading lives on the face), fits round screens and uses a dark theme; larger alert chip, status line and time-in-range text on the faces
+- The phone app follows the system dark mode instead of always light
+- The phone's `sparklineTrend` uses the shared engine instead of comparing the first and last of six readings
 
 ## [1.7.0] - 2026-10-22
 

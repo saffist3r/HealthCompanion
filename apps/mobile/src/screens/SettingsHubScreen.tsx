@@ -16,7 +16,7 @@ type Row = {
 const ROWS: Row[] = [
   {
     title: 'Watch',
-    subtitle: 'Background, colors, and sync to Wear OS',
+    subtitle: 'Face, background, colors and sync to Wear OS',
     icon: 'watch',
     screen: 'WatchSettings',
   },

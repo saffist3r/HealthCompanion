@@ -1,355 +1,267 @@
-# Health Companion
+<p align="center">
+  <img src="apps/mobile/assets/icon.png" width="96" alt="Health Companion logo" />
+</p>
 
-A Wear OS watch face plus Android phone companion and optional self-hosted web/API for diabetes day-to-day: glycemia, meals, activity, injuries, care visits, and AI-assisted reports.
+<h1 align="center">Health Companion</h1>
 
-![Health Companion Watch Face](assets/watch-face-screenshot.png)
+<p align="center">
+  A diabetes companion for Wear OS, Android and the web: CGM readings on your wrist with
+  trend arrows and predictive alerts, plus meals, activity, injuries, reports and a care-team view.
+</p>
 
-**Latest tagged release:** [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [Releases](RELEASES.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+<p align="center">
+  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0">Latest release: v1.7.0</a> ·
+  <a href="RELEASES.md">Releases</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
 
-> **Current deploy (`1.7.0`):** Full companion — FastAPI + Postgres, React dashboard, meal photo AI (Gemini) with **multi-photo meals**, **Understanding** (forensic signals + charts + GMI + batched MedGemma science briefs), RAG archive, Reb3i Darija voice (briefings + **live chat** with Gemini-style hands-free orb) + video, Samsung Health / Health Connect activity, injury + batch pain check-in, pump sync, JWT auth, read-only integration key for the agents-hub night planner, Paris-day reports, FR/EN i18n. 1.6.0 added `/api` routing, signed photo links, Alembic migrations, and CI; 1.7.0 adds the Care team share view and stay-signed-in. Deploy notes in [`k8s/`](k8s/README.md).
+![The three watch faces: HUD, Classic and Minimal](assets/watch-faces.png)
 
-Glycemia values sync from **CapAPS Fx** notifications on your Android phone via the Wear OS Data Layer.
+Glucose readings come from **CamAPS FX** notifications on the phone and reach the watch over the Wear OS Data Layer. Everything else (meals, reports, history) lives in **your own** FastAPI + PostgreSQL server; no API key or database credential ever sits on the phone.
 
-Use this repository to build and run the app on **your own** devices and servers. See [SECURITY.md](SECURITY.md) before publishing forks or deploying — never commit `.env`, `k8s/secrets.yaml`, meal photos, or database dumps.
+> This is a personal project built for one person's day-to-day care. It is not a medical device. Always confirm readings and alerts with your CGM and pump.
 
 ---
 
-## Diabetes companion (phone + API + web)
+## What's inside
 
-The mobile app includes **Meals**, **Reports**, **Activity**, and **Settings** tabs on top of CapAPS glucose → watch sync.
+| Part | Where | What it does |
+|------|-------|--------------|
+| **Watch face + app** | `apps/watch` (Kotlin) | Three faces (HUD, Classic, Minimal) with the reading, trend arrow, forecast, alerts, heart rate and steps. The watch app holds the face and background settings |
+| **Phone app** | `apps/mobile` (Expo / React Native) | Reads CamAPS notifications, syncs the watch, and gives you Today, Glucose, Meals, Reports, Mental, Activity and Settings tabs. Follows the system dark mode |
+| **API** | `backend` (FastAPI, PostgreSQL, Alembic) | Accounts, meals with Gemini photo analysis, reports, injuries, pump sync, RAG archive, care-team shares |
+| **Web dashboard** | `frontend` (React, Vite) | Dashboard, meals, reports and Understanding, journal (morning, mental, injuries, sports), Life Review, care-team sharing. FR/EN |
+| **Shared code** | `packages/shared` (TypeScript) | Notification parsing, units, chart helpers and the CGM trend engine, used by the phone and web |
 
-| Feature | How it works |
-|---------|----------------|
-| Meal photos | Camera/gallery → **Gemini** (server) → carbs/protein/fat + diabetes warnings |
-| Food log | Stored in **your** PostgreSQL via FastAPI (`backend/`) |
-| Web dashboard | React (Vite) at `frontend/` — daily stats, charts, meals, reports, injuries |
-| Reports | Daily & weekly nutrition + glucose TIR + steps; AI agent prompt + PDF |
-| Injuries | Persistent cases + daily pain slider (0–10); wired into reports / AI |
-| Activity | Health Connect + Samsung Health (steps, Energy Score, workouts) |
-| API keys | `GEMINI_API_KEY` and DB credentials stay on the server — never on the phone |
+### Highlights
 
-### Run backend + Postgres + web
+- **CGM-grade trends.** The watch and the phone use the same engine: a recency-weighted rate over the last ~10 minutes, the Dexcom/Libre arrow bands (⇈ ↑ ↗ → ↘ ↓ ⇊), and a damped 30-minute forecast. The Kotlin engine and its TypeScript port are checked against the same 14 test cases.
+- **Predictive alerts.** "LOW IN ~12 MIN" / "HIGH IN ~8 MIN" when the forecast crosses your range within 20 minutes, plus an urgent-low state and a "signal lost" warning after 15 minutes without a reading. The watch vibrates on every new reading below 70 mg/dL and buzzes once when a low is forecast.
+- **Meal AI.** Photograph a meal (several photos are fine) and the server estimates carbs, protein and fat and flags diabetes-relevant warnings.
+- **Reports and Understanding.** Daily and weekly nutrition, time in range, GMI, activity and injuries, with charts, AI briefs and PDF export.
+- **Care team view.** A read-only link for your nurse or doctor (14/30/90-day glucose bands, hypos with the 4 hours before, insulin, carbs, steps, pain, mood, sleep). Links expire and can be turned off.
+- **Activity.** Health Connect and Samsung Health (steps, energy, workouts).
+- **Voice.** Reb3i Darija voice briefings and hands-free live chat.
+
+---
+
+## Watch faces
+
+| Face | Shows |
+|------|-------|
+| **HUD** | Log-scale gauge ring with the target band and a 20-minute forecast marker, the reading with its trend badge, 3-hour chart with a 30-minute projection, time in range, heart rate and steps |
+| **Classic** | Large time and date, the reading and trend, alerts, heart rate and steps |
+| **Minimal** | An oversized reading inside a ring coloured by glucose zone, with only the time and date above it |
+
+**Changing the face.** Pick a face in either place. The most recent pick wins, so the phone's background re-syncs never undo a choice you made on the watch.
+
+- **On the watch:** open **Health Companion**. The app opens on its settings, with **Face** at the top.
+- **On the phone:** **Settings → Watch**.
+
+**Animations.** While the screen is on, the faces animate:
+
+- on wake and on each new reading, the gauge sweeps to the value and a ripple pulses out
+- a comet runs around the seconds ring
+- the heart beats at your measured rate
+- the trend arrow nudges in its direction
+- the Minimal ring has an orbiting scanner
+
+The number itself is never animated through in-between values, so a quick glance always shows a real reading. Ambient mode stays static.
+
+**Backgrounds.** Choose animated, solid, gradient, or an image slideshow, set the text colour, and turn status tint on or off. You can change these on the phone (Settings → Watch) or in the watch app.
+
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Phone[Android phone]
+        CamAPS[CamAPS FX] -->|notification with reading| App[Health Companion app]
+    end
+    subgraph Watch[Wear OS watch]
+        Face[Watch face]
+        WApp[Watch app: face and background settings]
+    end
+    App -->|reading, 12h history, face and background| Face
+    WApp --> Face
+    Face -->|steps| App
+    App <-->|HTTPS + JWT| API[FastAPI + PostgreSQL]
+    Web[Web dashboard] <--> API
+    API -->|read-only link| Care[Care team view]
+```
+
+1. CamAPS FX posts a notification with the reading. The phone app only accepts values with an explicit unit, so bolus and insulin lines are ignored.
+2. The phone sends the reading, the last 12 hours of history and your watch settings over the Data Layer. The watch works out the trend, forecast and alerts on its own.
+3. The phone app also talks to your API for meals, reports and history. The web dashboard uses the same API.
+
+---
+
+## Getting started
+
+**Prerequisites:**
+
+- Node.js 18 or later and npm 9 or later
+- JDK 17 and the Android SDK (Android Studio)
+- Python 3.11 and Docker
+- an Android phone running CamAPS FX
+- a Wear OS watch (tested on Galaxy Watch)
+
+### 1. Install
+
+```bash
+git clone https://github.com/saffist3r/HealthCompanion.git
+cd HealthCompanion
+npm install          # also builds packages/shared and applies patches
+```
+
+### 2. API and web dashboard
 
 ```bash
 cp backend/.env.example backend/.env
-# set GEMINI_API_KEY and JWT_SECRET=$(openssl rand -hex 32) (see SECURITY.md)
+# set GEMINI_API_KEY and JWT_SECRET=$(openssl rand -hex 32), see SECURITY.md
 
 docker compose up -d db
 cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000   # applies DB migrations on start
+uvicorn app.main:app --reload --port 8000   # applies migrations on start
+```
 
-# another terminal
+```bash
 cd frontend && npm install && npm run dev
 ```
 
-- API: http://localhost:8000/docs  
-- Web: http://localhost:5173  
+The API runs at http://localhost:8000/docs and the web app at http://localhost:5173. More in [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
-On a physical phone, set **Settings → API base URL** to `http://<your-lan-ip>:8000` (or your HTTPS origin in production).
-
-See [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md), and [SECURITY.md](SECURITY.md).
-
-### Deploy to cluster (Minikube)
-
-Kubernetes manifests and deploy script live in [`k8s/`](k8s/README.md):
+### 3. Phone app
 
 ```bash
-./k8s/setup-secrets.sh          # creates gitignored k8s/secrets.yaml
-export REGISTRY_PASS='…'        # required — never commit
+cd apps/mobile && npx expo run:android
+```
+
+Then on the phone:
+
+1. Grant **Notification access**: Settings → Apps → Special app access → Notification access → Health Companion. Without it, no reading reaches the watch.
+2. Sign in. On a physical phone, set the server to `http://<your-lan-ip>:8000` or your HTTPS origin.
+
+After changing the app icon, splash, dark mode or native modules, rebuild the native project with `npx expo prebuild` before building.
+
+### 4. Watch app
+
+```bash
+cd apps/watch/android && ./gradlew assembleDebug
+```
+
+Install it over Wi-Fi. Wear OS 4 and later use wireless debugging:
+
+1. On the watch, open **Settings → Developer options → Wireless debugging → Pair new device**.
+2. Pair, connect and install:
+
+```bash
+adb pair <watch-ip>:<pairing-port> <code>
+```
+
+```bash
+adb connect <watch-ip>:<connection-port>
+```
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+`adb mdns services` lists the watch's pairing and connection ports, so you don't have to read them off the screen. [`scripts/install-watch-wifi.sh`](scripts/install-watch-wifi.sh) runs all three steps.
+
+Then open **Health Companion** on the watch once and accept **Body sensors** (heart rate) and **Physical activity** (steps). Long-press the current watch face and select **Health Companion**.
+
+---
+
+## Deploying
+
+Kubernetes manifests and the deploy script are in [`k8s/`](k8s/README.md):
+
+```bash
+./k8s/setup-secrets.sh    # creates the gitignored k8s/secrets.yaml
 ./k8s/deploy.sh
 ```
 
-Edit hostnames in `k8s/ingress.yaml` / `k8s/configmap.yaml` for your domain.
-
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Time & Date** | Large time display with date (dd/MM/yyyy) underneath |
-| **Glycemia** | Blood glucose from CapAPS Fx, synced from phone notifications, on a HUD gauge ring (log scale, target band highlighted) |
-| **Trend** | CGM-style arrows (⇈ ↑ ↗ → ↘ ↓ ⇊) from a recency-weighted rate over the last ~10 min, delta per 5 min, 3 h chart with a 30 min forecast; 12h chart on the phone app |
-| **Heart Rate** | Live BPM from watch sensor with vector heart icon |
-| **Steps** | Daily step count from watch sensor (since midnight) |
-| **Status Colors** | Green (in range), orange (high), red (low/very high) |
-| **Customization** | Watch background (animated / solid / gradient / image slideshow), text color, status tint |
-| **Low alert** | Watch vibrates on new reading below 70 mg/dL, plus a gentle buzz and "LOW IN ~N MIN" when the forecast crosses 70 within 20 min |
-| **Meal AI** | Photograph meals → server-side AI macros + diabetes warnings |
-| **Reports** | Daily / weekly nutrition + glucose + activity + injuries |
-| **Injuries** | Cases + daily pain logs for rehab / AI context |
-| **Health Connect** | Import steps / workouts (e.g. from Samsung Health) |
+Set your hostnames in `k8s/ingress.yaml` and `k8s/configmap.yaml`. Read [SECURITY.md](SECURITY.md) first: never commit `.env`, `k8s/secrets.yaml`, meal photos or database dumps.
 
 ---
 
-## How It Works
+## Development
 
-```mermaid
-flowchart LR
-    subgraph Phone [Android Phone]
-        CapAPS[CapAPS Fx App]
-        HCPhone[Health Companion Phone App]
-    end
-    subgraph Watch [Wear OS Watch]
-        HCWatch[Health Companion Watch Face]
-    end
-    CapAPS -->|Notification with BG value| HCPhone
-    HCPhone -->|Wear OS Data Layer| HCWatch
-    HCWatch -->|Heart rate, steps| Watch[Watch sensors]
+```
+apps/
+  mobile/        Expo app. src/screens, src/components, wearSync.ts (phone → watch),
+                 plugins/ (native Wear OS, Samsung Health and Health Connect bridges)
+  watch/android/ Wear OS app. HudFaceDrawer.kt and FaceStyles.kt (faces and animations),
+                 GlucoseTrendEngine.kt, GlycemiaDataListenerService.kt (Data Layer),
+                 SettingsScreen.kt (watch settings)
+backend/         FastAPI app, Alembic migrations, pytest suite
+frontend/        React + Vite web dashboard
+packages/shared/ Shared TypeScript (glucoseTrend.ts, background.ts, sparkline*.ts)
+k8s/             Manifests and deploy script
+scripts/         Version sync, release build, watch Wi-Fi install
 ```
 
-1. **CapAPS Fx** on your phone sends notifications with glycemia readings.
-2. **Health Companion** (phone app) reads those notifications and syncs the value to the watch via Wear OS Data Layer.
-3. The **watch face** shows time, glycemia, trend arrows, heart rate, and steps.
+| Command | What it does |
+|---------|--------------|
+| `npm run mobile` / `npm run web` / `npm run api` | Start the phone, web or API dev server |
+| `npm test -w @health-companion/shared` | Trend engine tests (TypeScript) |
+| `cd apps/watch/android && ./gradlew testDebugUnitTest` | Trend engine tests (Kotlin) |
+| `cd backend && pytest -q && ruff check .` | API tests and lint |
+| `npx tsc --noEmit -p apps/mobile` | Type-check the phone app |
+| `node scripts/sync-version.mjs --check` | Check every version matches `VERSION` |
+| `npm run build:release` | Release builds |
 
----
-
-## Watch customization
-
-On the **phone app**, open **Watch background** to:
-
-- Choose style: **Animated**, **Solid**, **Gradient**, or **Image**
-- Pick **text color** for time, date, and stats on the watch face
-- Select **multiple images** for a slideshow (15s–120s interval)
-- Toggle **status color tint**
-
-Changes sync automatically; use **Sync to watch** on the glycemia card to push glycemia, 12h history, and background in one go.
-
-On the **watch app**, swipe to the **Settings** page to adjust background and text color locally.
+CI runs the tests, lint, type-check and version check on every push to `main` and every pull request. It also builds the web app, the watch APK and the Docker images.
 
 ---
 
 ## Permissions
 
-### Phone App (Health Companion)
+**Phone:**
 
-| Permission | Purpose | When Required |
-|------------|---------|---------------|
-| **Notification Access** | Read glycemia from CapAPS Fx notifications | On first launch – user must enable in Settings |
-| `INTERNET` | Network (Expo/React Native) | Automatic |
-| `READ_EXTERNAL_STORAGE` | Storage (React Native) | Automatic |
-| `WRITE_EXTERNAL_STORAGE` | Storage (React Native) | Automatic |
-| `VIBRATE` | Haptic feedback | Automatic |
-| `SYSTEM_ALERT_WINDOW` | Overlay (if used) | Automatic |
+- **Notification access** (granted by hand) to read CamAPS readings
+- `POST_NOTIFICATIONS` for reminders and nudges
+- `RECORD_AUDIO` for voice briefings and live chat
+- Health Connect read access for steps, calories, distance, exercise and heart rate
+- `ACTIVITY_RECOGNITION`
 
-**Important:** The phone app must be granted **Notification Access** (Settings → Apps → Special app access → Notification access → Health Companion). Without this, glycemia will not sync to the watch.
+**Watch:**
 
-### Watch App (Health Companion)
+- `BODY_SENSORS` for heart rate
+- `ACTIVITY_RECOGNITION` for steps
 
-| Permission | Purpose | When Required |
-|------------|---------|---------------|
-| `BODY_SENSORS` | Heart rate sensor | Granted when opening the app – enables heart rate on watch face |
-| `ACTIVITY_RECOGNITION` | Step counter sensor | Granted when opening the app – enables steps on watch face |
-
-**Important:** Open the Health Companion app on the watch once and accept both permissions. The watch face will retry sensor registration periodically (every 30 seconds) if permissions are granted later.
+Both are requested when you open the watch app. The face retries sensor registration every 30 seconds, so permissions granted later are picked up.
 
 ---
 
-## Prerequisites
+## CamAPS FX compatibility
 
-- **Node.js** ≥ 18.0.0  
-- **npm** ≥ 9.0.0  
-- **Android Studio** (for building)  
-- **JDK 17+**  
-- **Android phone** with CapAPS Fx installed  
-- **Wear OS watch** (e.g. Samsung Galaxy Watch, Pixel Watch)  
-- **CapAPS Fx** app sending notifications with glycemia values  
-
----
-
-## Installation
-
-### 1. Clone and Install Dependencies
-
-```bash
-git clone https://github.com/saffist3r/HealthCompanion.git
-cd HealthCompanion
-npm install
-```
-
-### 2. Build Shared Package
-
-```bash
-npm run build -w @health-companion/shared
-```
-
-(Or run `npm run prepare` which builds shared and applies patches.)
-
-**Important:** Always build `@health-companion/shared` before a phone release APK so TypeScript changes are compiled to `dist/`.
-
-### 3. Build and Install Phone App
-
-```bash
-npm run build:mobile
-cd apps/mobile && npx expo run:android
-```
-
-Or use Android Studio to build and run the phone app on a connected device/emulator.
-
-### 4. Grant Notification Access (Phone)
-
-1. Open the Health Companion app on your phone.
-2. Tap **Open settings** or go to **Settings → Apps → Special app access → Notification access**.
-3. Enable **Health Companion**.
-
-### 5. Build Watch App
-
-```bash
-npm run build:watch
-```
-
-Or for debug:
-
-```bash
-cd apps/watch/android && ./gradlew app:assembleDebug
-```
-
-The APK will be at:
-
-- Debug: `apps/watch/android/app/build/outputs/apk/debug/app-debug.apk`
-- Release: `apps/watch/android/app/build/outputs/apk/release/app-release.apk`
-
-### 6. Install Watch App
-
-**Option A: Watch connected via Bluetooth ADB**
-
-```bash
-# Forward ADB through phone
-adb forward tcp:4444 localabstract:/adb-hub
-adb connect localhost:4444
-
-# Install
-adb -s localhost:4444 install -r apps/watch/android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-**Option B: Watch connected via WiFi**
-
-1. On the watch: **Settings → Developer options** → Enable **ADB debugging** and **Debug over WiFi**.
-2. Note the watch IP and port (e.g. `192.168.1.96:5555`).
-3. Install:
-
-```bash
-adb connect 192.168.1.96:5555
-adb -s 192.168.1.96:5555 install -r apps/watch/android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-**Option C: WiFi pairing script**
-
-```bash
-./scripts/install-watch-wifi.sh <IP> <pairing_port> <code> [connection_port]
-# Example: ./scripts/install-watch-wifi.sh 192.168.1.96 40199 153951
-```
-
-### 7. Grant Watch Permissions
-
-1. Open **Health Companion** on the watch (tap the app icon).
-2. When prompted, grant **Body sensors** (heart rate) and **Activity recognition** (steps).
-3. Select the **Health Companion** watch face from the watch face picker.
-
----
-
-## Project Structure
-
-```
-HealthCompanion/
-├── apps/
-│   ├── mobile/                 # Phone app (Expo / React Native)
-│   │   ├── App.tsx             # Main UI
-│   │   ├── index.ts            # Entry, notification listener
-│   │   ├── plugins/            # Expo config plugin (Wear OS bridge)
-│   │   └── src/
-│   │       ├── wearSync.ts     # Sync glycemia, history, background to watch
-│   │       ├── backgroundSettings.ts
-│   │       └── components/     # BackgroundSettingsCard, SparklineChart
-│   └── watch/                  # Wear OS watch app
-│       └── android/
-│           └── app/src/main/java/.../watch/
-│               ├── HealthCompanionWatchFaceService.kt   # Watch face
-│               ├── GlycemiaDataListenerService.kt       # Receives data from phone
-│               ├── GlycemiaHolder.kt                    # Glycemia + 12h history
-│               ├── BackgroundSettingsHolder.kt          # Background + text color
-│               ├── TrendArrowRenderer.kt                # Rising/falling arrows
-│               ├── StatsIconsRenderer.kt                # Heart & steps icons
-│               ├── HeartRateHolder.kt / HeartRateMonitor.kt
-│               ├── StepsHolder.kt / StepsMonitor.kt
-│               ├── SettingsScreen.kt                    # Watch settings UI
-│               └── MainActivity.kt                      # App UI + permission requests
-├── packages/
-│   ├── shared/                 # Shared code (parsing, types, background, sparkline)
-│   │   └── src/                # background.ts, sparkline.ts, index.ts
-│   └── database/               # Shared database types
-├── patches/                    # patch-package patches (e.g. notification listener + Wear)
-├── scripts/
-│   └── install-watch-wifi.sh   # Install watch app via WiFi
-└── README.md
-```
-
----
-
-## Building
-
-| Command | Description |
-|---------|-------------|
-| `npm run mobile` | Start phone app dev server |
-| `npm run watch` | Start watch app dev server |
-| `npm run build:mobile` | Build phone app |
-| `npm run build:watch` | Build watch app (release) |
-| `npm run build -w @health-companion/shared` | Build shared package |
-
----
-
-## CapAPS Fx Compatibility
-
-The app parses glycemia from CapAPS Fx (CamAPS FX) notifications. Supported package IDs include:
-
-- `com.camdiab.fx_alert.mmoll`
-- `com.camdiab.fx_alert.mgdl`
-- `com.camdiab.fx_alert`
-- `com.camdiab`
-
-Supported formats in notification text (must include an explicit unit):
-
-- `X.X mmol/L`, `X.X mg/dL`, `X.X mmol`
-- Values **without** `mg/dL` or `mmol/L` are ignored (avoids bolus/insulin lines)
+The phone listens to `com.camdiab.fx_alert.mmoll`, `com.camdiab.fx_alert.mgdl`, `com.camdiab.fx_alert` and `com.camdiab`. A reading must carry an explicit unit (`mmol/L`, `mmol` or `mg/dL`). Implausible values are dropped.
 
 ---
 
 ## Troubleshooting
 
-### No glycemia on watch
+**No reading on the watch.**
 
-1. **Notification access** – Ensure Health Companion has Notification Access on the phone.
-2. **Phone and watch paired** – Both must be connected (Bluetooth or WiFi).
-3. **Sync from phone** – Open the Health Companion phone app; it syncs on launch. Use **Sync to watch** to push glycemia, 12h history, and background settings.
-4. **CapAPS notifications** – CapAPS Fx must have sent at least one notification with a glycemia value.
-5. **Refresh on watch** – Open the watch app and tap the screen to trigger a refresh.
+1. Check that the phone app has Notification access.
+2. Check that CamAPS has posted at least one reading.
+3. Check that the phone and watch are connected.
+4. Open the phone app, which syncs on launch, or tap **Sync to watch** on the glucose card.
+5. Opening the watch app also pulls the latest reading.
 
-### Heart rate shows "--" or icon without value
+**"SIGNAL LOST" on the face.** The last reading is more than 15 minutes old, so the trend and forecast are hidden on purpose. Check CamAPS and the phone connection.
 
-1. **Grant BODY_SENSORS** – Open the Health Companion app on the watch and accept the Body sensors permission.
-2. **Wait for retry** – The watch face retries sensor registration every 30 seconds.
-3. **Device support** – Some Wear OS 4+ devices limit direct heart rate sensor access; behavior may vary by manufacturer.
+**Heart rate or steps show "--".** Open the watch app and accept both permissions, then wait up to 30 seconds. Some devices only update steps while the screen is on.
 
-### Steps show "--" or icon without value
-
-1. **Grant ACTIVITY_RECOGNITION** – Open the Health Companion app on the watch and accept the Activity recognition permission.
-2. **Step sensors** – The app uses `TYPE_STEP_COUNTER` (cumulative) or `TYPE_STEP_DETECTOR` (per-step) as fallback. Support varies by device.
-3. **Walk with watch** – On some devices, the step sensor updates mainly when the screen is on or after movement.
-
-### Watch face not in picker
-
-On Wear OS 5+ (e.g. Galaxy Watch 7), traditional Jetpack watch faces may not appear. You can still use the Health Companion app: open it and leave it on screen to view time, glycemia, heart rate, and steps.
+**The face changed back.** The newest pick wins. If you changed the face on the phone after changing it on the watch, the phone's pick applies.
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE).
-
----
-
-## Contributing
-
-Contributions are welcome. Please open an issue or pull request.
+MIT, see [LICENSE](LICENSE). Issues and pull requests are welcome.
