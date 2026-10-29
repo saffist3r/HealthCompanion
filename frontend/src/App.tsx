@@ -1,8 +1,11 @@
-import { type ReactNode, useState } from 'react';
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { clearSession, getStoredUser, isLoggedIn } from './api';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { clearSession, getStoredUser, isLoggedIn, refreshSession } from './api';
 import ComposeModal from './components/ComposeModal';
+import { careText } from './components/care/careText';
 import { useLocale } from './i18n';
+import CareSharePage from './pages/CareSharePage';
+import CareTeamPage from './pages/CareTeamPage';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import MealsPage from './pages/MealsPage';
@@ -21,20 +24,55 @@ function Protected({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Tab bar for pages grouped under one sidebar entry. */
+function SubNav({ items }: { items: Array<{ to: string; label: string }> }) {
+  return (
+    <>
+      <nav className="subnav">
+        {items.map((i) => (
+          <NavLink key={i.to} to={i.to} className={({ isActive }) => (isActive ? 'on' : '')}>
+            {i.label}
+          </NavLink>
+        ))}
+      </nav>
+      <Outlet />
+    </>
+  );
+}
+
 function AppShell() {
   const user = getStoredUser();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { pathname } = useLocation();
   const [composeOpen, setComposeOpen] = useState(false);
+
+  useEffect(() => {
+    refreshSession();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  const journal = [
+    { to: '/morning', label: t('nav.morning') },
+    { to: '/mental', label: t('nav.mental') },
+    { to: '/injuries', label: t('nav.injuries') },
+    { to: '/sports', label: t('nav.sports') },
+  ];
+  const reports = [
+    { to: '/reports', label: t('nav.reports') },
+    { to: '/understanding', label: t('nav.understanding') },
+  ];
+  const inGroup = (group: Array<{ to: string }>) => group.some((g) => pathname.startsWith(g.to));
 
   const links = [
     { to: '/', label: t('nav.dashboard'), end: true as boolean | undefined },
     { to: '/meals', label: t('nav.meals') },
-    { to: '/sports', label: t('nav.sports') },
-    { to: '/mental', label: t('nav.mental') },
-    { to: '/morning', label: t('nav.morning') },
-    { to: '/injuries', label: t('nav.injuries') },
-    { to: '/reports', label: t('nav.reports') },
-    { to: '/understanding', label: t('nav.understanding'), special: true },
+    { to: '/morning', label: t('nav.journal'), group: journal },
+    { to: '/reports', label: t('nav.reports'), group: reports },
+    { to: '/care-team', label: careText(locale).navTitle, special: true },
     ...(user?.role === 'admin' ? [{ to: '/users', label: t('nav.users') }] : []),
     { to: '/settings', label: t('nav.settings') },
   ];
@@ -56,7 +94,9 @@ function AppShell() {
               to={l.to}
               end={l.end}
               className={({ isActive }) =>
-                [l.special ? 'nav-life-review' : '', isActive ? 'active' : ''].filter(Boolean).join(' ')
+                [l.special ? 'nav-life-review' : '', isActive || (l.group && inGroup(l.group)) ? 'active' : '']
+                  .filter(Boolean)
+                  .join(' ')
               }
             >
               {l.label}
@@ -89,12 +129,18 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/meals" element={<MealsPage />} />
-          <Route path="/sports" element={<SportsPage />} />
-          <Route path="/mental" element={<MentalPage />} />
-          <Route path="/morning" element={<MorningPage />} />
-          <Route path="/injuries" element={<InjuriesPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/understanding" element={<UnderstandingPage />} />
+          <Route element={<SubNav items={journal} />}>
+            <Route path="/morning" element={<MorningPage />} />
+            <Route path="/mental" element={<MentalPage />} />
+            <Route path="/injuries" element={<InjuriesPage />} />
+            <Route path="/sports" element={<SportsPage />} />
+          </Route>
+          <Route path="/journal" element={<Navigate to="/morning" replace />} />
+          <Route element={<SubNav items={reports} />}>
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/understanding" element={<UnderstandingPage />} />
+          </Route>
+          <Route path="/care-team" element={<CareTeamPage />} />
           {/* Life Review superseded by Understanding */}
           <Route path="/life-review" element={<Navigate to="/understanding" replace />} />
           <Route path="/users" element={<UsersPage />} />
@@ -125,6 +171,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<ShareReportPage />} />
+      <Route path="/care/:token" element={<CareSharePage />} />
       <Route
         path="/*"
         element={

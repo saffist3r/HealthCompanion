@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mg/dL readings on the watch show whole numbers (`139`, not `139.0`); stale readings are struck through with "SIGNAL LOST"
 - Watch redraws at 1 fps (10 fps only for the animated background) instead of 12 fps whenever a trend was shown
 
+## [1.7.0] - 2026-10-22
+
+### Added
+
+- **Care team view** — read-only share link for the nurse/doctor (`/care/<token>`, FR/EN, print to PDF): 14/30/90-day glucose bands, GMI, CV, typical-day curve, hypos (≥15 min) with the 4 hours before, insulin/carbs/steps, pain, mood and sleep; links expire and can be turned off. Alembic `0003` adds `care_shares`
+- **Stay signed in** — `POST /api/auth/refresh`; the phone and the web app renew the token on open (at most every 12 h); token lifetime 60 days. Phone login hides the server field and remembers the email
+
+### Changed
+
+- Web sidebar grouped: Morning, Mental, Injuries and Sports under **Journal**; Understanding under **Reports**
+
 ## [1.6.0] - 2026-10-21
 
 > **Upgrade notes:** `JWT_SECRET` must be set (a short one only logs a warning; existing sessions stay valid). Deploy the backend before installing the 1.6.0 phone build (it calls `/api/*`). Older phone builds keep working via root-path aliases. See [`k8s/README.md`](k8s/README.md#upgrading-from-15x).
