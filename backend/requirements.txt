@@ -6,7 +6,7 @@ pydantic==2.10.3
 pydantic-settings==2.6.1
 python-multipart==0.0.17
 python-dotenv==1.0.1
-google-genai>=1.0.0
+google-genai>=2.33.0
 imageio-ffmpeg>=0.5.1
 aiofiles==24.1.0
 httpx==0.28.1
