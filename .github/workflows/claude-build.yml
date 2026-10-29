@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Check the input
         run: '[[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "issue must be a number"; exit 1; }'
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - id: role
         if: env.HAS_KEY == 'true'
