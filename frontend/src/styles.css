@@ -2510,6 +2510,26 @@ textarea:focus-visible {
     color: #3730a3;
   }
 
+  .care-cause-tag {
+    color: #0e7490;
+    background: #ecfeff;
+    border-color: #a5f3fc;
+  }
+
+  .care-count-high {
+    background: #fffbeb;
+    color: #b45309;
+  }
+
+  .care-warn {
+    color: #b45309;
+  }
+
+  .care-pattern-bar span {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .care-page {
     padding: 0;
     max-width: none;
@@ -2533,6 +2553,81 @@ textarea:focus-visible {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+/* Likely contributors (care report) */
+.care-causes strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.care-causes ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+}
+
+.care-cause-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+}
+
+.care-context {
+  margin-top: 4px;
+}
+
+.care-count-high {
+  background: #2A2010;
+  color: var(--amber);
+}
+
+.care-warn {
+  color: var(--amber);
+}
+
+.care-patterns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.care-patterns li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.care-pattern-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+
+.care-pattern-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--mint));
+}
+
+.care-pattern-count {
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 /* ---- Live glucose page (public, for family) ---- */
@@ -2773,4 +2868,40 @@ textarea:focus-visible {
   margin: 30vh 0 0;
   text-align: center;
   color: var(--muted);
+}
+
+.care-found {
+  margin: 8px 0 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: found;
+  display: grid;
+  gap: 10px;
+}
+
+.care-found li {
+  counter-increment: found;
+  position: relative;
+  padding: 12px 14px 12px 48px;
+  border-radius: 12px;
+  background: var(--panel-raised);
+  border: 1px solid var(--border-soft);
+  line-height: 1.5;
+}
+
+.care-found li::before {
+  content: counter(found);
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--bg);
+  background: var(--cyan);
 }

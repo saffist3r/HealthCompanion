@@ -1,6 +1,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useLocale } from '../../i18n';
 import { careText, type CareText } from './careText';
+import { causeText, type BolusTiming, type Cause, type CauseText, type FoundPattern } from './causeText';
 
 export type CareSummary = {
   period: { days: number; from: string; to: string; generatedAt: number };
@@ -12,6 +13,7 @@ export type CareSummary = {
     cvPct: number | null;
     daysWithData: number;
     hourly: Array<{ hour: number; n: number; p5?: number; p25?: number; p50?: number; p75?: number; p95?: number }>;
+    targets?: { low: number; high: number };
   };
   hypos: {
     count: number;
@@ -27,8 +29,18 @@ export type CareSummary = {
       mealBefore: { minutesBefore: number; mealType: string; carbsG: number } | null;
       insulinBeforeU: number | null;
       sportSameDay: string[] | null;
+      causes?: Cause[];
     }>;
+    patterns?: Pattern[];
   };
+  highs?: {
+    count: number;
+    events: Array<{ startedAt: number; date: string; time: string; peakMgDl: number; durationMin: number; causes: Cause[] }>;
+    patterns: Pattern[];
+  };
+  bolusTiming?: BolusTiming;
+  patternsFound?: { lookbackDays: number; daysWithData: number; patterns: FoundPattern[] };
+  carbRatio?: number | null;
   insulin: { avgDailyU: number | null; daysWithData: number };
   carbs: { avgDailyG: number | null; daysLogged: number };
   activity: { avgSteps: number | null; sportSessions: number };
@@ -84,6 +96,51 @@ const BAND_GOALS: Record<keyof typeof BAND_COLORS, { op: '<' | '>'; pct: number 
 function meetsGoal(key: keyof typeof BAND_COLORS, value: number): boolean {
   const g = BAND_GOALS[key];
   return g.op === '<' ? value < g.pct : value > g.pct;
+}
+
+type Pattern = { code: string; count: number; of: number };
+
+/** Strongest contributor in bold, the rest listed after it. */
+function Causes({ causes, cx }: { causes?: Cause[]; cx: CauseText }) {
+  if (!causes?.length) return <span className="muted">—</span>;
+  const [first, ...rest] = causes;
+  const none = first.code.startsWith('noLoggedCause');
+  return (
+    <div className="care-causes">
+      <div className={none ? 'muted' : ''}>
+        {none ? null : <span className="care-cause-tag">{cx.likely}</span>}
+        {none ? cx.cause(first) : <strong>{cx.cause(first)}</strong>}
+      </div>
+      {rest.length ? (
+        <ul>
+          {rest.map((c) => (
+            <li key={c.code}>{cx.cause(c)}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function PatternList({ items, cx }: { items?: Pattern[]; cx: CauseText }) {
+  if (!items?.length) return <p className="muted">{cx.noPatterns}</p>;
+  return (
+    <ul className="care-patterns">
+      {items.map((p) => (
+        <li key={p.code} className={p.code.startsWith('noLoggedCause') ? 'muted' : ''}>
+          <span>{cx.pattern[p.code] || p.code}</span>
+          <span className="care-pattern-bar" aria-hidden="true">
+            <span style={{ width: `${Math.round((p.count / Math.max(1, p.of)) * 100)}%` }} />
+          </span>
+          <span className="care-pattern-count">{cx.ofEpisodes(p.count, p.of)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function fmtDuration(min: number) {
+  return min >= 90 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}` : `${min} min`;
 }
 
 function fmtDate(d: string, locale: string) {
@@ -166,6 +223,7 @@ function TypicalDay({ hourly, tx }: { hourly: CareSummary['glucose']['hourly']; 
 export default function CareSummaryView({ data }: { data: CareSummary }) {
   const { locale } = useLocale();
   const tx = careText(locale);
+  const cx = causeText(locale);
   const g = data.glucose;
   const coverage = data.period.days ? Math.round((g.daysWithData / (data.daily.length || 1)) * 100) : 0;
   const tir = g.bandsPct?.inRange ?? null;
@@ -227,6 +285,22 @@ export default function CareSummaryView({ data }: { data: CareSummary }) {
         )}
       </section>
 
+      {data.patternsFound ? (
+        <section className="care-section">
+          <h2>{cx.foundTitle}</h2>
+          <p className="muted">{cx.foundLede(data.patternsFound.lookbackDays, data.patternsFound.daysWithData)}</p>
+          {data.patternsFound.patterns.length ? (
+            <ol className="care-found">
+              {data.patternsFound.patterns.map((p) => (
+                <li key={p.code}>{cx.found(p)}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="muted">{cx.foundNone}</p>
+          )}
+        </section>
+      ) : null}
+
       <section className="care-section">
         <h2>
           {tx.hyposTitle} <span className="care-count">{data.hypos.count}</span>
@@ -242,7 +316,7 @@ export default function CareSummaryView({ data }: { data: CareSummary }) {
                   <th>{tx.when}</th>
                   <th className="num">{tx.lowest}</th>
                   <th className="num">{tx.duration}</th>
-                  <th>{tx.before}</th>
+                  <th>{cx.contributors}</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,7 +333,10 @@ export default function CareSummaryView({ data }: { data: CareSummary }) {
                       </td>
                       <td className={`num ${h.minMgDl < 54 ? 'care-danger' : ''}`}>{Math.round(h.minMgDl)}</td>
                       <td className="num">{h.durationMin} min</td>
-                      <td>{ctx.length ? ctx.join(' · ') : <span className="muted">—</span>}</td>
+                      <td>
+                        <Causes causes={h.causes} cx={cx} />
+                        {ctx.length ? <div className="muted small care-context">{ctx.join(' · ')}</div> : null}
+                      </td>
                     </tr>
                   );
                 })}
@@ -268,6 +345,67 @@ export default function CareSummaryView({ data }: { data: CareSummary }) {
           </div>
         ) : null}
       </section>
+
+      {data.highs ? (
+        <section className="care-section">
+          <h2>
+            {cx.highsTitle} <span className="care-count care-count-high">{data.highs.count}</span>
+          </h2>
+          <p className="muted">{cx.highsSummary(data.highs.count, data.glucose.targets?.high ?? 180)}</p>
+          {data.highs.events.length ? (
+            <div className="table-wrap">
+              <table className="data-table care-table">
+                <thead>
+                  <tr>
+                    <th>{tx.when}</th>
+                    <th className="num">{cx.peak}</th>
+                    <th className="num">{tx.duration}</th>
+                    <th>{cx.contributors}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.highs.events.map((h) => (
+                    <tr key={h.startedAt}>
+                      <td>
+                        {fmtDate(h.date, locale)} · {h.time}
+                      </td>
+                      <td className={`num ${h.peakMgDl > 250 ? 'care-danger' : 'care-warn'}`}>{h.peakMgDl}</td>
+                      <td className="num">{fmtDuration(h.durationMin)}</td>
+                      <td>
+                        <Causes causes={h.causes} cx={cx} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {data.highs || data.hypos.patterns ? (
+        <section className="care-section">
+          <h2>{cx.patternsTitle}</h2>
+          <div className="care-two-col">
+            <div>
+              <h3>{cx.hypoPatterns}</h3>
+              <PatternList items={data.hypos.patterns} cx={cx} />
+            </div>
+            <div>
+              <h3>{cx.highPatterns}</h3>
+              <PatternList items={data.highs?.patterns} cx={cx} />
+            </div>
+          </div>
+          {data.bolusTiming ? (
+            <>
+              <h3>{cx.bolusTitle}</h3>
+              <p>{cx.bolusLine(data.bolusTiming)}</p>
+            </>
+          ) : null}
+          {data.carbRatio ? <p className="muted">{cx.ratioLine(data.carbRatio)}</p> : null}
+          <p className="muted small">{cx.caveat}</p>
+        </section>
+      ) : null}
 
       <section className="care-section">
         <h2>{tx.dailyTitle}</h2>

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     ActivityDay,
+    BodyProfile,
     CareShare,
     DayCheckIn,
     GlucoseSample,
@@ -27,6 +28,7 @@ from app.models import (
     SportMatch,
     StressLog,
 )
+from app.services import episode_causes, pattern_finder
 from app.services.glucose_stats import find_hypo_events, to_mg_dl
 from app.services.reports import PARIS, paris_date_key, paris_day_bounds
 
@@ -252,6 +254,8 @@ def build_care_summary(
             }
         )
 
+    analysis = _episode_analysis(db, device_ids, start=start, end=end, points=points, hypos=hypo_rows, daily=daily)
+
     n_days = max(1, len(day_keys))
     days_with_glucose = sum(1 for d in daily if d["meanMgDl"] is not None)
     days_with_meals = sum(1 for d in daily if d["mealCount"])
@@ -263,14 +267,19 @@ def build_care_summary(
             **glucose_metrics(points),
             "daysWithData": days_with_glucose,
             "hourly": hourly_profile(points),
-            "targets": {"low": 70, "high": 180},
+            "targets": {"low": 70, "high": analysis["highTarget"]},
         },
         "hypos": {
             "count": len(hypos),
             "overnightCount": sum(1 for h in hypo_rows if h["overnight"]),
             "below54Count": sum(1 for h in hypos if h["minMgDl"] < 54),
             "events": hypo_rows[-30:][::-1],
+            "patterns": analysis["hypoPatterns"],
         },
+        "highs": analysis["highs"],
+        "bolusTiming": analysis["bolusTiming"],
+        "carbRatio": analysis["carbRatio"],
+        "patternsFound": pattern_finder.find_patterns(db, device_ids, now=end),
         "insulin": {
             "avgDailyU": round(sum(d["insulinU"] for d in daily) / days_with_insulin, 1)
             if days_with_insulin
@@ -293,6 +302,115 @@ def build_care_summary(
         "pain": _pain_summary(db, device_ids, start_key, end_key),
         "wellbeing": _wellbeing_summary(db, device_ids, start_key, end_key),
         "coverage": {"days": n_days},
+    }
+
+
+def _episode_analysis(
+    db: Session,
+    device_ids: list[str],
+    *,
+    start: datetime,
+    end: datetime,
+    points: list[dict[str, Any]],
+    hypos: list[dict[str, Any]],
+    daily: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Likely contributors for every hypo and high, plus meal-bolus timing.
+
+    Context (meals, insulin, sport) starts a day before the period: a hypo on the first
+    morning can come from the previous evening's padel or dinner bolus.
+    """
+    ctx_start = start - timedelta(hours=24)
+    ctx_start_key = paris_date_key(ctx_start)
+    end_key = paris_date_key(end)
+
+    meals = [
+        {"ts": _ms(m.eaten_at), "carbs": _carbs(m), "type": m.meal_type}
+        for m in _scoped(db.query(Meal), Meal.device_id, device_ids)
+        .filter(Meal.eaten_at >= ctx_start, Meal.eaten_at <= end)
+        .order_by(Meal.eaten_at.asc())
+        .all()
+    ]
+    pump = (
+        _scoped(db.query(PumpLogEvent), PumpLogEvent.device_id, device_ids)
+        .filter(PumpLogEvent.timestamp >= ctx_start, PumpLogEvent.timestamp <= end)
+        .order_by(PumpLogEvent.timestamp.asc())
+        .all()
+    )
+    boluses = [{"ts": _ms(p.timestamp), "units": float(p.units)} for p in pump if p.kind == "insulin_delivered" and p.units]
+    alerts = [{"ts": _ms(p.timestamp), "kind": p.kind, "title": p.title or p.kind} for p in pump if p.kind != "insulin_delivered"]
+    sports = (
+        _scoped(db.query(SportMatch), SportMatch.device_id, device_ids)
+        .filter(SportMatch.date >= ctx_start_key, SportMatch.date <= end_key)
+        .all()
+    )
+    activity = (
+        _scoped(db.query(ActivityDay), ActivityDay.device_id, device_ids)
+        .filter(ActivityDay.date >= ctx_start_key, ActivityDay.date <= end_key)
+        .all()
+    )
+    stress = [
+        {"date": r.date, "level": r.level}
+        for r in _scoped(db.query(StressLog), StressLog.device_id, device_ids)
+        .filter(StressLog.date >= ctx_start_key, StressLog.date <= end_key)
+        .all()
+    ]
+    profile = db.get(BodyProfile, "default")
+    high_target = float(profile.tir_high_mgdl) if profile and profile.tir_high_mgdl else 180.0
+    set_changed_at = _ms(profile.cannula_changed_at) if profile and profile.cannula_changed_at else None
+
+    sessions = episode_causes.exercise_sessions(sports, activity)
+    ratio = episode_causes.usual_carb_ratio(meals, boluses)
+    steps_by_day = {d["date"]: d["steps"] for d in daily if d.get("steps")}
+    usual_steps = mean(steps_by_day.values()) if len(steps_by_day) >= 3 else None
+    highs = episode_causes.find_high_episodes(points, high_target)
+
+    for h in hypos:
+        h["causes"] = episode_causes.hypo_causes(
+            h,
+            points=points,
+            meals=meals,
+            boluses=boluses,
+            alerts=alerts,
+            sessions=sessions,
+            highs=highs,
+            ratio=ratio,
+            steps_by_day=steps_by_day,
+            usual_steps=usual_steps,
+        )
+
+    high_rows = []
+    for e in highs:
+        local = datetime.fromtimestamp(e["startedAt"] / 1000, tz=timezone.utc).astimezone(PARIS)
+        high_rows.append(
+            {
+                **e,
+                "date": local.strftime("%Y-%m-%d"),
+                "time": local.strftime("%H:%M"),
+                "causes": episode_causes.high_causes(
+                    e,
+                    meals=meals,
+                    boluses=boluses,
+                    alerts=alerts,
+                    hypos=hypos,
+                    stress=stress,
+                    ratio=ratio,
+                    set_changed_at=set_changed_at,
+                ),
+            }
+        )
+
+    period_meals = [m for m in meals if m["ts"] >= _ms(start)]
+    return {
+        "highTarget": high_target,
+        "hypoPatterns": episode_causes.pattern_summary(hypos),
+        "highs": {
+            "count": len(high_rows),
+            "events": high_rows[-30:][::-1],
+            "patterns": episode_causes.pattern_summary(high_rows),
+        },
+        "bolusTiming": episode_causes.meal_bolus_timing(period_meals, boluses),
+        "carbRatio": ratio,
     }
 
 
