@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0">Latest release: v1.10.0</a> ·
+  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0">Latest release: v1.11.0</a> ·
   <a href="RELEASES.md">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="SECURITY.md">Security</a>
@@ -41,6 +41,8 @@ Glucose readings come from **CamAPS FX** notifications on the phone and reach th
 - **Meal AI.** Photograph a meal (several photos are fine) and the server estimates carbs, protein and fat and flags diabetes-relevant warnings.
 - **Reports and Understanding.** Daily and weekly nutrition, time in range, GMI, activity and injuries, with charts, AI briefs and PDF export.
 - **Live page for family.** A sign-in-free link that always shows your current reading, trend and alerts, so your partner can follow along.
+- **Why it happened.** Every hypo and high in the care report comes with its likely contributors and the evidence, and patterns across your history are spotted automatically.
+- **Watch-outs.** The phone warns you when something just happened that, in your own history, tends to lead to a low or a high.
 - **Care team view.** A read-only link for your nurse or doctor (14/30/90-day glucose bands, hypos with the 4 hours before, insulin, carbs, steps, pain, mood, sleep). Links expire and can be turned off.
 - **Activity.** Health Connect and Samsung Health (steps, energy, workouts).
 - **Voice.** Reb3i Darija voice briefings and hands-free live chat.

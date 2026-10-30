@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-30
+
+### Added
+
+- **Likely contributors for every hypo and high** in the care report, each with its evidence (sport timing and delayed effect, insulin stacking, corrections and overcorrections, dose vs usual carb ratio, late or missed meal bolus, large meals, pump alerts, rebounds, dawn rise, old infusion set, stress). When nothing logged explains an episode, the report says so and lists what to check
+- New **Highs** section, patterns across the period, meal-bolus timing and the usual carb ratio
+- **Patterns spotted automatically** over the last 90 days (night hypos after sport, highs after late or missed boluses, the meal that spikes most, when hypos and highs cluster, dawn rise, rebound highs, weekend/stress/sport/active-day differences), shown only with enough cases and a clear difference
+- **Watch-outs on the phone**: notifications drawn from your own patterns, e.g. a bedtime heads-up after sport, "bolus now" when a meal has no bolus yet, "go easy on the sugar" after a hypo that tends to rebound. Checked in the background after each reading
+
 ## [1.10.0] - 2026-10-30
 
 ### Added
