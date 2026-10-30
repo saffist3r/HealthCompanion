@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-10-30
+
+### Changed
+
+- Phone: Expo-managed packages aligned with SDK 54 (`npx expo install --fix`): expo 54.0.37, expo-updates, expo-file-system, react-native-screens 4.16, react-native-safe-area-context 5.6; expo-build-properties back to SDK 54's version
+- Phone: React Navigation 7.21
+- Backend: reportlab 5.1 (PDFs render identically), ruff 0.17.3; CI actions setup-python 7, setup-java 6, gradle/actions 5
+
+### Added
+
+- Test that the daily report PDF renders in EN and FR
+
 ## [1.11.1] - 2026-10-30
 
 ### Changed
