@@ -25,6 +25,7 @@ import {
   toMgDl,
 } from '@health-companion/shared';
 import { analyzeMealPhoto, saveMeal, uploadMealPhoto } from '../api/client';
+import { preparePhoto } from '../meal/preparePhoto';
 import { useNavigation } from '@react-navigation/native';
 import { onMealLogged } from '../pushNudges';
 import { startPreBolusTimer } from '../preBolus';
@@ -45,6 +46,7 @@ export default function CaptureMealScreen() {
   const [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [analysis, setAnalysis] = useState<MealAnalysisResult | null>(null);
   const [mealType, setMealType] = useState<MealType>('lunch');
 
@@ -63,19 +65,30 @@ export default function CaptureMealScreen() {
       Alert.alert('Permission needed', 'Allow camera / photos to log meals.');
       return;
     }
+    // No crop editor for camera shots: it re-processed the full 12 MP image and was slow.
     const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true })
+      ? await ImagePicker.launchCameraAsync({ quality: 0.8, exif: false })
       : await ImagePicker.launchImageLibraryAsync({
-          quality: 0.7,
-          allowsEditing: true,
+          quality: 0.8,
+          exif: false,
           allowsMultipleSelection: true,
           selectionLimit: MAX_PHOTOS - photos.length,
         });
     if (result.canceled || !result.assets?.length) return;
 
+    setPreparing(true);
+    let prepared: { uri: string }[];
+    try {
+      prepared = await Promise.all(
+        result.assets.filter((a) => a.uri).map(async (a) => ({ uri: await preparePhoto(a) }))
+      );
+    } finally {
+      setPreparing(false);
+    }
+
     setPhotos((prev) => {
       const next = [...prev];
-      for (const asset of result.assets) {
+      for (const asset of prepared) {
         if (!asset.uri || next.length >= MAX_PHOTOS) break;
         const role: MealPhotoRole =
           next.length === 0 ? 'main' : next.length === 1 ? 'dessert' : 'other';
@@ -224,19 +237,25 @@ export default function CaptureMealScreen() {
       </Text>
 
       <View style={t.row}>
-        <TouchableOpacity style={t.btn} onPress={() => pick(true)}>
+        <TouchableOpacity style={t.btn} onPress={() => pick(true)} disabled={preparing}>
           <Text style={t.btnText}>Camera</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={t.btnSecondary} onPress={() => pick(false)}>
+        <TouchableOpacity style={t.btnSecondary} onPress={() => pick(false)} disabled={preparing}>
           <Text style={t.btnTextDark}>Gallery</Text>
         </TouchableOpacity>
       </View>
+      {preparing ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+          <ActivityIndicator color="#22D3EE" />
+          <Text style={{ color: '#8CA0BC' }}>Preparing photo…</Text>
+        </View>
+      ) : null}
 
       {photos.length > 0 ? (
         <View style={t.photoList}>
           {photos.map((p) => (
             <View key={p.id} style={t.photoCard}>
-              <Image source={{ uri: p.uri }} style={t.thumb} />
+              <Image source={{ uri: p.uri }} style={t.thumb} resizeMethod="resize" />
               <View style={t.photoMeta}>
                 <Text style={t.photoRole}>{mealPhotoRoleLabel(p.role)}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
