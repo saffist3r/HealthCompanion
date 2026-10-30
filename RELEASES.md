@@ -4,11 +4,24 @@ This document explains how releases work and what is included in each release.
 
 **Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). Every deploy gets an annotated `vX.Y.Z` tag on the deployed commit.
 
-**Current deploy line:** `1.8.0` (see [CHANGELOG](CHANGELOG.md#180---2026-10-29)). Latest **tag:** [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0).
+**Current deploy line:** `1.9.0` (see [CHANGELOG](CHANGELOG.md#190---2026-10-30)). Latest **tag:** [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0).
 
-Tags: [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
+Tags: [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0) · [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 
 Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github/release-notes/).
+
+---
+
+## Release v1.9.0
+
+**Date:** 2026-10-30 · **Tag:** [`v1.9.0`](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0)
+
+### Highlights
+
+- Phone app redesigned around four tabs (Home, Log, Insights, Me) in the HUD style of the logo and watch face
+- Web app restyled to match: navy, cyan/mint, Rajdhani, dark forms; clinic printouts stay light
+
+No backend or database changes (Alembic stays at `0003`). See [CHANGELOG.md](CHANGELOG.md#190---2026-10-30).
 
 ---
 

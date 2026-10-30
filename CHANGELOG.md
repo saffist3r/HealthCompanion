@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.8.0] - 2026-10-29
+## [1.9.0] - 2026-10-30
+
+### Changed
+
+- **Phone app, simpler and in the HUD style:** four tabs with icons instead of seven text tabs. Home shows the live reading with CGM arrow, rate, alert and 12 h chart with the forecast, four key numbers, a Mind card and today's entries; Log is one 7-day timeline with filters (repeated pump alerts collapse into one line); Insights holds reports, Reb3i and Life Review; Me holds watch, health connections, mind history, pain check-in, reminders and account. Dark only, navy with cyan/mint accents, no more banners
+- **Web app restyled to match:** navy canvas, dark sidebar with cyan active item, Rajdhani headings and labels, zone colours for data, dark form fields; care summaries still print on a light page
+- The phone's glucose catch-up (watch + cloud) on opening the app now runs whichever screen is open
+
+### Fixed
+
+- Phone glucose ring no longer wraps the value onto two lines; active kcal is rounded
 
 ### Added
 

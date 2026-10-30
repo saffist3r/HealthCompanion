@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0">Latest release: v1.8.0</a> ·
+  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0">Latest release: v1.9.0</a> ·
   <a href="RELEASES.md">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="SECURITY.md">Security</a>
