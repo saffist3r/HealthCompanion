@@ -86,18 +86,18 @@ export default function MealsPage() {
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byType} layout="vertical" margin={{ left: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" horizontal={false} />
+                <XAxis type="number" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis
                   type="category"
                   dataKey="type"
                   width={80}
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip content={<ChartTooltipBox unit="g" />} />
-                <Bar dataKey="carbs" name={t('meals.carbs')} fill="#0d9488" radius={[0, 8, 8, 0]} barSize={18} />
+                <Bar dataKey="carbs" name={t('meals.carbs')} fill="#22D3EE" radius={[0, 8, 8, 0]} barSize={18} />
               </BarChart>
             </ResponsiveContainer>
           </div>

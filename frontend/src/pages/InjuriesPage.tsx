@@ -29,7 +29,7 @@ function PainSpark({ scores }: { scores: number[] }) {
             height: Math.max(4, Math.round((s / max) * 28)),
             borderRadius: 2,
             background:
-              s >= 7 ? '#e11d48' : s >= 4 ? '#f59e0b' : '#10b981',
+              s >= 7 ? '#FF4D6D' : s >= 4 ? '#FFB547' : '#2EF2B5',
           }}
         />
       ))}

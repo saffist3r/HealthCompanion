@@ -14,9 +14,9 @@ export default function LifeReviewHeroVisual({
     >
       <defs>
         <linearGradient id="lrArcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#5eead4" />
+          <stop offset="0%" stopColor="#22D3EE" />
           <stop offset="50%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#fcd34d" />
+          <stop offset="100%" stopColor="#FFB547" />
         </linearGradient>
         <filter id="lrGlow">
           <feGaussianBlur stdDeviation="4" result="blur" />
@@ -46,14 +46,14 @@ export default function LifeReviewHeroVisual({
         return (
           <g key={i} className="lr-visual__node" style={{ animationDelay: `${i * 0.12}s` }}>
             <circle cx={x} cy={y} r="10" fill="rgba(255,255,255,0.15)" />
-            <circle cx={x} cy={y} r="5" fill="#fff" filter="url(#lrGlow)" />
+            <circle cx={x} cy={y} r="5" fill="#0E1624" filter="url(#lrGlow)" />
           </g>
         );
       })}
       <g className="lr-visual__core">
         <circle cx="160" cy="140" r="36" fill="rgba(255,255,255,0.12)" />
-        <circle cx="160" cy="140" r="22" fill="rgba(94,234,212,0.35)" />
-        <text x="160" y="147" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700">
+        <circle cx="160" cy="140" r="22" fill="rgba(46, 242, 181,0.35)" />
+        <text x="160" y="147" textAnchor="middle" fill="#0E1624" fontSize="14" fontWeight="700">
           {label}
         </text>
       </g>
@@ -61,7 +61,7 @@ export default function LifeReviewHeroVisual({
         className="lr-visual__wave"
         d="M 60 200 Q 100 170, 140 195 T 220 185 T 260 210"
         fill="none"
-        stroke="rgba(94,234,212,0.6)"
+        stroke="rgba(46, 242, 181,0.6)"
         strokeWidth="2"
         strokeLinecap="round"
       />

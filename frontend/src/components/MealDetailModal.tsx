@@ -362,7 +362,7 @@ export default function MealDetailModal({
               >
                 {t('mealDetail.cancel')}
               </button>
-              <button type="button" className="btn ghost" disabled={busy} onClick={remove} style={{ marginLeft: 'auto', color: '#be123c' }}>
+              <button type="button" className="btn ghost" disabled={busy} onClick={remove} style={{ marginLeft: 'auto', color: '#FF4D6D' }}>
                 {t('mealDetail.delete')}
               </button>
             </div>

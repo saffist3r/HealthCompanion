@@ -66,10 +66,10 @@ export type CareSummary = {
 
 const BAND_COLORS = {
   veryLow: '#991b1b',
-  low: '#ef4444',
-  inRange: '#10b981',
-  high: '#f59e0b',
-  veryHigh: '#b45309',
+  low: '#FF4D6D',
+  inRange: '#2EF2B5',
+  high: '#FFB547',
+  veryHigh: '#FFB547',
 } as const;
 
 /** Consensus goals (Battelino 2019) for type 1 diabetes. */
@@ -151,11 +151,11 @@ function TypicalDay({ hourly, tx }: { hourly: CareSummary['glucose']['hourly']; 
           <CartesianGrid stroke="#eef2f7" vertical={false} />
           <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval={2} />
           <YAxis domain={[40, 300]} ticks={[54, 70, 180, 250]} tick={{ fontSize: 11 }} />
-          <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="4 4" />
-          <ReferenceLine y={180} stroke="#f59e0b" strokeDasharray="4 4" />
+          <ReferenceLine y={70} stroke="#FF4D6D" strokeDasharray="4 4" />
+          <ReferenceLine y={180} stroke="#FFB547" strokeDasharray="4 4" />
           <Area dataKey="outer" stroke="none" fill="#99f6e4" fillOpacity={0.45} isAnimationActive={false} name="5–95%" />
           <Area dataKey="inner" stroke="none" fill="#2dd4bf" fillOpacity={0.55} isAnimationActive={false} name="25–75%" />
-          <Line dataKey="median" stroke="#0f766e" strokeWidth={2.5} dot={false} isAnimationActive={false} name={tx.median} />
+          <Line dataKey="median" stroke="#2EF2B5" strokeWidth={2.5} dot={false} isAnimationActive={false} name={tx.median} />
         </ComposedChart>
       </ResponsiveContainer>
       <p className="care-caption">{tx.agpCaption}</p>

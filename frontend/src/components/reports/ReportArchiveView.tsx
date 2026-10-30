@@ -55,7 +55,7 @@ export function ReportArchiveView({ debriefs, archiveWorkouts, loading, archiveD
                   textAlign: 'left',
                   cursor: 'pointer',
                   border: 'none',
-                  background: openDebriefDate === d.date ? 'var(--surface-2, #f1f5f9)' : 'transparent',
+                  background: openDebriefDate === d.date ? 'var(--surface-2, #132036)' : 'transparent',
                 }}
                 onClick={() => openArchiveDebrief(d.date)}
                 disabled={debriefBusy}
@@ -79,7 +79,7 @@ export function ReportArchiveView({ debriefs, archiveWorkouts, loading, archiveD
                     margin: '0 0 12px',
                     padding: 12,
                     borderRadius: 10,
-                    background: 'var(--surface-2, #f1f5f9)',
+                    background: 'var(--surface-2, #132036)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>

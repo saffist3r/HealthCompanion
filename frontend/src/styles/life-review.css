@@ -1,12 +1,12 @@
 /* Life Review — cinematic immersive section */
 
 .life-review-page {
-  --lr-ink: #0f172a;
-  --lr-muted: #64748b;
-  --lr-teal: #0d9488;
-  --lr-teal-glow: rgba(13, 148, 136, 0.45);
-  --lr-violet: #7c3aed;
-  --lr-amber: #d97706;
+  --lr-ink: #E6F4FF;
+  --lr-muted: #8CA0BC;
+  --lr-teal: #22D3EE;
+  --lr-teal-glow: rgba(0, 229, 255, 0.45);
+  --lr-violet: #9D8CFF;
+  --lr-amber: #FFB547;
   --lr-win: #059669;
   position: relative;
   margin: -8px -12px 0;
@@ -21,7 +21,7 @@
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(13, 148, 136, 0.14), transparent 50%),
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0, 229, 255, 0.14), transparent 50%),
     radial-gradient(ellipse 60% 40% at 90% 20%, rgba(124, 58, 237, 0.1), transparent 45%),
     radial-gradient(ellipse 50% 30% at 50% 100%, rgba(245, 158, 11, 0.08), transparent 40%);
 }
@@ -42,7 +42,7 @@
   margin-bottom: 32px;
   overflow: hidden;
   color: #fff;
-  background: linear-gradient(145deg, #021a19 0%, #0f766e 42%, #1e1b4b 100%);
+  background: linear-gradient(145deg, #021a19 0%, #0E7490 42%, #1e1b4b 100%);
   box-shadow:
     0 32px 64px rgba(2, 26, 25, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -55,7 +55,7 @@
   pointer-events: none;
   opacity: 0.5;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(94, 234, 212, 0.25) 0%, transparent 35%),
+    radial-gradient(circle at 20% 30%, rgba(46, 242, 181, 0.25) 0%, transparent 35%),
     radial-gradient(circle at 80% 70%, rgba(167, 139, 250, 0.2) 0%, transparent 40%);
   animation: lr-mesh-shift 12s ease-in-out infinite alternate;
 }
@@ -100,8 +100,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #5eead4;
-  box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.6);
+  background: #22D3EE;
+  box-shadow: 0 0 0 0 rgba(46, 242, 181, 0.6);
   animation: lr-pulse-ring 2s ease-out infinite;
 }
 
@@ -160,7 +160,7 @@
   font-weight: 800;
   cursor: pointer;
   color: #042f2e;
-  background: linear-gradient(180deg, #fff 0%, #d1fae5 100%);
+  background: linear-gradient(180deg, #0E1624 0%, #d1fae5 100%);
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.25),
     0 0 0 1px rgba(255, 255, 255, 0.4);
@@ -252,7 +252,7 @@
 .lr-loading__bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--lr-teal), var(--lr-violet), #fcd34d);
+  background: linear-gradient(90deg, var(--lr-teal), var(--lr-violet), #3A2C10);
   background-size: 200% 100%;
   transition: width 0.4s ease;
   animation: lr-bar-shimmer 1.5s linear infinite;
@@ -341,7 +341,7 @@
   text-transform: uppercase;
   color: var(--lr-teal);
   background: var(--teal-soft);
-  border: 1px solid #99f6e4;
+  border: 1px solid #155E57;
   margin-bottom: 16px;
 }
 
@@ -371,7 +371,7 @@
 
 .lr-reveal--in .lr-stat:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 32px rgba(13, 148, 136, 0.12);
+  box-shadow: 0 16px 32px rgba(0, 229, 255, 0.12);
 }
 
 .lr-stat__label {
@@ -398,7 +398,7 @@
   white-space: pre-wrap;
   padding: 32px 36px;
   border-radius: 24px;
-  background: linear-gradient(135deg, #fff 0%, #f0fdfa 50%, #faf5ff 100%);
+  background: linear-gradient(135deg, #0E1624 0%, #0B2A2A 50%, #faf5ff 100%);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   margin-bottom: 28px;
@@ -413,7 +413,7 @@
   font-family: var(--display);
   font-size: 4rem;
   line-height: 1;
-  color: rgba(13, 148, 136, 0.12);
+  color: rgba(0, 229, 255, 0.12);
 }
 
 .lr-verdicts {
@@ -435,7 +435,7 @@
 
 .lr-reveal--in .lr-verdict:hover {
   transform: translateY(-6px) rotate(-0.5deg);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
 .lr-verdict__glow {
@@ -449,9 +449,9 @@
   opacity: 0.35;
 }
 
-.lr-verdict--glucose .lr-verdict__glow { background: #5eead4; }
+.lr-verdict--glucose .lr-verdict__glow { background: #22D3EE; }
 .lr-verdict--lifestyle .lr-verdict__glow { background: #a78bfa; }
-.lr-verdict--mood .lr-verdict__glow { background: #fcd34d; }
+.lr-verdict--mood .lr-verdict__glow { background: #FFB547; }
 
 .lr-verdict__icon {
   font-size: 28px;
@@ -493,12 +493,12 @@
 }
 
 .lr-card--wins {
-  background: linear-gradient(160deg, #ecfdf5 0%, #fff 60%);
+  background: linear-gradient(160deg, #0B2A2A 0%, #0E1624 60%);
   border: 1px solid #6ee7b7;
 }
 
 .lr-card--concerns {
-  background: linear-gradient(160deg, #fff7ed 0%, #fff 60%);
+  background: linear-gradient(160deg, #2A2010 0%, #0E1624 60%);
   border: 1px solid #fdba74;
 }
 
@@ -557,7 +557,7 @@
 
 .lr-card--concerns .lr-list li::before {
   content: '!';
-  background: #ffedd5;
+  background: #2A2010;
   color: var(--lr-amber);
 }
 
@@ -599,15 +599,15 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #ccfbf1, #99f6e4);
-  color: #0f766e;
+  background: linear-gradient(135deg, #0B2E3A, #0F3B36);
+  color: #2EF2B5;
   font-size: 14px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
 }
 
 .lr-disclaimer {
@@ -622,14 +622,15 @@
 
 /* Sidebar nav highlight */
 .sidebar nav a.nav-life-review {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  font-weight: 700;
+  background: rgba(157, 140, 255, 0.06);
+  border: 1px solid rgba(157, 140, 255, 0.35);
+  color: var(--violet);
 }
 
 .sidebar nav a.nav-life-review.active {
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 0 24px rgba(94, 234, 212, 0.25);
+  background: rgba(157, 140, 255, 0.14);
+  color: #c9c0ff;
+  box-shadow: 0 0 20px rgba(157, 140, 255, 0.25);
 }
 
 @media (max-width: 860px) {
@@ -692,9 +693,9 @@
 }
 
 @keyframes lr-pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.5); }
-  70% { box-shadow: 0 0 0 12px rgba(94, 234, 212, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(94, 234, 212, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(46, 242, 181, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(46, 242, 181, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 242, 181, 0); }
 }
 
 @keyframes lr-spin {
@@ -706,7 +707,7 @@
 }
 
 @keyframes lr-ring-glow {
-  0%, 100% { filter: drop-shadow(0 0 4px rgba(94, 234, 212, 0.4)); }
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(46, 242, 181, 0.4)); }
   50% { filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.6)); }
 }
 

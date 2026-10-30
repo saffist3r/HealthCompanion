@@ -125,21 +125,21 @@ function MealCurveChart({
         <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="undGluLr" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0d9488" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#0d9488" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#22D3EE" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#22D3EE" stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-          <XAxis dataKey="tMin" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} unit="m" />
-          <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} width={36} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+          <XAxis dataKey="tMin" tick={{ fill: '#8CA0BC', fontSize: 11 }} axisLine={false} tickLine={false} unit="m" />
+          <YAxis domain={['auto', 'auto']} tick={{ fill: '#8CA0BC', fontSize: 11 }} axisLine={false} tickLine={false} width={36} />
           <Tooltip content={<ChartTooltipBox unit=" mg/dL" />} />
-          <ReferenceLine y={tirLow} stroke="#94a3b8" strokeDasharray="4 4" />
-          <ReferenceLine y={tirHigh} stroke="#94a3b8" strokeDasharray="4 4" />
-          <ReferenceLine x={0} stroke="#0f172a" strokeOpacity={0.35} />
+          <ReferenceLine y={tirLow} stroke="#8CA0BC" strokeDasharray="4 4" />
+          <ReferenceLine y={tirHigh} stroke="#8CA0BC" strokeDasharray="4 4" />
+          <ReferenceLine x={0} stroke="#E6F4FF" strokeOpacity={0.35} />
           {typeof bolusMin === 'number' ? (
-            <ReferenceLine x={bolusMin} stroke="#e11d48" strokeDasharray="3 3" />
+            <ReferenceLine x={bolusMin} stroke="#FF4D6D" strokeDasharray="3 3" />
           ) : null}
-          <Area type="monotone" dataKey="mgDl" name="Glucose" stroke="#0f766e" fill="url(#undGluLr)" strokeWidth={2} dot={false} />
+          <Area type="monotone" dataKey="mgDl" name="Glucose" stroke="#2EF2B5" fill="url(#undGluLr)" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -423,18 +423,18 @@ export default function UnderstandingPage() {
                 <div className="und-chart und-chart--tall">
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={dayCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
                       <XAxis
                         dataKey="date"
-                        tick={{ fill: '#64748b', fontSize: 11 }}
+                        tick={{ fill: '#8CA0BC', fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={(v) => String(v).slice(5)}
                       />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#8CA0BC', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<ChartTooltipBox />} />
-                      <Bar dataKey="tirPct" name="TIR %" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={28} />
-                      <Bar dataKey="hypoCount" name="Hypos" fill="#e11d48" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="tirPct" name="TIR %" fill="#22D3EE" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="hypoCount" name="Hypos" fill="#FF4D6D" radius={[6, 6, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -477,11 +477,11 @@ export default function UnderstandingPage() {
                     <div className="und-chart">
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={bolusCompare}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                          <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                           <Tooltip content={<ChartTooltipBox unit=" mg/dL" />} />
-                          <Bar dataKey="delta" name="Avg peak Δ" fill="#e11d48" radius={[8, 8, 0, 0]} maxBarSize={48} />
+                          <Bar dataKey="delta" name="Avg peak Δ" fill="#FF4D6D" radius={[8, 8, 0, 0]} maxBarSize={48} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -490,13 +490,13 @@ export default function UnderstandingPage() {
                     <div className="und-chart">
                       <ResponsiveContainer width="100%" height={200}>
                         <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis type="number" dataKey="lagMin" name="Lag" unit="m" tick={{ fill: '#64748b', fontSize: 11 }} />
-                          <YAxis type="number" dataKey="deltaMgDl" name="Δ" unit=" mg/dL" tick={{ fill: '#64748b', fontSize: 11 }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" />
+                          <XAxis type="number" dataKey="lagMin" name="Lag" unit="m" tick={{ fill: '#8CA0BC', fontSize: 11 }} />
+                          <YAxis type="number" dataKey="deltaMgDl" name="Δ" unit=" mg/dL" tick={{ fill: '#8CA0BC', fontSize: 11 }} />
                           <ZAxis type="number" dataKey="carbsG" range={[40, 160]} />
                           <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                          <ReferenceLine x={15} stroke="#f59e0b" strokeDasharray="4 4" />
-                          <Scatter data={bolusScatter} fill="#0ea5e9" />
+                          <ReferenceLine x={15} stroke="#FFB547" strokeDasharray="4 4" />
+                          <Scatter data={bolusScatter} fill="#00E5FF" />
                         </ScatterChart>
                       </ResponsiveContainer>
                     </div>

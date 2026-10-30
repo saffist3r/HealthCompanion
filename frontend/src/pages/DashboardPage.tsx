@@ -28,13 +28,13 @@ import { useLocale } from '../i18n';
 type GlycemiaRange = 12 | 24 | 48;
 
 const EVENT_COLORS: Record<GlycemiaChartEvent['type'], string> = {
-  meal: '#f59e0b',
+  meal: '#FFB547',
   insulin: '#3b82f6',
-  pump: '#ef4444',
+  pump: '#FF4D6D',
 };
 
 function eventColor(type: GlycemiaChartEvent['type']) {
-  return EVENT_COLORS[type] || '#64748b';
+  return EVENT_COLORS[type] || '#8CA0BC';
 }
 
 function episodeContextSummary(ctx: any): string {
@@ -486,11 +486,11 @@ export default function DashboardPage() {
               <ComposedChart data={glycemiaChartData}>
                 <defs>
                   <linearGradient id="glycemiaFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="#0d9488" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#22D3EE" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="#22D3EE" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
                 <XAxis
                   dataKey="t"
                   type="number"
@@ -498,14 +498,14 @@ export default function DashboardPage() {
                   tickFormatter={(v) =>
                     new Date(v).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
                   }
-                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   minTickGap={40}
                 />
                 <YAxis
                   domain={[50, 300]}
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                   unit=" "
@@ -546,7 +546,7 @@ export default function DashboardPage() {
                 <ReferenceArea
                   y1={tirLow}
                   y2={tirHigh}
-                  fill="#10b981"
+                  fill="#2EF2B5"
                   fillOpacity={0.08}
                   ifOverflow="extendDomain"
                 />
@@ -566,7 +566,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="mgDl"
                   name="Glucose"
-                  stroke="#0d9488"
+                  stroke="#00E5FF"
                   fill="url(#glycemiaFill)"
                   strokeWidth={2}
                   dot={false}
@@ -613,30 +613,30 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={280}>
               {chartMode === 'carbs' ? (
                 <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltipBox unit="g" />} />
-                  <Bar dataKey="carbs" name="Carbs" fill="#0d9488" radius={[8, 8, 0, 0]} maxBarSize={32} />
-                  <Line type="monotone" dataKey="protein" name="Protein" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                  <Bar dataKey="carbs" name="Carbs" fill="#22D3EE" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                  <Line type="monotone" dataKey="protein" name="Protein" stroke="#00E5FF" strokeWidth={2} dot={false} />
                 </ComposedChart>
               ) : chartMode === 'glucose' ? (
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="tirDash" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="#2EF2B5" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#2EF2B5" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltipBox unit="%" />} />
                   <Area
                     type="monotone"
                     dataKey="tir"
                     name="TIR"
-                    stroke="#059669"
+                    stroke="#2EF2B5"
                     fill="url(#tirDash)"
                     strokeWidth={2.5}
                     connectNulls
@@ -644,11 +644,11 @@ export default function DashboardPage() {
                 </AreaChart>
               ) : (
                 <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltipBox />} />
-                  <Bar dataKey="steps" name={t('dashboard.steps')} fill="#0ea5e9" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="steps" name={t('dashboard.steps')} fill="#00E5FF" radius={[8, 8, 0, 0]} maxBarSize={32} />
                 </ComposedChart>
               )}
             </ResponsiveContainer>

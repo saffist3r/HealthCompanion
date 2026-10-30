@@ -111,14 +111,14 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
           <div className="chart-wrap tall">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={weekChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTooltipBox unit="g" />} />
                 <Legend />
-                <Bar dataKey="carbs" name={t('reports.carbs')} stackId="a" fill="#0d9488" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="protein" name={t('reports.protein')} stackId="a" fill="#0ea5e9" />
-                <Bar dataKey="fat" name={t('reports.fat')} stackId="a" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="carbs" name={t('reports.carbs')} stackId="a" fill="#22D3EE" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="protein" name={t('reports.protein')} stackId="a" fill="#00E5FF" />
+                <Bar dataKey="fat" name={t('reports.fat')} stackId="a" fill="#FFB547" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -128,13 +128,13 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
           <div className="chart-wrap tall">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={weekChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -144,7 +144,7 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
                   yAxisId="left"
                   type="monotone"
                   dataKey="avg"
-                  name={t('reports.avgGlucose')} stroke="#d97706"
+                  name={t('reports.avgGlucose')} stroke="#FFB547"
                   strokeWidth={2.5}
                   dot={{ r: 3 }}
                   connectNulls
@@ -153,7 +153,7 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
                   yAxisId="right"
                   type="monotone"
                   dataKey="steps"
-                  name={t('reports.steps')} stroke="#0ea5e9"
+                  name={t('reports.steps')} stroke="#00E5FF"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -161,7 +161,7 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
                   yAxisId="right"
                   type="monotone"
                   dataKey="workoutMin"
-                  name={t('reports.workoutMin')} stroke="#0d9488"
+                  name={t('reports.workoutMin')} stroke="#22D3EE"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
@@ -291,11 +291,11 @@ export function WeeklyReportView({ weekly, weekChart, glucoseTargets }: WeeklyRe
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={weekChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+              <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltipBox unit="%" />} />
-              <Bar dataKey="tir" name="TIR %" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={40} />
+              <Bar dataKey="tir" name="TIR %" fill="#2EF2B5" radius={[8, 8, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>

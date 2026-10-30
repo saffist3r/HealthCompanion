@@ -198,13 +198,13 @@ export default function SportsPage() {
             <div className="chart-wrap tall">
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tick={{ fill: '#64748b', fontSize: 12 }}
+                    tick={{ fill: '#8CA0BC', fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -214,7 +214,7 @@ export default function SportsPage() {
                     yAxisId="left"
                     dataKey="steps"
                     name="Steps"
-                    fill="#0ea5e9"
+                    fill="#00E5FF"
                     radius={[8, 8, 0, 0]}
                     maxBarSize={28}
                   />
@@ -223,7 +223,7 @@ export default function SportsPage() {
                     type="monotone"
                     dataKey="workoutMin"
                     name="Workout min"
-                    stroke="#0d9488"
+                    stroke="#00E5FF"
                     strokeWidth={2.5}
                     dot={{ r: 3 }}
                   />
@@ -240,11 +240,11 @@ export default function SportsPage() {
             <div className="chart-wrap tall">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#8CA0BC', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltipBox unit=" kcal" />} />
-                  <Bar dataKey="calories" name="Active kcal" fill="#f59e0b" radius={[8, 8, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="calories" name="Active kcal" fill="#FFB547" radius={[8, 8, 0, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -107,13 +107,13 @@ export function TirRing({
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   const color =
-    value == null ? '#cbd5e1' : pct >= goal ? '#10b981' : pct >= goal * 0.7 ? '#f59e0b' : '#ef4444';
+    value == null ? '#5B6B82' : pct >= goal ? '#2EF2B5' : pct >= goal * 0.7 ? '#FFB547' : '#FF4D6D';
 
   return (
     <div className="ring-wrap">
       <div className="ring-box">
         <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r={r} fill="none" stroke="#e2e8f0" strokeWidth="12" />
+          <circle cx="80" cy="80" r={r} fill="none" stroke="#1E3350" strokeWidth="12" />
           <circle
             cx="80"
             cy="80"
@@ -161,12 +161,12 @@ export function ChartTooltipBox({ active, payload, label, unit = '' }: any) {
   return (
     <div
       style={{
-        background: '#0f172a',
+        background: '#E6F4FF',
         color: '#fff',
         borderRadius: 10,
         padding: '8px 10px',
         fontSize: 12,
-        boxShadow: '0 8px 20px rgba(15,23,42,0.25)',
+        boxShadow: '0 8px 20px rgba(0, 0, 0,0.25)',
       }}
     >
       <div style={{ opacity: 0.7, marginBottom: 4 }}>{label}</div>

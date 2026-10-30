@@ -50,12 +50,12 @@ function AdhdTooltip({ active, payload, label }: any) {
   return (
     <div
       style={{
-        background: '#0f172a',
+        background: '#E6F4FF',
         color: '#fff',
         borderRadius: 10,
         padding: '8px 10px',
         fontSize: 12,
-        boxShadow: '0 8px 20px rgba(15,23,42,0.25)',
+        boxShadow: '0 8px 20px rgba(0, 0, 0,0.25)',
         maxWidth: 260,
       }}
     >
@@ -233,17 +233,17 @@ export default function MentalPage() {
           <div className="chart-wrap tall">
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={adhdChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E3350" vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   domain={[1, 5]}
                   ticks={[1, 2, 3, 4, 5]}
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: '#8CA0BC', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                   width={28}
@@ -261,7 +261,7 @@ export default function MentalPage() {
                 <Line
                   type="monotone"
                   dataKey="mood"
-                  name={t('mental.mood')} stroke="#0d9488"
+                  name={t('mental.mood')} stroke="#22D3EE"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   connectNulls
@@ -269,7 +269,7 @@ export default function MentalPage() {
                 <Line
                   type="monotone"
                   dataKey="task"
-                  name={t('mental.taskStart')} stroke="#7c3aed"
+                  name={t('mental.taskStart')} stroke="#9D8CFF"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   connectNulls
@@ -277,7 +277,7 @@ export default function MentalPage() {
                 <Line
                   type="monotone"
                   dataKey="overwhelm"
-                  name={t('mental.overwhelm')} stroke="#e11d48"
+                  name={t('mental.overwhelm')} stroke="#FF4D6D"
                   strokeWidth={2}
                   strokeDasharray="4 3"
                   dot={{ r: 3 }}
@@ -286,7 +286,7 @@ export default function MentalPage() {
                 <Line
                   type="monotone"
                   dataKey="restlessness"
-                  name={t('mental.restlessness')} stroke="#f59e0b"
+                  name={t('mental.restlessness')} stroke="#FFB547"
                   strokeWidth={2}
                   strokeDasharray="4 3"
                   dot={{ r: 3 }}
@@ -295,7 +295,7 @@ export default function MentalPage() {
                 <Line
                   type="monotone"
                   dataKey="impulsivity"
-                  name={t('mental.impulsivity')} stroke="#64748b"
+                  name={t('mental.impulsivity')} stroke="#8CA0BC"
                   strokeWidth={2}
                   strokeDasharray="2 3"
                   dot={{ r: 3 }}
