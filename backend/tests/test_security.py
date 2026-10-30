@@ -149,3 +149,27 @@ def test_long_passwords_hash_and_verify() -> None:
     hashed = hash_password(long_pw)
     assert verify_password(long_pw, hashed)
     assert not verify_password("short", hashed)
+
+
+def test_upload_thumbnails_are_small_cached_and_still_signed(client: TestClient, upload_dir) -> None:
+    import io
+
+    from PIL import Image
+
+    big = io.BytesIO()
+    Image.new("RGB", (4000, 3000), (200, 120, 40)).save(big, "JPEG", quality=90)
+    (upload_dir / "plate.jpg").write_bytes(big.getvalue())
+    url = signed_upload_url("plate.jpg")
+
+    thumb = client.get(f"{url}&w=320")
+    assert thumb.status_code == 200
+    with Image.open(io.BytesIO(thumb.content)) as img:
+        assert img.size == (320, 240)
+    assert len(thumb.content) < len(big.getvalue()) / 10
+    assert (upload_dir / ".thumbs" / "320" / "plate.jpg").is_file()
+
+    assert client.get(f"{url}&w=999").status_code == 400
+    assert client.get("/api/uploads/plate.jpg?exp=9999999999&sig=bad&w=320").status_code == 403
+    # A file Pillow can't read falls back to the original
+    (upload_dir / "notes.jpg").write_bytes(b"not really an image")
+    assert client.get(f"{signed_upload_url('notes.jpg')}&w=160").content == b"not really an image"

@@ -75,6 +75,7 @@ export default function LogScreen() {
                     title={it.title}
                     subtitle={it.subtitle}
                     trailing={timeLabel(it.ts)}
+                    image={it.thumb}
                     onPress={it.meal ? () => setSelectedMeal(it.meal) : undefined}
                   />
                 ))}

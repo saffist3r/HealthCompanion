@@ -116,7 +116,7 @@ export default function MealsPage() {
           >
             <div className="meal-card-top">
               {m.photoUrl ? (
-                <img src={`${base}${m.photoUrl}`} alt="" className="thumb" />
+                <img src={`${base}${m.photoUrl}&w=320`} alt="" className="thumb" loading="lazy" />
               ) : (
                 <img src="/icons/icon-meals.png" alt="" className="entry-icon" />
               )}

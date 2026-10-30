@@ -807,6 +807,12 @@ export async function absoluteUploadUrl(photoUrl?: string): Promise<string | und
   return `${await getApiBaseUrl()}${photoUrl}`;
 }
 
+/** Small server-side resized copy of an uploaded photo, for lists (widths: 160, 320, 640). */
+export function thumbUrl(url: string | null | undefined, width: 160 | 320 | 640 = 320): string | undefined {
+  if (!url) return undefined;
+  return `${url}${url.includes('?') ? '&' : '?'}w=${width}`;
+}
+
 export type Watchout = {
   id: string;
   kind: 'sport' | 'bolus' | 'rebound' | string;

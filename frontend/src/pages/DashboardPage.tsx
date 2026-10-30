@@ -732,7 +732,8 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', textAlign: 'left' }}>
                     {m.photoUrl ? (
                       <img
-                        src={`${getApiBase().replace(/\/$/, '')}${m.photoUrl}`}
+                        src={`${getApiBase().replace(/\/$/, '')}${m.photoUrl}&w=320`}
+                        loading="lazy"
                         alt=""
                         width={40}
                         height={40}

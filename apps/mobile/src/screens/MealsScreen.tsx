@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   RefreshControl,
@@ -13,11 +13,9 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { MealEntry } from '@health-companion/shared';
-import { absoluteUploadUrl, listMeals } from '../api/client';
+import { absoluteUploadUrl, listMeals, thumbUrl } from '../api/client';
 import { AppIcons } from '../ui/appIcons';
 import MealDetailModal from '../components/MealDetailModal';
-import ScreenHero from '../components/ui/ScreenHero';
-import { FadeIn } from '../components/ui/FadeIn';
 import { HC, themeColors } from '../theme';
 
 export default function MealsScreen() {
@@ -33,10 +31,10 @@ export default function MealsScreen() {
       const rows = await listMeals();
       setMeals(rows);
       const urls: Record<string, string> = {};
-      for (const m of rows) {
-        const u = await absoluteUploadUrl(m.photoUrl);
-        if (u) urls[m.id] = u;
-      }
+      const resolved = await Promise.all(rows.map((m) => absoluteUploadUrl(m.photoUrl)));
+      rows.forEach((m, i) => {
+        if (resolved[i]) urls[m.id] = resolved[i]!;
+      });
       setPhotoUrls(urls);
     } catch (e) {
       Alert.alert('Could not load meals', String(e));
@@ -55,69 +53,66 @@ export default function MealsScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView
+      <FlatList
+        data={loading && meals.length === 0 ? [] : meals}
+        keyExtractor={(m) => m.id}
         contentContainerStyle={t.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={HC.teal} />}
-      >
-        <ScreenHero
-          eyebrow="FOOD LOG"
-          title="Meals"
-          subtitle="Tap a meal to view or edit category, macros, and time."
-          pills={['Photo', 'Macros', 'AI']}
-          compact
-        />
-
-        {loading && meals.length === 0 ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={HC.teal} />
-        ) : meals.length === 0 ? (
-          <View style={t.emptyWrap}>
-            <Text style={t.emptyIcon}>✦</Text>
-            <Text style={t.empty}>No meals yet. Tap + to photograph a meal.</Text>
-          </View>
-        ) : (
-          meals.map((m, i) => (
-            <FadeIn key={m.id} delay={Math.min(i * 40, 240)}>
-              <TouchableOpacity
-                style={t.card}
-                onPress={() =>
-                  setSelected({
-                    ...m,
-                    resolvedPhotoUrl: photoUrls[m.id],
-                  })
-                }
-                activeOpacity={0.85}
-              >
-                <View style={t.cardRow}>
-                  {photoUrls[m.id] ? (
-                    <Image source={{ uri: photoUrls[m.id] }} style={t.thumb} />
-                  ) : (
-                    <Image source={AppIcons.meals} style={t.thumb} />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={t.cardTitle}>
-                      {m.mealType} · {new Date(m.eatenAt).toLocaleString()}
-                    </Text>
-                    <Text style={t.macros}>
-                      {Math.round(m.macros.caloriesKcal || 0)} kcal · C {m.macros.carbsG}g · P{' '}
-                      {m.macros.proteinG}g · F {m.macros.fatG}g
-                    </Text>
-                    {m.aiSummary ? (
-                      <Text style={t.summary} numberOfLines={2}>
-                        {m.aiSummary}
-                      </Text>
-                    ) : null}
-                    {m.warnings?.length ? (
-                      <Text style={t.warn}>
-                        {m.warnings.length} warning{m.warnings.length > 1 ? 's' : ''}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </FadeIn>
-          ))
+        // Only build what's on screen: a full list of photo cards made scrolling lag
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginTop: 24 }} color={HC.teal} />
+          ) : (
+            <View style={t.emptyWrap}>
+              <Text style={t.emptyIcon}>✦</Text>
+              <Text style={t.empty}>No meals yet. Tap + to photograph a meal.</Text>
+            </View>
+          )
+        }
+        renderItem={({ item: m }) => (
+          <TouchableOpacity
+            style={t.card}
+            onPress={() =>
+              setSelected({
+                ...m,
+                resolvedPhotoUrl: photoUrls[m.id],
+              })
+            }
+            activeOpacity={0.85}
+          >
+            <View style={t.cardRow}>
+              {photoUrls[m.id] ? (
+                <Image source={{ uri: thumbUrl(photoUrls[m.id], 320) }} style={t.thumb} resizeMethod="resize" />
+              ) : (
+                <Image source={AppIcons.meals} style={t.thumb} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={t.cardTitle}>
+                  {m.mealType} · {new Date(m.eatenAt).toLocaleString()}
+                </Text>
+                <Text style={t.macros}>
+                  {Math.round(m.macros.caloriesKcal || 0)} kcal · C {m.macros.carbsG}g · P{' '}
+                  {m.macros.proteinG}g · F {m.macros.fatG}g
+                </Text>
+                {m.aiSummary ? (
+                  <Text style={t.summary} numberOfLines={2}>
+                    {m.aiSummary}
+                  </Text>
+                ) : null}
+                {m.warnings?.length ? (
+                  <Text style={t.warn}>
+                    {m.warnings.length} warning{m.warnings.length > 1 ? 's' : ''}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
-      </ScrollView>
+      />
 
       <MealDetailModal
         meal={selected}

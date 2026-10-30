@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -205,6 +206,7 @@ export function Row({
   onPress,
   chevron,
   first,
+  image,
 }: {
   icon: IconName;
   color?: string;
@@ -215,10 +217,16 @@ export function Row({
   chevron?: boolean;
   /** Skip the top divider. */
   first?: boolean;
+  /** Photo shown instead of the icon (e.g. a meal). */
+  image?: string;
 }) {
   const content = (
     <View style={[s.row, first ? null : s.rowDivider]}>
-      <IconWell name={icon} color={color} />
+      {image ? (
+        <Image source={{ uri: image }} style={s.rowImage} resizeMethod="resize" />
+      ) : (
+        <IconWell name={icon} color={color} />
+      )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={s.rowTitle} numberOfLines={1}>
           {title}
@@ -368,6 +376,7 @@ const s = StyleSheet.create({
   sectionAction: { color: HUD.cyan, fontFamily: HUD.fontCondensed, fontSize: 13, letterSpacing: 0.6 },
   iconWell: { alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
+  rowImage: { width: 44, height: 44, borderRadius: 12, backgroundColor: HUD.panelRaised },
   rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HUD.line },
   rowTitle: { color: HUD.ink, fontSize: 15 },
   rowSub: { color: HUD.muted, fontSize: 12.5, marginTop: 2 },

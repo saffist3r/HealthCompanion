@@ -6,6 +6,7 @@
 import type { MealEntry } from '@health-companion/shared';
 import {
   absoluteUploadUrl,
+  thumbUrl,
   fetchCaffeineLogs,
   fetchCareVisits,
   fetchDayCheckIn,
@@ -30,6 +31,8 @@ export type TimelineItem = {
   subtitle?: string | null;
   /** Meals open the meal sheet. */
   meal?: MealEntry & { resolvedPhotoUrl?: string | null };
+  /** Small photo for the row (meals). */
+  thumb?: string;
 };
 
 export const LOG_FILTERS: { kind: LogKind | 'all'; label: string }[] = [
@@ -95,6 +98,7 @@ function mealItem(m: MealEntry, photo?: string | null): TimelineItem {
       .filter(Boolean)
       .join(' · ') || null,
     meal: { ...m, resolvedPhotoUrl: photo ?? null },
+    thumb: thumbUrl(photo, 160),
   };
 }
 
