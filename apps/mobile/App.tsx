@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   DeviceEventEmitter,
   Platform,
   TouchableOpacity,
@@ -47,6 +48,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import AddEntrySheet, { type ComposeLaunch } from './src/components/AddEntrySheet';
 import { HUD } from './src/ui/hud';
 import { startGlucoseForegroundCatchUp } from './src/glucose/store';
+import { checkWatchouts } from './src/watchouts';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -239,6 +241,19 @@ function MainTabs() {
 function SignedInRoot() {
   // Pick up readings stored while the app slept, whichever screen is open.
   useEffect(() => startGlucoseForegroundCatchUp(), []);
+
+  // Watch-outs from your own patterns: on open, when coming back, and every 10 min while open.
+  useEffect(() => {
+    void checkWatchouts({ force: true });
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void checkWatchouts();
+    });
+    const timer = setInterval(() => void checkWatchouts(), 10 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     void syncAllNudges();

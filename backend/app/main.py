@@ -14,6 +14,7 @@ from app.routers import (
     care,
     glucose,
     health,
+    insights,
     integrations,
     live,
     meals,
@@ -69,6 +70,7 @@ API_ROUTERS = [
     uploads.router,
     reb3i_live.router,
     integrations.router,
+    insights.router,
 ]
 
 for router in API_ROUTERS:

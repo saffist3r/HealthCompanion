@@ -806,3 +806,20 @@ export async function absoluteUploadUrl(photoUrl?: string): Promise<string | und
   // photoUrl is already rooted at /api (signed /api/uploads/… link)
   return `${await getApiBaseUrl()}${photoUrl}`;
 }
+
+export type Watchout = {
+  id: string;
+  kind: 'sport' | 'bolus' | 'rebound' | string;
+  title: string;
+  body: string;
+  /** When to notify (ms); now or later today, e.g. bedtime after sport */
+  fireAt: number;
+};
+
+export async function fetchWatchouts(): Promise<Watchout[]> {
+  const token = await getAccessToken();
+  if (!token) return [];
+  const res = await fetch(`${await base()}/insights/watchouts`, { headers: await headers() });
+  const data = await ensureOk(res);
+  return (data.watchouts || []) as Watchout[];
+}

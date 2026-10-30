@@ -15,6 +15,7 @@ import {
 import App from './App';
 import { sendGlycemiaToWatch } from './src/wearSync';
 import { pushGlucoseToCloud } from './src/glucoseCloudSync';
+import { checkWatchouts } from './src/watchouts';
 import { pushPumpEventToCloud } from './src/pumpCloudSync';
 
 const GLYCEMIA_ASYNC_KEY = '@health_companion/latest_glycemia';
@@ -146,6 +147,8 @@ const headlessNotificationListener = async (payload: {
     await sendGlycemiaToWatch(stamped, await loadHistoryForSync());
     // Store on the web dashboard as soon as CapAPS delivers a reading
     pushGlucoseToCloud(stamped).catch(() => {});
+    // Each new reading is a chance to warn about something coming (throttled, never throws)
+    void checkWatchouts();
   } catch (_) {
     // Ignore storage errors in headless context
   }
