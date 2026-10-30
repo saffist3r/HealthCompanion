@@ -139,3 +139,13 @@ def test_startup_only_warns_on_weak_jwt_secret(client: TestClient, monkeypatch, 
     with TestClient(app) as c:
         assert c.get("/api/health").status_code == 200
     assert "at least 32 characters" in caplog.text
+
+
+def test_long_passwords_hash_and_verify() -> None:
+    # bcrypt only reads 72 bytes; bcrypt 5 raises past that, so the app truncates.
+    from app.services.auth_tokens import hash_password, verify_password
+
+    long_pw = "é" * 60  # 120 bytes in UTF-8
+    hashed = hash_password(long_pw)
+    assert verify_password(long_pw, hashed)
+    assert not verify_password("short", hashed)

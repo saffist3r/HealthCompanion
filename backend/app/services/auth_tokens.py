@@ -9,13 +9,22 @@ import jwt
 from app.core.config import get_settings
 
 
+# bcrypt only uses the first 72 bytes. bcrypt 4 truncated silently, bcrypt 5 raises, so
+# truncate here to keep existing long passwords working.
+BCRYPT_MAX_BYTES = 72
+
+
+def _pw(password: str) -> bytes:
+    return password.encode("utf-8")[:BCRYPT_MAX_BYTES]
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(_pw(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     try:
-        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+        return bcrypt.checkpw(_pw(password), password_hash.encode("utf-8"))
     except ValueError:
         return False
 
