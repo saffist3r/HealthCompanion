@@ -12,6 +12,17 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+    # React 19 is a deliberate upgrade (react, react-dom and their types together),
+    # not piecemeal type bumps.
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
     groups:
       web-minor:
         update-types: [minor, patch]
@@ -25,6 +36,18 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # Pinned by the Expo SDK: bumping them alone breaks the build (e.g. React Native
+      # beyond the SDK's version). Upgrade with `npx expo install --fix` instead.
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "@react-native/*"
+      - dependency-name: "@react-native-async-storage/*"
+      - dependency-name: "@types/react"
     groups:
       mobile-minor:
         update-types: [minor, patch]
