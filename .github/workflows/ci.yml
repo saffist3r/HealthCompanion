@@ -90,7 +90,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - name: Debug keystore expected by the signing config
         run: |
           mkdir -p ../../mobile/android/app
