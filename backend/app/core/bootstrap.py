@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import fcntl
+import tempfile
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -31,10 +33,23 @@ def run_migrations(conn: Connection) -> None:
 
 
 @contextmanager
+def _file_lock() -> Iterator[None]:
+    """Cross-process lock for databases without advisory locks (SQLite in CI and dev)."""
+    path = Path(tempfile.gettempdir()) / "healthcompanion-startup.lock"
+    with open(path, "w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+@contextmanager
 def _startup_lock(conn: Connection) -> Iterator[None]:
     """Serialize startup (migrations + seeding) when several workers boot at once."""
     if conn.dialect.name != "postgresql":
-        yield
+        with _file_lock():
+            yield
         return
     conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": _STARTUP_LOCK_ID})
     conn.commit()
