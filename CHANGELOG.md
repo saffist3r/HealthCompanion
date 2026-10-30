@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-10-30
+
+### Changed
+
+- Dependency updates: FastAPI 0.162, SQLAlchemy 2.1, pydantic 2.14, bcrypt 5, google-genai 2.x and other Python minors; React Router 7, Recharts 3, Vite 8 (with @vitejs/plugin-react 6), Axios 1.21
+- Dependabot leaves Expo-managed packages to `npx expo install --fix` and React majors to a deliberate upgrade
+
+### Fixed
+
+- Postgres connections name the psycopg2 driver (SQLAlchemy 2.1 defaults to psycopg 3)
+- Passwords longer than 72 bytes keep working with bcrypt 5 (truncated as bcrypt 4 did)
+- Startup migrations are serialized on SQLite too, so two workers can't collide
+
 ## [1.11.0] - 2026-10-30
 
 ### Added

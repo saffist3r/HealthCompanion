@@ -4,11 +4,19 @@ This document explains how releases work and what is included in each release.
 
 **Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). Every deploy gets an annotated `vX.Y.Z` tag on the deployed commit.
 
-**Current deploy line:** `1.11.0` (see [CHANGELOG](CHANGELOG.md#1110---2026-10-30)). Latest **tag:** [v1.11.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0).
+**Current deploy line:** `1.11.1` (see [CHANGELOG](CHANGELOG.md#1111---2026-10-30)). Latest **tag:** [v1.11.1](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.1).
 
-Tags: [v1.11.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0) · [v1.10.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0) · [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0) · [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
+Tags: [v1.11.1](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.1) · [v1.11.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0) · [v1.10.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0) · [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0) · [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 
 Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github/release-notes/).
+
+---
+
+## Release v1.11.1
+
+**Date:** 2026-10-30 · **Tag:** [`v1.11.1`](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.1)
+
+Dependency updates (Python and web) with the fixes they needed: explicit psycopg2 driver, long passwords under bcrypt 5, serialized startup on SQLite. No database changes (Alembic stays at `0004`). See [CHANGELOG.md](CHANGELOG.md#1111---2026-10-30).
 
 ---
 
