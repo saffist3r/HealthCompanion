@@ -8,8 +8,46 @@ index 1274a12..72906c5 100644
      implementation 'com.google.code.gson:gson:2.8.6'
 +    implementation 'com.google.android.gms:play-services-wearable:18.1.0'
  }
+diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/BootUpReceiver.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/BootUpReceiver.java
+index 874a350..0f6b8bb 100644
+--- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/BootUpReceiver.java
++++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/BootUpReceiver.java
+@@ -1,20 +1,27 @@
+ package com.lesimoes.androidnotificationlistener;
+ 
+ import android.content.BroadcastReceiver;
++import android.content.ComponentName;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.os.Build;
++import android.service.notification.NotificationListenerService;
++import android.util.Log;
+ 
+ public class BootUpReceiver extends BroadcastReceiver {
+     @Override
+     public void onReceive(Context context, Intent intent) {
+-        if(intent.getAction() == Intent.ACTION_BOOT_COMPLETED){
+-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                context.startForegroundService(new Intent(context, RNAndroidNotificationListener.class));
+-                return;
++        if (!Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) return;
++        // A notification listener is bound by the system, never started as a foreground service:
++        // startForegroundService() here made Android report the app as not responding (ANR)
++        // because the service never calls startForeground(). Ask for a rebind instead.
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++            try {
++                NotificationListenerService.requestRebind(
++                    new ComponentName(context, RNAndroidNotificationListener.class));
++            } catch (Exception e) {
++                Log.w("RNAndroidNotificationListener", "rebind after boot failed", e);
+             }
+-            context.startService(new Intent(context, RNAndroidNotificationListener.class));
+         }
+-
+     }
+ }
 diff --git a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
-index 350e4c2..cb5040d 100644
+index 350e4c2..064f31f 100644
 --- a/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
 +++ b/node_modules/react-native-android-notification-listener/android/src/main/java/com/lesimoes/androidnotificationlistener/RNAndroidNotificationListener.java
 @@ -6,17 +6,62 @@ import android.content.Context;
@@ -76,7 +114,7 @@ index 350e4c2..cb5040d 100644
  
          if (statusBarNotification == null || statusBarNotification.extras == null) {
              Log.d(TAG, "The notification received has no data");
-@@ -39,6 +84,474 @@ public class RNAndroidNotificationListener extends NotificationListenerService {
+@@ -39,6 +84,479 @@ public class RNAndroidNotificationListener extends NotificationListenerService {
          context.startService(serviceIntent);
      }
  
@@ -141,7 +179,7 @@ index 350e4c2..cb5040d 100644
 +                Log.i(TAG, "CapAPS: inflatedText len=" + inflatedText.length()
 +                        + " sample=" + (inflatedText.length() > 120 ? inflatedText.substring(0, 120) : inflatedText));
 +                if (!inflatedText.isEmpty()) {
-+                    Pair<Float, String> parsed = parseGlycemiaFromText(inflatedText, sbn.getPackageName());
++                    Pair<Float, String> parsed = parseGlycemiaFromText(inflatedText, sbn.getPackageName(), true);
 +                    if (parsed != null) {
 +                        value = parsed.first;
 +                        unit = parsed.second;
@@ -158,7 +196,7 @@ index 350e4c2..cb5040d 100644
 +            Log.i(TAG, "CapAPS fallbackText=" + (fallbackText.length() > 300 ? fallbackText.substring(0, 300) + "..." : fallbackText));
 +            saveDebug("fallbackText=" + (fallbackText.length() > 200 ? fallbackText.substring(0, 200) + "..." : fallbackText));
 +            if (!fallbackText.isEmpty()) {
-+                Pair<Float, String> parsed = parseGlycemiaFromText(fallbackText, sbn.getPackageName());
++                Pair<Float, String> parsed = parseGlycemiaFromText(fallbackText, sbn.getPackageName(), false);
 +                if (parsed != null) {
 +                    value = parsed.first;
 +                    unit = parsed.second;
@@ -251,12 +289,12 @@ index 350e4c2..cb5040d 100644
 +            if (!(v instanceof CharSequence)) continue;
 +            String s = v.toString().trim();
 +            if (s.isEmpty()) continue;
-+            Pair<Float, String> fromOne = parseGlycemiaFromText(s, packageName);
++            Pair<Float, String> fromOne = parseGlycemiaFromText(s, packageName, true);
 +            if (fromOne != null) return fromOne;
 +            combined.append(s).append(' ');
 +        }
 +        if (combined.length() == 0) return null;
-+        return parseGlycemiaFromText(combined.toString().trim(), packageName);
++        return parseGlycemiaFromText(combined.toString().trim(), packageName, true);
 +    }
 +
 +    private static String buildFallbackText(Notification notif) {
@@ -333,13 +371,18 @@ index 350e4c2..cb5040d 100644
 +        return mgDl >= 7f && mgDl <= 600f;
 +    }
 +
-+    private static Pair<Float, String> parseGlycemiaFromText(String text, String packageName) {
++    /**
++     * @param fromGlucoseView true for CapAPS's own glucose layout (RemoteViews), where the value is
++     *     often shown as a bare number. Plain notification text (the fallback) must carry a unit:
++     *     otherwise version numbers, dates or doses get read as glucose (e.g. "1.4(195)" → 195).
++     */
++    private static Pair<Float, String> parseGlycemiaFromText(String text, String packageName, boolean fromGlucoseView) {
 +        if (text == null || text.isEmpty()) return null;
 +        if (isLikelyInsulinNotification(text) && !hasExplicitGlucoseUnit(text)) return null;
 +
 +        boolean packageImpliesMgdl = packageName != null && packageName.contains("mgdl");
 +        boolean packageImpliesMmol = packageName != null && packageName.contains("mmoll");
-+        boolean allowBareNumber = packageImpliesMgdl || packageImpliesMmol;
++        boolean allowBareNumber = fromGlucoseView && (packageImpliesMgdl || packageImpliesMmol);
 +
 +        if (!hasExplicitGlucoseUnit(text) && !allowBareNumber) return null;
 +
