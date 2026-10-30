@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0">Latest release: v1.9.0</a> ·
+  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0">Latest release: v1.10.0</a> ·
   <a href="RELEASES.md">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="SECURITY.md">Security</a>
@@ -40,6 +40,7 @@ Glucose readings come from **CamAPS FX** notifications on the phone and reach th
 - **Predictive alerts.** "LOW IN ~12 MIN" / "HIGH IN ~8 MIN" when the forecast crosses your range within 20 minutes, plus an urgent-low state and a "signal lost" warning after 15 minutes without a reading. The watch vibrates on every new reading below 70 mg/dL and buzzes once when a low is forecast.
 - **Meal AI.** Photograph a meal (several photos are fine) and the server estimates carbs, protein and fat and flags diabetes-relevant warnings.
 - **Reports and Understanding.** Daily and weekly nutrition, time in range, GMI, activity and injuries, with charts, AI briefs and PDF export.
+- **Live page for family.** A sign-in-free link that always shows your current reading, trend and alerts, so your partner can follow along.
 - **Care team view.** A read-only link for your nurse or doctor (14/30/90-day glucose bands, hypos with the 4 hours before, insulin, carbs, steps, pain, mood, sleep). Links expire and can be turned off.
 - **Activity.** Health Connect and Samsung Health (steps, energy, workouts).
 - **Voice.** Reb3i Darija voice briefings and hands-free live chat.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-30
+
+### Added
+
+- **Live glucose page for family** at `/live/<link>`: current reading with CGM arrow, rate, age and low/high-coming alerts, a 12 h chart with the target band and forecast, and today's time in range, average, carbs and insulin plus last meal and last insulin. No sign-in, refreshes every minute, FR/EN. Links are managed on the Care team page (until turned off, 1 year or 30 days). Alembic `0004` adds `live_shares`
+- Server-side CGM trend engine (Python port of the watch/phone engine, same tests)
+
 ## [1.9.0] - 2026-10-30
 
 ### Changed
