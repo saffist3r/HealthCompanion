@@ -6,6 +6,7 @@ import { careText } from './components/care/careText';
 import { useLocale } from './i18n';
 import CareSharePage from './pages/CareSharePage';
 import CareTeamPage from './pages/CareTeamPage';
+import LivePage from './pages/LivePage';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import MealsPage from './pages/MealsPage';
@@ -172,6 +173,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<ShareReportPage />} />
       <Route path="/care/:token" element={<CareSharePage />} />
+      <Route path="/live/:token" element={<LivePage />} />
       <Route
         path="/*"
         element={

@@ -10,6 +10,7 @@ import CareSummaryView, { type CareSummary } from '../components/care/CareSummar
 import { careText } from '../components/care/careText';
 import { PageHeader, Panel, Segmented } from '../components/ui';
 import { useLocale } from '../i18n';
+import FamilyLivePanel from '../components/live/FamilyLivePanel';
 
 const PERIODS = [14, 30, 90] as const;
 const TTLS = [7, 30, 90] as const;
@@ -151,6 +152,8 @@ export default function CareTeamPage() {
           )}
         </Panel>
       </div>
+
+      <FamilyLivePanel />
 
       <h2 className="care-preview-title">
         {tx.preview} · {tx.daysLabel(days)}

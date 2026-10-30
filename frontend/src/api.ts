@@ -873,3 +873,58 @@ export async function fetchSharedCareSummary(token: string) {
   if (!res.ok) throw new Error(body.detail || `Unavailable (${res.status})`);
   return body;
 }
+
+export type LiveShareLink = {
+  token: string;
+  label: string;
+  url: string;
+  createdAt: number | null;
+  /** null = valid until turned off */
+  expiresAt: number | null;
+  revoked: boolean;
+};
+
+export type LiveView = {
+  now: number;
+  unit: 'mg/dL' | 'mmol/L' | string;
+  targets: { lowMgDl: number; highMgDl: number };
+  current: { mgDl: number; timestamp: number } | null;
+  insight: {
+    ageMs: number;
+    isStale: boolean;
+    ratePerMin: number | null;
+    arrow: 'doubleUp' | 'singleUp' | 'fortyFiveUp' | 'flat' | 'fortyFiveDown' | 'singleDown' | 'doubleDown' | 'none';
+    zone: 'urgentLow' | 'low' | 'inRange' | 'high' | 'veryHigh' | 'unknown';
+    minutesToLow: number | null;
+    minutesToHigh: number | null;
+    prediction: { mgDl: number; timestamp: number }[];
+  };
+  readings: { mgDl: number; timestamp: number }[];
+  today: { timeInRangePct: number | null; avgMgDl: number | null; carbsG: number; mealCount: number; insulinU: number };
+  lastMeal: { mealType: string; carbsG: number; timestamp: number } | null;
+  lastInsulin: { units: number | null; timestamp: number } | null;
+  patient?: { displayName: string };
+  share?: { label: string };
+};
+
+export async function listLiveShares() {
+  const { data } = await api.get('/live/shares');
+  return data as LiveShareLink[];
+}
+
+export async function createLiveShare(input: { label?: string; ttlDays?: number | null }) {
+  const { data } = await api.post('/live/shares', input);
+  return data as LiveShareLink;
+}
+
+export async function revokeLiveShare(token: string) {
+  await api.delete(`/live/shares/${encodeURIComponent(token)}`);
+}
+
+/** Public, token-only: no auth header, so a family member never hits a login page. */
+export async function fetchSharedLiveView(token: string): Promise<LiveView> {
+  const res = await fetch(`${getApiRoot()}/live/view/${encodeURIComponent(token)}`, { cache: 'no-store' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `Unavailable (${res.status})`);
+  return body as LiveView;
+}

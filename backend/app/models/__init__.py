@@ -338,6 +338,22 @@ class CareShare(Base):
     )
 
 
+class LiveShare(Base):
+    """Revocable read-only link to the live glucose view, for family."""
+
+    __tablename__ = "live_shares"
+
+    token: Mapped[str] = mapped_column(String(48), primary_key=True)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # None = valid until turned off
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+
+
 class DayDebrief(Base):
     """Archived daily AI debrief + structured agent briefing (RAG-ready)."""
 

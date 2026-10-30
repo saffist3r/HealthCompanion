@@ -15,6 +15,7 @@ from app.routers import (
     glucose,
     health,
     integrations,
+    live,
     meals,
     pump,
     reb3i_live,
@@ -75,8 +76,9 @@ for router in API_ROUTERS:
     # Legacy root paths for phone builds released before the /api prefix.
     app.include_router(router, include_in_schema=False)
 
-# Web-only routes: no legacy root alias (/care/<token> is a frontend page).
+# Web-only routes: no legacy root alias (/care/<token> and /live/<token> are frontend pages).
 app.include_router(care.router, prefix="/api")
+app.include_router(live.router, prefix="/api")
 
 
 def health_check() -> dict:
