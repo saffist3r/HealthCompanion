@@ -2,7 +2,7 @@
   "expo": {
     "name": "Health Companion",
     "slug": "health-companion",
-    "version": "1.11.2",
+    "version": "1.11.3",
     "scheme": "healthcompanion",
     "orientation": "portrait",
     "icon": "./assets/health-companion-logo.png",

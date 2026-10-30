@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.3] - 2026-10-30
+
+### Fixed
+
+- **False glucose readings**: the phone's CamAPS fallback parser read bare numbers from plain notification text, so an update notice ("CamAPS FX 1.4(195)") was saved as 195 mg/dL. Plain text must now carry a unit; bare numbers are trusted only inside CamAPS's own glucose layout
+- **"Health Companion isn't responding"**: the notification listener was started as a foreground service it never confirmed; it is now rebound by the system instead
+- **Laggy meal photos**: photos are resized to 1600 px right after capture (no crop step for camera shots), and lists load server-made thumbnails (`?w=160|320|640`, cached) instead of full-size originals; the phone's meal gallery renders lazily
+
+### Changed
+
+- Log → Meals (and Today on Home) show each meal's photo
+
 ## [1.11.2] - 2026-10-30
 
 ### Changed

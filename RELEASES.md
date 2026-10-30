@@ -4,11 +4,19 @@ This document explains how releases work and what is included in each release.
 
 **Policy:** never bump `VERSION`, deploy (`./k8s/deploy.sh`), or publish a git/GitHub release without updating `CHANGELOG.md` (and this file / `README.md` when the latest tag or highlights change). Every deploy gets an annotated `vX.Y.Z` tag on the deployed commit.
 
-**Current deploy line:** `1.11.2` (see [CHANGELOG](CHANGELOG.md#1112---2026-10-30)). Latest **tag:** [v1.11.2](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.2).
+**Current deploy line:** `1.11.3` (see [CHANGELOG](CHANGELOG.md#1113---2026-10-30)). Latest **tag:** [v1.11.3](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.3).
 
-Tags: [v1.11.2](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.2) · [v1.11.1](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.1) · [v1.11.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0) · [v1.10.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0) · [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0) · [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
+Tags: [v1.11.3](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.3) · [v1.11.2](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.2) · [v1.11.1](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.1) · [v1.11.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.0) · [v1.10.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.10.0) · [v1.9.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.9.0) · [v1.8.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.8.0) · [v1.7.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.7.0) · [v1.6.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.6.0) · [v1.5.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.5.0) · [v1.4.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.4.0) · [v1.3.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.3.0) · [v1.2.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.2.0) · [v1.1.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.1.0) · [v1.0.0](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.0.0)
 
 Release notes for v1.2–v1.5 also live under [`.github/release-notes/`](.github/release-notes/).
+
+---
+
+## Release v1.11.3
+
+**Date:** 2026-10-30 · **Tag:** [`v1.11.3`](https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.3)
+
+Phone: no more false glucose readings from CamAPS info notices, no more "isn't responding", faster meal photos and photo lists. Server: cached photo thumbnails. No database changes (Alembic stays at `0004`). See [CHANGELOG.md](CHANGELOG.md#1113---2026-10-30).
 
 ---
 
