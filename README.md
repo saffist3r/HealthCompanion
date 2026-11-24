@@ -181,7 +181,7 @@ Then open **Health Companion** on the watch once and accept **Body sensors** (he
 
 ## Android Auto
 
-The phone app adds a **HealthCompanion** screen to Android Auto: the current reading with its trend arrow, how old it is, the 30-minute forecast, time in range over 3 hours and a 3-hour chart. It updates on every CamAPS reading. While the car is connected you also get car alerts for a low, a low forecast within 20 minutes, and a reading above 250 mg/dL (repeated at most every 20 minutes).
+The phone app adds a **HealthCompanion** screen to Android Auto: the current reading with its trend arrow, how old it is, the 30-minute forecast, time in range over 3 hours and a 3-hour chart. It updates on every CamAPS reading. While the car is connected you also get car alerts for a low, a low forecast within 20 minutes, and a reading above 250 mg/dL (repeated at most every 20 minutes). Android Auto keeps its split screen (navigation + music) for its own apps, so on top of that you get silent updates when your range or trend changes, shown over Waze without opening the app. **Me → Android Auto** on the phone previews the car screen with your own readings.
 
 Android Auto only lists apps from the Play Store unless you allow others, once:
 

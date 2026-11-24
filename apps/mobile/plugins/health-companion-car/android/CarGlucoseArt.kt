@@ -143,6 +143,7 @@ object CarGlucoseArt {
         val fr = CarGlucoseText.fr
         val forecast = insight.prediction.lastOrNull()
         val first = when {
+            insight.isStale && insight.current != null -> Triple("SIGNAL", if (fr) "perdu" else "lost", AMBER)
             insight.minutesToLow != null ->
                 Triple(if (fr) "HYPO DANS" else "LOW IN", "~${insight.minutesToLow} min", RED)
             insight.minutesToHigh != null ->
@@ -206,7 +207,7 @@ object CarGlucoseArt {
 
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = condensed; color = MUTED; textSize = 26f }
         c.drawText("−3 h", box.left, box.bottom + 2f, small.apply { textAlign = Paint.Align.LEFT })
-        c.drawText(if (CarGlucoseText.fr) "maint." else "now", x(now), box.top - 0f, small.apply { textAlign = Paint.Align.CENTER })
+        c.drawText(if (CarGlucoseText.fr) "maint." else "now", x(now), box.bottom + 2f, small.apply { textAlign = Paint.Align.CENTER })
         c.drawText("+30", box.right, box.bottom + 2f, small.apply { textAlign = Paint.Align.RIGHT })
 
         if (samples.size >= 2) {
