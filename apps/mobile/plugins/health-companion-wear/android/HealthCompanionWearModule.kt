@@ -11,6 +11,8 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.google.android.gms.tasks.Tasks
+import com.saffist3r.healthcompanion.car.CarGlucoseStore
+import com.saffist3r.healthcompanion.car.GlucoseSample
 import com.google.android.gms.wearable.Asset
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.PutDataMapRequest
@@ -39,6 +41,7 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
                 } else {
                     System.currentTimeMillis()
                 }
+                updateCarScreen(value, unit, timestamp, reading)
                 val req = PutDataMapRequest.create("/health_companion/glycemia")
                 req.dataMap.putDouble("value", value)
                 req.dataMap.putString("unit", unit)
@@ -52,6 +55,24 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
             }
         }
     }
+
+    /** Same reading feeds the Android Auto screen; never let it break the watch sync. */
+    private fun updateCarScreen(value: Double, unit: String, timestamp: Long, reading: ReadableMap) {
+        try {
+            val history = mutableListOf<GlucoseSample>()
+            if (reading.hasKey("history")) reading.getArray("history")?.let { arr ->
+                for (i in 0 until arr.size()) {
+                    val item = arr.getMap(i) ?: continue
+                    history.add(GlucoseSample(toMgDl(item.getDouble("value"), item.getString("unit")), item.getDouble("timestamp").toLong()))
+                }
+            }
+            CarGlucoseStore.update(reactContext, GlucoseSample(toMgDl(value, unit), timestamp), unit, history)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun toMgDl(value: Double, unit: String?) =
+        if (unit.equals("mg/dL", ignoreCase = true)) value else value * 18.0182
 
     private fun syncHistoryIfPresent(
         reading: ReadableMap,

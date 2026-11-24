@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.11.3">Latest release: v1.11.3</a> ·
+  <a href="https://github.com/saffist3r/HealthCompanion/releases/tag/v1.12.0">Latest release: v1.12.0</a> ·
   <a href="RELEASES.md">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="SECURITY.md">Security</a>
@@ -29,7 +29,7 @@ Glucose readings come from **CamAPS FX** notifications on the phone and reach th
 | Part | Where | What it does |
 |------|-------|--------------|
 | **Watch face + app** | `apps/watch` (Kotlin) | Three faces (HUD, Classic, Minimal) with the reading, trend arrow, forecast, alerts, heart rate and steps. The watch app holds the face and background settings |
-| **Phone app** | `apps/mobile` (Expo / React Native) | Reads CamAPS notifications, syncs the watch, and gives you Today, Glucose, Meals, Reports, Mental, Activity and Settings tabs. Follows the system dark mode |
+| **Phone app** | `apps/mobile` (Expo / React Native) | Reads CamAPS notifications, syncs the watch, shows your glucose on Android Auto, and gives you Today, Glucose, Meals, Reports, Mental, Activity and Settings tabs. Follows the system dark mode |
 | **API** | `backend` (FastAPI, PostgreSQL, Alembic) | Accounts, meals with Gemini photo analysis, reports, injuries, pump sync, RAG archive, care-team shares |
 | **Web dashboard** | `frontend` (React, Vite) | Dashboard, meals, reports and Understanding, journal (morning, mental, injuries, sports), Life Review, care-team sharing. FR/EN |
 | **Shared code** | `packages/shared` (TypeScript) | Notification parsing, units, chart helpers and the CGM trend engine, used by the phone and web |
@@ -176,6 +176,20 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 `adb mdns services` lists the watch's pairing and connection ports, so you don't have to read them off the screen. [`scripts/install-watch-wifi.sh`](scripts/install-watch-wifi.sh) runs all three steps.
 
 Then open **Health Companion** on the watch once and accept **Body sensors** (heart rate) and **Physical activity** (steps). Long-press the current watch face and select **Health Companion**.
+
+---
+
+## Android Auto
+
+The phone app adds a **HealthCompanion** screen to Android Auto: the current reading with its trend arrow, how old it is, the 30-minute forecast, time in range over 3 hours and a 3-hour chart. It updates on every CamAPS reading. While the car is connected you also get car alerts for a low, a low forecast within 20 minutes, and a reading above 250 mg/dL (repeated at most every 20 minutes).
+
+Android Auto only lists apps from the Play Store unless you allow others, once:
+
+1. Open **Android Auto** settings on the phone, tap **Version** about 10 times and accept developer mode.
+2. In the ⋮ menu, open **Developer settings** and tick **Unknown sources**.
+3. Unplug and reconnect the phone. **HealthCompanion** appears in the car's app launcher.
+
+The screen code lives in [`apps/mobile/plugins/health-companion-car`](apps/mobile/plugins/health-companion-car) and reuses the watch's `GlucoseTrendEngine.kt` at prebuild.
 
 ---
 
