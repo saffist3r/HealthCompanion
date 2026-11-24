@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Android Auto**: a HealthCompanion car screen with the current glucose, trend arrow, reading age, 30-minute forecast, 3-hour time in range and a 3-hour chart, updated on every CamAPS reading (Car App Library, IOT category; needs Android Auto's *Unknown sources* for a sideloaded app)
+- **HUD car panel**: the picture next to the rows is drawn in the app's style: a log-scale gauge ring with the reading and trend badge, three stat tiles (forecast or time to low/high, time in range, reading age) and a filled 3-hour chart with the dashed forecast
+- **Me → Android Auto** on the phone: a live preview of the car screen, drawn by the same code the car uses (sample data until the first reading), plus the setup steps
 - **Car alerts** while Android Auto is connected: low, low forecast within 20 minutes, and above 250 mg/dL, at most every 20 minutes per kind
 
 ## [1.11.3] - 2026-10-30

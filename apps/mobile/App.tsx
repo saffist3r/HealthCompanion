@@ -39,6 +39,7 @@ import ReportsScreen from './src/screens/ReportsScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
 import MentalScreen from './src/screens/MentalScreen';
 import WatchSettingsScreen from './src/screens/WatchSettingsScreen';
+import CarScreen from './src/screens/CarScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RemindersSettingsScreen from './src/screens/RemindersSettingsScreen';
 import MorningLogScreen from './src/screens/MorningLogScreen';
@@ -121,6 +122,7 @@ function MeStackScreen() {
     <MeStack.Navigator screenOptions={stackHeader}>
       <MeStack.Screen name="MeMain" component={MeScreen} options={{ headerShown: false }} />
       <MeStack.Screen name="WatchSettings" component={WatchSettingsScreen} options={{ title: 'Watch' }} />
+      <MeStack.Screen name="Car" component={CarScreen} options={{ title: 'Android Auto' }} />
       <MeStack.Screen name="Activity" component={ActivityScreen} options={{ title: 'Health and activity' }} />
       <MeStack.Screen name="Mental" component={MentalScreen} options={{ title: 'Mind history' }} />
       <MeStack.Screen name="RemindersSettings" component={RemindersSettingsScreen} options={{ title: 'Reminders' }} />

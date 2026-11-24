@@ -58,6 +58,14 @@ export default function MeScreen() {
           onPress={() => navigation.navigate('WatchSettings')}
         />
         <Row
+          icon="car-sport-outline"
+          color={HUD.violet}
+          title="Android Auto"
+          subtitle="Car screen preview and setup"
+          chevron
+          onPress={() => navigation.navigate('Car')}
+        />
+        <Row
           icon="fitness-outline"
           color={HUD.mint}
           title="Health and activity"
