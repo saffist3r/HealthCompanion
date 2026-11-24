@@ -2,7 +2,7 @@
   "expo": {
     "name": "Health Companion",
     "slug": "health-companion",
-    "version": "1.11.3",
+    "version": "1.12.0",
     "scheme": "healthcompanion",
     "orientation": "portrait",
     "icon": "./assets/health-companion-logo.png",
@@ -44,6 +44,7 @@
     },
     "plugins": [
       "./plugins/withHealthCompanionWear",
+      "./plugins/withHealthCompanionCar",
       "./plugins/withSamsungHealth",
       "./plugins/withHealthConnectSetup",
       "./plugins/withAllowBackupReplace",

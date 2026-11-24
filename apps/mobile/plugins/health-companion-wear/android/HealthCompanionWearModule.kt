@@ -11,6 +11,10 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.google.android.gms.tasks.Tasks
+import com.saffist3r.healthcompanion.car.CarGlucoseArt
+import com.saffist3r.healthcompanion.car.CarGlucoseModel
+import com.saffist3r.healthcompanion.car.CarGlucoseStore
+import com.saffist3r.healthcompanion.car.GlucoseSample
 import com.google.android.gms.wearable.Asset
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.PutDataMapRequest
@@ -39,6 +43,7 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
                 } else {
                     System.currentTimeMillis()
                 }
+                updateCarScreen(value, unit, timestamp, reading)
                 val req = PutDataMapRequest.create("/health_companion/glycemia")
                 req.dataMap.putDouble("value", value)
                 req.dataMap.putString("unit", unit)
@@ -52,6 +57,55 @@ class HealthCompanionWearModule(private val reactContext: ReactApplicationContex
             }
         }
     }
+
+    /** Same reading feeds the Android Auto screen; never let it break the watch sync. */
+    private fun updateCarScreen(value: Double, unit: String, timestamp: Long, reading: ReadableMap) {
+        try {
+            val history = mutableListOf<GlucoseSample>()
+            if (reading.hasKey("history")) reading.getArray("history")?.let { arr ->
+                for (i in 0 until arr.size()) {
+                    val item = arr.getMap(i) ?: continue
+                    history.add(GlucoseSample(toMgDl(item.getDouble("value"), item.getString("unit")), item.getDouble("timestamp").toLong()))
+                }
+            }
+            CarGlucoseStore.update(reactContext, GlucoseSample(toMgDl(value, unit), timestamp), unit, history)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Draw what the Android Auto screen shows right now (or a sample) for the phone's preview. */
+    @ReactMethod
+    fun renderCarPreview(promise: Promise) {
+        executor.execute {
+            try {
+                val now = System.currentTimeMillis()
+                var model = CarGlucoseModel.build(CarGlucoseStore.snapshot(reactContext), now)
+                val demo = model.insight.current == null
+                if (demo) model = CarGlucoseModel.demo(now)
+                val file = java.io.File(reactContext.cacheDir, "car-preview-$now.png")
+                reactContext.cacheDir.listFiles { f -> f.name.startsWith("car-preview-") }?.forEach { it.delete() }
+                file.outputStream().use { model.art().compress(Bitmap.CompressFormat.PNG, 100, it) }
+                val rows = Arguments.createArray()
+                model.rows.forEach { (title, text) ->
+                    rows.pushMap(Arguments.createMap().apply {
+                        putString("title", title)
+                        putString("text", text)
+                    })
+                }
+                promise.resolve(Arguments.createMap().apply {
+                    putString("uri", "file://${file.absolutePath}")
+                    putBoolean("demo", demo)
+                    putArray("rows", rows)
+                    putString("zoneColor", String.format("#%06X", 0xFFFFFF and CarGlucoseArt.zoneColor(model.zone)))
+                })
+            } catch (e: Exception) {
+                promise.reject("CAR_PREVIEW", e.message, e)
+            }
+        }
+    }
+
+    private fun toMgDl(value: Double, unit: String?) =
+        if (unit.equals("mg/dL", ignoreCase = true)) value else value * 18.0182
 
     private fun syncHistoryIfPresent(
         reading: ReadableMap,
